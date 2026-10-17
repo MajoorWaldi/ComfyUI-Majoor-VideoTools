@@ -1,7 +1,8 @@
-from comfy_api.latest import io, ui
+from comfy_api.latest import io
 
 from ..adapters.comfy_video import MajoorShotList, MajoorShotMetadata, projects_root, video_file
 from ..core.revisions import DURATION_POLICIES, apply_revision
+from .preview import shots_payload
 
 
 class MajoorApplyShotMetadata(io.ComfyNode):
@@ -28,4 +29,4 @@ class MajoorApplyShotMetadata(io.ComfyNode):
         with video_file(video) as path:
             updated = apply_revision(shot_list, projects_root(), metadata, path, revision_label, activate_new_take, duration_policy)
         shot = updated.get_shot(metadata.shot_id)
-        return io.NodeOutput(updated, ui=ui.PreviewText(f"{shot.shot_id} → {shot.active_revision_id} (revision {updated.project_revision})"))
+        return io.NodeOutput(updated, ui={"text": (f"{shot.shot_id} → {shot.active_revision_id} (revision {updated.project_revision})",), "majoor_shots": [shots_payload(updated)]})

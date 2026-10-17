@@ -1,5 +1,5 @@
 import torch
-from comfy_api.latest import io, ui
+from comfy_api.latest import io
 from comfy_api.latest import VideoFromFile
 
 from ..adapters.comfy_video import MajoorShotList, MajoorShotMetadata, projects_root
@@ -8,6 +8,7 @@ from ..core.media_probe import probe
 from ..core.paths import ProjectStore
 from ..core.revisions import TAKES, find_revision, find_shot, make_metadata, revision_media
 from ..core.timeline import format_timecode, shot_start
+from .preview import shots_payload
 
 SAMPLING = ["first", "middle", "last", "first_middle_last", "uniform"]
 
@@ -55,4 +56,4 @@ class MajoorSelectShot(io.ComfyNode):
             f"{shot.shot_id} · {revision.revision_id} ({revision.status}) · "
             f"{format_timecode(start)}–{format_timecode(start + shot.target_duration_seconds)} · {shot.target_duration_seconds:.2f}s"
         )
-        return io.NodeOutput(VideoFromFile(str(path)), images, make_metadata(shot_list, shot, revision), ui=ui.PreviewText(summary))
+        return io.NodeOutput(VideoFromFile(str(path)), images, make_metadata(shot_list, shot, revision), ui={"text": (summary,), "majoor_shots": [shots_payload(shot_list, clip=store.rel(path), selected=shot.shot_id)]})

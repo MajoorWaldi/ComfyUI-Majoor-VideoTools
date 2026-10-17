@@ -1,5 +1,7 @@
 """Majoor VideoTools: shot detection, selection, non-destructive replacement and reassembly for ComfyUI."""
 # Tests import the package core without ComfyUI installed, so node registration only runs when loaded as a package.
+WEB_DIRECTORY = "./web"
+
 if __package__:
     from typing_extensions import override
     from comfy_api.latest import ComfyExtension, io
