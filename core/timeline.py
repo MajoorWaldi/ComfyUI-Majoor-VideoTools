@@ -13,7 +13,7 @@ def shot_start(source: Source, shot: Shot) -> Fraction:
 
 
 def shot_duration(source: Source, shot: Shot) -> Fraction:
-    if shot.start_pts is not None and shot.end_pts_exclusive is not None:
+    if source.timing_mode == "VFR" and shot.start_pts is not None and shot.end_pts_exclusive is not None:
         return (shot.end_pts_exclusive - shot.start_pts) * source.time_base
     return shot.frame_count / source.fps
 

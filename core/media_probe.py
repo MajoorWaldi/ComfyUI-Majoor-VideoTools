@@ -72,7 +72,7 @@ def probe(path: Path, with_packets: bool = True) -> MediaInfo:
         diffs = [b - a for a, b in zip(pts, pts[1:])]
         if diffs:
             frame_ticks = max(set(diffs), key=diffs.count)
-            cfr = max(diffs) - min(diffs) <= 1
+            cfr = sum(abs(d - frame_ticks) > 1 for d in diffs) <= max(1, len(diffs) // 100)  # tolerate a stray timestamp
         else:
             frame_ticks, cfr = 0, True
         timing_mode = "CFR" if cfr else "VFR"
@@ -80,7 +80,7 @@ def probe(path: Path, with_packets: bool = True) -> MediaInfo:
         if not fps:
             fps = 1 / (time_base * frame_ticks) if frame_ticks else Fraction(25)
         last_ticks = frame_ticks or int(1 / (fps * time_base))
-        duration = (pts[-1] - pts[0] + last_ticks) * time_base
+        duration = Fraction(len(pts)) / fps if cfr else (pts[-1] - pts[0] + last_ticks) * time_base
         frame_count = len(pts)
         first_pts = pts[0]
     else:

@@ -39,4 +39,10 @@ def fixtures(tmp_path_factory) -> dict[str, Path]:
         d / "generated_5s.mp4",
     )
     gen_short = _ffmpeg(["-f", "lavfi", "-i", "smptebars=s=640x360:r=25:d=1", "-c:v", "libx264", "-pix_fmt", "yuv420p"], d / "generated_1s.mp4")
-    return {"hard": hard, "one": one, "gen": gen, "gen_short": gen_short}
+    # 30 fps whose second frame is only a few ms after the first (seen in real phone/editor exports)
+    jitter = _ffmpeg(
+        ["-f", "lavfi", "-i", "testsrc2=s=320x240:r=30:d=3", "-vf", "setpts='if(eq(N,0),0,(N-0.9)/(30*TB))'", "-fps_mode", "passthrough",
+         "-c:v", "libx264", "-pix_fmt", "yuv420p"],
+        d / "jitter_start.mp4",
+    )
+    return {"jitter": jitter, "hard": hard, "one": one, "gen": gen, "gen_short": gen_short}

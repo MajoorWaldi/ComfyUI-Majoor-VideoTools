@@ -212,3 +212,11 @@ def test_t18_concurrent_patches_keep_manifest_valid(fixtures, root, detected):
     store = ProjectStore(root, detected.project_id)
     ShotList.from_dict(store.read_json("manifest.json"))
     assert not list((store.dir / "generated").glob("*.partial"))
+
+
+def test_stray_timestamp_is_still_cfr_and_roundtrips(fixtures, root):
+    sl = detect_scenes(fixtures["jitter"], root, "manual", 0.5, 6, cut_points="30, 60")
+    assert sl.source.timing_mode == "CFR" and not sl.detection.warnings
+    assert sl.source.frame_count == 90
+    res = assemble_shots(sl, root, AssemblyOptions(audio_policy="mute"))
+    assert probe(res.path).frame_count == 90
