@@ -21,7 +21,7 @@ Category: `Majoor/VideoTools`.
 
 ## Previews in the nodes
 
-After a run, **Scene Detect & Split** shows the source video with a timeline of the detected shots (click a segment to jump to it), and **Select Shot** shows a filmstrip of the connected list: click a shot to fill `shot_id`, and the shot plays in the node (the source, until the node has run). The last result is saved with the workflow. These widgets live in `web/majoor_videotools.js` and are optional; the nodes work the same through the API.
+After a run, **Scene Detect & Split** shows the source video with a timeline of the detected shots (click a segment to jump to it), **Shot Assemble** adds a timeline of the final shot order under ComfyUI's own video preview (replaced shots in orange), and **Select Shot** shows a filmstrip of the connected list: click a shot to fill `shot_id`, and the shot plays in the node (the source, until the node has run). The last result is saved with the workflow. These widgets live in `web/majoor_videotools.js` and are optional; the nodes work the same through the API.
 
 ## Behaviour worth knowing
 
@@ -47,6 +47,6 @@ FFmpeg and FFprobe must be on `PATH` (or set `MAJOOR_FFMPEG` / `MAJOOR_FFPROBE` 
 
 Tested here (`python -m pytest tests`, real FFmpeg, 24 fps hard-cut fixtures): detection and manual cuts, cache and ids, selection and sampling, apply / idempotence / restore / concurrent patches, assembly with every duration and audio policy, manual order, missing media, corrupt input.
 
-Not verified yet: execution inside a running ComfyUI (the machine used for development had no torch, so the nodes were only compiled and checked against `comfy_api.latest` source), VFR and rotated fixtures, 4K, Linux, and the preview widgets in a browser (written against the ComfyUI frontend 1.42 API, never run). No example workflow JSON is shipped until one has been run in ComfyUI.
+Not verified yet: execution inside a running ComfyUI (the machine used for development had no torch, so the nodes were only compiled and checked against `comfy_api.latest` source), VFR and rotated fixtures, 4K, Linux, and the preview widgets (three nodes) in a browser (written against the ComfyUI frontend 1.42 API, never run). No example workflow JSON is shipped until one has been run in ComfyUI.
 
 Not implemented: cache TTL/purge, `.mov` beyond a container switch, `shot_audio` crossfades (by design).

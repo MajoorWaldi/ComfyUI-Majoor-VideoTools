@@ -60,6 +60,7 @@ class AssemblyResult:
     duration_seconds: float
     warnings: list[str]
     reused: bool
+    timeline: list[tuple[str, str, float]]  # (shot_id, take, seconds) in output order
 
 
 def parse_manual_order(text: str, shot_list: ShotList) -> list[str]:
@@ -210,6 +211,7 @@ def assemble_shots(
 
     segments = _plan(shot_list, store, opts, fps, warnings)
     total = sum((s.seconds for s in segments), Fraction(0))
+    timeline = [(s.shot.shot_id, s.revision_id, float(s.seconds)) for s in segments]
     width, height = source.width - source.width % 2, source.height - source.height % 2
     modified = sum(1 for s in segments if not s.is_original)
 
@@ -236,7 +238,7 @@ def assemble_shots(
     name = sanitize_name(opts.output_name)
     out = store.resolve(f"exports/{name}_{plan_key[:10]}.{opts.output_format}")
     if out.exists() and _valid(out, total, has_audio):
-        return AssemblyResult(out, len(segments), modified, float(total), warnings, True)
+        return AssemblyResult(out, len(segments), modified, float(total), warnings, True, timeline)
 
     cmd: list[str] = ["-y"]
     for seg in segments:
@@ -264,7 +266,7 @@ def assemble_shots(
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
-    return AssemblyResult(out, len(segments), modified, float(total), warnings, False)
+    return AssemblyResult(out, len(segments), modified, float(total), warnings, False, timeline)
 
 
 def _valid(path: Path, expected: Fraction, want_audio: bool) -> bool:

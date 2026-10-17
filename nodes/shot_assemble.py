@@ -48,4 +48,4 @@ class MajoorShotAssemble(io.ComfyNode):
         summary = f"{result.shot_count} shots · {result.modified_count} modified · {format_timecode(result.duration_seconds)}" + ("\n(reused existing export)" if result.reused else "")
         summary += "".join(f"\n⚠ {w}" for w in result.warnings)
         preview = {"filename": result.path.name, "subfolder": f"{OUTPUT_SUBFOLDER}/{shot_list.project_id}/exports", "type": "output"}
-        return io.NodeOutput(VideoFromFile(str(result.path)), ui={"images": [preview], "animated": (True,), "text": (summary,)})
+        return io.NodeOutput(VideoFromFile(str(result.path)), ui={"images": [preview], "animated": (True,), "text": (summary,), "majoor_assembly": [{"shots": [{"id": i, "take": t, "duration": d} for i, t, d in result.timeline], "warnings": result.warnings}]})

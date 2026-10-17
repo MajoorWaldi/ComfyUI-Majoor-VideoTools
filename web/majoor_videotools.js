@@ -11,6 +11,7 @@ import { api } from "../../scripts/api.js";
 
 const DETECT = "MajoorSceneDetectSplit";
 const SELECT = "MajoorSelectShot";
+const ASSEMBLE = "MajoorShotAssemble";
 const WITH_PAYLOAD = new Set([DETECT, SELECT, "MajoorApplyShotMetadata"]);
 const PROP = "majoor_ui";
 
@@ -23,6 +24,7 @@ const STYLE = `
 .mjr-seg:nth-child(even) { background: var(--comfy-menu-bg, #353535); }
 .mjr-seg:hover { filter: brightness(1.4); }
 .mjr-seg.mjr-on { outline: 2px solid #4a90e2; outline-offset: -2px; }
+.mjr-seg.mjr-mod { background: #7a5a22; }
 .mjr-head { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff5a4d; pointer-events: none; }
 .mjr-strip { display: flex; flex-wrap: wrap; gap: 4px; max-height: 190px; overflow-y: auto; }
 .mjr-card { box-sizing: border-box; width: 92px; padding: 3px; display: flex; flex-direction: column; gap: 2px; background: var(--comfy-input-bg, #222); color: inherit; border: 2px solid transparent; border-radius: 4px; font: inherit; font-size: 10px; cursor: pointer; text-align: left; }
@@ -285,6 +287,36 @@ function setupSelect(node) {
   })(node.onRemoved);
 }
 
+// ---- Shot Assemble: output timeline (the video itself is ComfyUI's standard preview) -------------------------
+
+function setupAssemble(node) {
+  const root = el("div", "mjr-root");
+  const bar = el("div", "mjr-bar");
+  const info = el("div", "mjr-info", "Run the graph to see the final shot order.");
+  root.append(bar, info);
+  mountWidget(node, "assembly_timeline", root, () => 30 + 6 + info.textContent.split("
+").length * 16 + 8);
+
+  node._mjrRenderAssembly = (a) => {
+    const total = a.shots.reduce((sum, s) => sum + s.duration, 0);
+    let at = 0;
+    bar.replaceChildren();
+    for (const s of a.shots) {
+      const seg = el("button", s.take === "original" ? "mjr-seg" : "mjr-seg mjr-mod", s.id.replace("SHOT_", ""));
+      seg.type = "button";
+      seg.style.left = `${(at / total) * 100}%`;
+      seg.style.width = `${(s.duration / total) * 100}%`;
+      seg.title = `${s.id} · ${s.take} · ${fmt(at)}–${fmt(at + s.duration)}`;
+      bar.appendChild(seg);
+      at += s.duration;
+    }
+    const changed = a.shots.filter((s) => s.take !== "original").length;
+    info.textContent = [`${a.shots.length} shots · ${changed} replaced · ${fmt(total)}`, ...a.warnings.map((w) => `⚠ ${w}`)].join("
+");
+    growTo(node, node.computeSize()[1]);
+  };
+}
+
 function refreshAll() {
   for (const n of app.graph?._nodes ?? []) n._mjrRefresh?.();
 }
@@ -299,6 +331,9 @@ app.registerExtension({
     } else if (node.comfyClass === SELECT) {
       addStyle();
       setupSelect(node);
+    } else if (node.comfyClass === ASSEMBLE) {
+      addStyle();
+      setupAssemble(node);
     }
   },
 
@@ -306,6 +341,7 @@ app.registerExtension({
   loadedGraphNode(node) {
     const p = saved(node);
     if (p && node.comfyClass === DETECT) node._mjrRender?.(p);
+    if (node.properties?.majoor_assembly && node.comfyClass === ASSEMBLE) node._mjrRenderAssembly?.(node.properties.majoor_assembly);
   },
 
   afterConfigureGraph() {
@@ -319,6 +355,16 @@ app.registerExtension({
 
   setup() {
     api.addEventListener("executed", ({ detail }) => {
+      const assembly = detail?.output?.majoor_assembly?.[0];
+      if (assembly) {
+        const target = app.graph?.getNodeById(detail.display_node ?? detail.node);
+        if (target?.comfyClass === ASSEMBLE) {
+          target.properties = target.properties || {};
+          target.properties.majoor_assembly = assembly;
+          target._mjrRenderAssembly?.(assembly);
+        }
+        return;
+      }
       const payload = detail?.output?.majoor_shots?.[0];
       if (!payload) return;
       const node = app.graph?.getNodeById(detail.display_node ?? detail.node);
