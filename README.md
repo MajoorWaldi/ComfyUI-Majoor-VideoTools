@@ -12,7 +12,7 @@ Load Video → Scene Detect & Split → Select Shot ─┬─ video / images →
 
 Category: `Majoor/VideoTools`.
 
-A fifth utility node, **Majoor Compare Video**, is not part of the chain: connect any two `VIDEO`s (for example a shot's original and its generated take) and it plays them in sync inside the node, as a wipe slider (drag on the video) or side by side, with the size / fps / duration of each and a warning when they differ.
+Two utility nodes sit outside the chain. **Majoor Preview Video** previews a `VIDEO` or an `IMAGE` batch (with its `fps`), with optional `AUDIO`, inside the node; nothing is written to the output folder. **Majoor Compare Video** is not part of the chain: connect any two `VIDEO`s (for example a shot's original and its generated take) and it plays them in sync inside the node, as a wipe slider (drag on the video) or side by side, with the size / fps / duration of each and a warning when they differ.
 
 | Node | Output | Role |
 |---|---|---|

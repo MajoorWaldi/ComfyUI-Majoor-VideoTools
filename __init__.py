@@ -8,6 +8,7 @@ if __package__:
 
     from .nodes.apply_shot_metadata import MajoorApplyShotMetadata
     from .nodes.compare_video import MajoorCompareVideo
+    from .nodes.preview_video import MajoorPreviewVideo
     from .nodes.scene_detect_split import MajoorSceneDetectSplit
     from .nodes.select_shot import MajoorSelectShot
     from .nodes.shot_assemble import MajoorShotAssemble
@@ -15,7 +16,7 @@ if __package__:
     class MajoorVideoToolsExtension(ComfyExtension):
         @override
         async def get_node_list(self) -> list[type[io.ComfyNode]]:
-            return [MajoorSceneDetectSplit, MajoorSelectShot, MajoorApplyShotMetadata, MajoorShotAssemble, MajoorCompareVideo]
+            return [MajoorSceneDetectSplit, MajoorSelectShot, MajoorApplyShotMetadata, MajoorShotAssemble, MajoorCompareVideo, MajoorPreviewVideo]
 
     async def comfy_entrypoint() -> MajoorVideoToolsExtension:
         return MajoorVideoToolsExtension()
