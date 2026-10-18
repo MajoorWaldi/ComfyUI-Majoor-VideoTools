@@ -12,14 +12,14 @@ Load Video → Scene Detect & Split → Select Shot ─┬─ video / images →
 
 Category: `Majoor/VideoTools`.
 
-Two utility nodes sit outside the chain. **Majoor Preview Video** previews a `VIDEO` or an `IMAGE` batch (with its `fps`), with optional `AUDIO`, inside the node; nothing is written to the output folder. **Majoor Compare Video** is not part of the chain: connect any two `VIDEO`s (for example a shot's original and its generated take) and it plays them in sync inside the node, as a wipe slider (drag on the video) or side by side, with the size / fps / duration of each and a warning when they differ.
+Two utility nodes sit outside the chain. **Preview Video** previews a `VIDEO` or an `IMAGE` batch (with its `fps`), with optional `AUDIO`, inside the node; nothing is written to the output folder. **Compare Video** is not part of the chain: connect any two `VIDEO`s (for example a shot's original and its generated take) and it plays them in sync inside the node, as a wipe slider (drag on the video) or side by side, with the size / fps / duration of each and a warning when they differ.
 
 | Node | Output | Role |
 |---|---|---|
-| Majoor Scene Detect & Split | `shot_list` | PySceneDetect (adaptive / content / threshold_fade) or manual `cut_points`. Writes a manifest, no clip is encoded. |
-| Majoor Select Shot | `video`, `images`, `metadata` | Pick a shot by `shot_id` (or `index`) and a take. The clip is cut frame-accurately on first use and cached. |
-| Majoor Apply Shot Metadata | `updated_shot_list` | Stores a generated video as a new take of the shot. Returns a new list; earlier lists and takes are kept. |
-| Majoor Shot Assemble | `video` | Rebuilds the video from the active take of every shot (original order or `manual_order`). |
+| Scene Detect & Split | `shot_list` | PySceneDetect (adaptive / content / threshold_fade) or manual `cut_points`. Writes a manifest, no clip is encoded. |
+| Select Shot | `video`, `images`, `metadata` | Pick a shot by `shot_id` (or `index`) and a take. The clip is cut frame-accurately on first use and cached. |
+| Apply Shot Metadata | `updated_shot_list` | Stores a generated video as a new take of the shot. Returns a new list; earlier lists and takes are kept. |
+| Shot Assemble | `video` | Rebuilds the video from the active take of every shot (original order or `manual_order`). |
 
 ## Previews in the nodes
 

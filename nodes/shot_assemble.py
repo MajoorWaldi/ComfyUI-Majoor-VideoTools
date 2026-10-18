@@ -14,7 +14,7 @@ class MajoorShotAssemble(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             node_id="MajoorShotAssemble",
-            display_name="Majoor Shot Assemble",
+            display_name="Shot Assemble",
             category="Majoor/VideoTools",
             description="Rebuild a video from the active take of every shot. Untouched shots are kept as they are.",
             is_output_node=True,

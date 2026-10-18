@@ -10,7 +10,7 @@ class MajoorCompareVideo(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             node_id="MajoorCompareVideo",
-            display_name="Majoor Compare Video",
+            display_name="Compare Video",
             category="Majoor/VideoTools",
             description="Play two videos in sync inside the node, with a wipe slider or side by side.",
             is_output_node=True,

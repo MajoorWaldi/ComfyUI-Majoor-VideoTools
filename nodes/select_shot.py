@@ -18,7 +18,7 @@ class MajoorSelectShot(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             node_id="MajoorSelectShot",
-            display_name="Majoor Select Shot",
+            display_name="Select Shot",
             category="Majoor/VideoTools",
             has_intermediate_output=True,
             description="Expose one shot (or one of its takes) as VIDEO, sample IMAGEs and identity metadata.",

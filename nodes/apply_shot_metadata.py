@@ -10,7 +10,7 @@ class MajoorApplyShotMetadata(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             node_id="MajoorApplyShotMetadata",
-            display_name="Majoor Apply Shot Metadata",
+            display_name="Apply Shot Metadata",
             category="Majoor/VideoTools",
             has_intermediate_output=True,
             description="Attach a generated video to its shot as a new take. Returns an updated copy of the shot list.",

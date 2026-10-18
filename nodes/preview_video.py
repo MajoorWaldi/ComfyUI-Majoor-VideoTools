@@ -12,7 +12,7 @@ class MajoorPreviewVideo(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             node_id="MajoorPreviewVideo",
-            display_name="Majoor Preview Video",
+            display_name="Preview Video",
             category="Majoor/VideoTools",
             description="Preview a VIDEO, or an IMAGE batch, with optional audio. Nothing is saved to the output folder.",
             is_output_node=True,

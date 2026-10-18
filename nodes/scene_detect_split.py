@@ -11,7 +11,7 @@ class MajoorSceneDetectSplit(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             node_id="MajoorSceneDetectSplit",
-            display_name="Majoor Scene Detect & Split",
+            display_name="Scene Detect & Split",
             category="Majoor/VideoTools",
             description="Detect shot boundaries and index the video as a persistent shot collection. No clip is encoded.",
             is_output_node=True,
