@@ -12,6 +12,8 @@ Load Video → Scene Detect & Split → Select Shot ─┬─ video / images →
 
 Category: `Majoor/VideoTools`.
 
+A fifth utility node, **Majoor Compare Video**, is not part of the chain: connect any two `VIDEO`s (for example a shot's original and its generated take) and it plays them in sync inside the node, as a wipe slider (drag on the video) or side by side, with the size / fps / duration of each and a warning when they differ.
+
 | Node | Output | Role |
 |---|---|---|
 | Majoor Scene Detect & Split | `shot_list` | PySceneDetect (adaptive / content / threshold_fade) or manual `cut_points`. Writes a manifest, no clip is encoded. |
@@ -45,7 +47,7 @@ FFmpeg and FFprobe must be on `PATH` (or set `MAJOOR_FFMPEG` / `MAJOOR_FFPROBE` 
 
 ## Status
 
-Tested here (`python -m pytest tests`, real FFmpeg, 24 fps hard-cut fixtures): detection and manual cuts, cache and ids, selection and sampling, apply / idempotence / restore / concurrent patches, assembly with every duration and audio policy, manual order, missing media, corrupt input.
+Tested here (`python -m pytest tests`, plus `node tests/web/run.mjs` for the widgets against a fake DOM, real FFmpeg, 24 fps hard-cut fixtures): detection and manual cuts, cache and ids, selection and sampling, apply / idempotence / restore / concurrent patches, assembly with every duration and audio policy, manual order, missing media, corrupt input.
 
 Not verified yet: execution inside a running ComfyUI (the machine used for development had no torch, so the nodes were only compiled and checked against `comfy_api.latest` source), VFR and rotated fixtures, 4K, Linux, and the preview widgets (three nodes) in a browser (written against the ComfyUI frontend 1.42 API, never run). No example workflow JSON is shipped until one has been run in ComfyUI.
 
