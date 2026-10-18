@@ -14,6 +14,7 @@ class MajoorSceneDetectSplit(io.ComfyNode):
             display_name="Majoor Scene Detect & Split",
             category="Majoor/VideoTools",
             description="Detect shot boundaries and index the video as a persistent shot collection. No clip is encoded.",
+            is_output_node=True,
             inputs=[
                 io.Video.Input("video"),
                 io.Combo.Input("detection_mode", options=list(MODES), default="adaptive", tooltip="threshold_fade proposes cuts around fades to black; manual uses cut_points only."),
