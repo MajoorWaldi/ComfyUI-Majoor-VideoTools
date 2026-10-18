@@ -35,10 +35,13 @@ class MajoorPreviewVideo(io.ComfyNode):
             return io.NodeOutput(ui=ui.PreviewVideo([ui.SavedResult(ref["file"], ref["folder"], io.FolderType(ref["kind"]))]))
 
         if images is not None:
-            components = VideoComponents(images=images, frame_rate=Fraction(fps).limit_denominator(1001), audio=audio)
+            frame_rate = Fraction(fps).limit_denominator(1001)
         else:
             source = video.get_components()
-            components = VideoComponents(images=source.images, frame_rate=source.frame_rate, audio=audio)
+            images, frame_rate = source.images, source.frame_rate
+        # yuv420p H.264 needs even dimensions: drop the odd last row/column instead of failing
+        height, width = images.shape[1:3]
+        components = VideoComponents(images=images[:, : height - height % 2, : width - width % 2], frame_rate=frame_rate, audio=audio)
 
         folder, name, counter, subfolder, _ = folder_paths.get_save_image_path("MajoorPreview", folder_paths.get_temp_directory(), 0, 0)
         file = f"{name}_{counter:05}_.mp4"
