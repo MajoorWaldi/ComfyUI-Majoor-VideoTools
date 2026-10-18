@@ -10,7 +10,7 @@ fs.mkdirSync(path.join(root, "ext/web"), { recursive: true });
 fs.writeFileSync(path.join(root, "package.json"), '{"type":"module"}');
 fs.writeFileSync(path.join(root, "scripts/app.js"), `export const app = { exts: [], graph: { _nodes: [], getNodeById(id) { return this._nodes.find(n => n.id == id); }, setDirtyCanvas() {} }, registerExtension(e) { this.exts.push(e); } };`);
 fs.writeFileSync(path.join(root, "scripts/api.js"), `const listeners = {}; export const api = { apiURL: (r) => "/api" + r, addEventListener(n, f) { (listeners[n] ||= []).push(f); }, emit(n, detail) { (listeners[n] || []).forEach(f => f({ detail })); } };`);
-fs.copyFileSync(new URL("../../web/majoor_videotools.js", import.meta.url), path.join(root, "ext/web/majoor_videotools.js"));
+for (const f of ["majoor_videotools.js", "majoor_media.js"]) fs.copyFileSync(new URL(`../../web/${f}`, import.meta.url), path.join(root, "ext/web", f));
 const load = (p) => import(pathToFileURL(path.join(root, p)).href);
 
 function mk(tag) {
@@ -26,7 +26,10 @@ globalThis.URLSearchParams = URLSearchParams;
 const { app } = await load("scripts/app.js");
 const { api } = await load("scripts/api.js");
 await load("ext/web/majoor_videotools.js");
-const ext = app.exts[0];
+await load("ext/web/majoor_media.js");
+const call = (hook, ...args) => app.exts.forEach((e) => e[hook]?.(...args));
+app.nodeOutputs = {};
+app.graph._links = { get: () => ({ origin_slot: 0 }) };
 function node(cls, id, inputs = [], widgets = []) {
   const n = { comfyClass: cls, id, size: [400, 300], properties: {}, inputs, widgets, graph: app.graph,
     addDOMWidget(name, type, el, opts) { const w = { name, type, el, opts }; n.widgets.push(w); n.domOpts = opts; return w; },
@@ -38,11 +41,18 @@ const apply = node("MajoorApplyShotMetadata", 2, [{ name: "shot_list", link: 1 }
 const sel = node("MajoorSelectShot", 3, [{ name: "shot_list", link: 4 }], [{ name: "shot_id", value: "SHOT_002", callback() {} }]);
 const asm = node("MajoorShotAssemble", 4, [{ name: "shot_list", link: 5 }]);
 const other = node("SaveImage", 5);
-const cmp = node("MajoorCompareVideo", 6, [], [{ name: "mode", value: "wipe", callback() {} }, { name: "label_a", value: "orig" }, { name: "label_b", value: "gen" }]);
+const loadVideo = node("LoadVideo", 7, [], [{ name: "file", value: "clips/live.mp4 [input]" }]);
+const stills = node("PreviewImage", 8);
+const prevV = node("MajoorPreviewVideo", 9, [{ name: "video", link: 9 }, { name: "images", link: null }, { name: "audio", link: null }], [{ name: "fps", value: 12 }]);
+const prevI = node("MajoorPreviewVideo", 10, [{ name: "video", link: null }, { name: "images", link: 10 }, { name: "audio", link: null }], [{ name: "fps", value: 12 }]);
+prevV._up = { 0: loadVideo }; prevI._up = { 1: stills };
+app.nodeOutputs["8"] = { images: [{ filename: "f1.png", subfolder: "", type: "temp" }, { filename: "f2.png", subfolder: "", type: "temp" }] };
+const cmp = node("MajoorCompareVideo", 6, [{ name: "video_a", link: 11 }, { name: "video_b", link: null }], [{ name: "mode", value: "wipe", callback() {} }, { name: "label_a", value: "orig" }, { name: "label_b", value: "gen" }]);
 apply._up = { 0: detect }; sel._up = { 0: apply };
-app.graph._nodes = [detect, apply, sel, asm, other, cmp];
-for (const n of app.graph._nodes) ext.nodeCreated(n);
-ext.setup();
+cmp._up = { 0: loadVideo };
+app.graph._nodes = [detect, apply, sel, asm, other, cmp, loadVideo, stills, prevV, prevI];
+for (const n of app.graph._nodes) call("nodeCreated", n);
+call("setup");
 console.log("DOM widgets on other node:", other.widgets.length, "| detect:", detect.widgets.length, "sel:", sel.widgets.length, "asm:", asm.widgets.length);
 const payload = { base: "MajoorVideoTools/p_1", revision: 1, source: { file: "sources/source.mp4", fps: 30, duration: 26, width: 1812, height: 970 },
   shots: [0, 1, 2].map(i => ({ id: `SHOT_00${i + 1}`, start: i * 2, duration: 2, frames: 60, thumb: `cache/thumbnails/SHOT_00${i + 1}.jpg`, active: i == 1 ? "take_001" : "original", takes: ["original"] })) };
@@ -55,15 +65,20 @@ api.emit("executed", { node: "6", output: { majoor_compare: [{ a: ref("a.mp4", 9
 cmp.widgets.find((w) => w.name === "mode").value = "side_by_side";
 cmp.widgets.find((w) => w.name === "mode").callback();
 api.emit("executed", { node: "5", output: { images: [{ filename: "a.png" }] } });
-ext.afterConfigureGraph(); await new Promise(r => setTimeout(r, 20));
-ext.loadedGraphNode(detect); ext.loadedGraphNode(asm); ext.loadedGraphNode(other);
+call("afterConfigureGraph"); await new Promise(r => setTimeout(r, 20));
+call("loadedGraphNode", detect); call("loadedGraphNode", asm); call("loadedGraphNode", other);
 console.log("heights:", detect.domOpts.getMinHeight(), sel.domOpts.getMinHeight(), asm.domOpts.getMinHeight());
 console.log("detect segs:", detect.widgets[0].el.children[1].children.length, "| select cards:", sel.widgets.find(w => w.name === "shots_picker").el.children[0].children.length, "| asm segs:", asm.widgets[0].el.children[0].children.length);
 console.log("other props:", JSON.stringify(other.properties));
-const view = cmp.widgets.find((w) => w.name === "compare_view").el;
-const stage = view.children[0];
-const compareOk = stage.className === "mjr-stage" && stage._cls.has("mjr-side") && !stage._cls.has("mjr-wipe") && stage.children[0].dataset.src.includes("a.mp4") && stage.children[1].dataset.src.includes("b.mp4") && view.children[2].textContent.includes("different sizes") && cmp.properties.majoor_compare;
-const ok = compareOk && detect.widgets[0].el.children[1].children.length === 4 && sel.widgets.find((w) => w.name === "shots_picker").el.children[0].children.length === 3 && asm.widgets[0].el.children[0].children.length === 2 && other.widgets.length === 0;
+await new Promise((r) => setTimeout(r, 20));
+const stage = cmp.widgets.find((w) => w.name === "compare_view").el.children[0];
+const compareOk = stage._cls.has("mjr-side") && !stage._cls.has("mjr-wipe") && stage.children[0].dataset.src.includes("clip") && stage.children[0].dataset.src.includes("type=input") && stage.children[1].dataset.src.includes("b.mp4") && cmp.properties.majoor_compare;
+const pv = prevV.widgets.find((w) => w.name === "preview_view").el.children[0];
+const pi = prevI.widgets.find((w) => w.name === "preview_view").el.children[0];
+const previewOk = pv.children[0].dataset.src.includes("clips") && pv.children[0].dataset.src.includes("live.mp4") && pi.children[1].src.includes("f1.png") && prevI.widgets[1].el.children[2].textContent.includes("2 images");
+console.log("compare:", !!compareOk, "| preview video live:", pv.children[0].dataset.src, "| preview images:", pi.children[1].src);
+const ok = compareOk && previewOk && detect.widgets[0].el.children[1].children.length === 4 && sel.widgets.find((w) => w.name === "shots_picker").el.children[0].children.length === 3 && asm.widgets[0].el.children[0].children.length === 2 && other.widgets.length === 0;
 if (!ok) { console.error("FAILED"); process.exit(1); }
 console.log("web widgets ok");
 fs.rmSync(root, { recursive: true, force: true });
+process.exit(0);

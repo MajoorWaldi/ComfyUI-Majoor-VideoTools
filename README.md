@@ -23,7 +23,7 @@ Two utility nodes sit outside the chain. **Majoor Preview Video** previews a `VI
 
 ## Previews in the nodes
 
-After a run, **Scene Detect & Split** shows the source video with a timeline of the detected shots (click a segment to jump to it), **Shot Assemble** adds a timeline of the final shot order under ComfyUI's own video preview (replaced shots in orange), and **Select Shot** shows a filmstrip of the connected list: click a shot to fill `shot_id`, and the shot plays in the node (the source, until the node has run). The last result is saved with the workflow. These widgets live in `web/majoor_videotools.js` and are optional; the nodes work the same through the API.
+After a run, **Scene Detect & Split** shows the source video with a timeline of the detected shots (click a segment to jump to it), **Shot Assemble** adds a timeline of the final shot order under ComfyUI's own video preview (replaced shots in orange), and **Select Shot** shows a filmstrip of the connected list: click a shot to fill `shot_id`, and the shot plays in the node (the source, until the node has run). The last result is saved with the workflow. **Preview Video** and **Compare Video** read what is connected to them without running the graph (a Load Video file, a Select Shot clip, or the last output of any upstream node that has a preview) and update when the connection or the upstream file changes; otherwise they show the result of the last run. The widgets live in `web/` and are optional; the nodes work the same through the API.
 
 ## Behaviour worth knowing
 

@@ -20,6 +20,7 @@ class MajoorSelectShot(io.ComfyNode):
             node_id="MajoorSelectShot",
             display_name="Majoor Select Shot",
             category="Majoor/VideoTools",
+            has_intermediate_output=True,
             description="Expose one shot (or one of its takes) as VIDEO, sample IMAGEs and identity metadata.",
             inputs=[
                 MajoorShotList.Input("shot_list"),

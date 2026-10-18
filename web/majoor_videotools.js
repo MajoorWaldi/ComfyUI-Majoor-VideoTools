@@ -12,7 +12,6 @@ import { api } from "../../scripts/api.js";
 const DETECT = "MajoorSceneDetectSplit";
 const SELECT = "MajoorSelectShot";
 const ASSEMBLE = "MajoorShotAssemble";
-const COMPARE = "MajoorCompareVideo";
 const WITH_PAYLOAD = new Set([DETECT, SELECT, "MajoorApplyShotMetadata"]);
 const PROP = "majoor_ui";
 
@@ -44,10 +43,12 @@ const STYLE = `
 .mjr-controls { display: flex; align-items: center; gap: 6px; flex: 0 0 24px; }
 .mjr-controls button { flex: 0 0 auto; width: 28px; height: 22px; padding: 0; background: var(--comfy-input-bg, #222); color: inherit; border: 1px solid var(--border-color, #444); border-radius: 4px; cursor: pointer; }
 .mjr-controls input[type=range] { flex: 1 1 auto; min-width: 0; }
+.mjr-stage.mjr-single .mjr-video, .mjr-stage.mjr-single .mjr-frame { grid-area: 1 / 1; }
+.mjr-frame { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .mjr-controls span { flex: 0 0 auto; opacity: .75; font-variant-numeric: tabular-nums; }
 `;
 
-function addStyle() {
+export function addStyle() {
   if (document.getElementById("mjr-style")) return;
   const style = document.createElement("style");
   style.id = "mjr-style";
@@ -55,26 +56,26 @@ function addStyle() {
   document.head.appendChild(style);
 }
 
-function el(tag, cls, text) {
+export function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
   if (text !== undefined) e.textContent = text;
   return e;
 }
 
-function viewURL(payload, rel) {
+export function viewURL(payload, rel) {
   const cut = rel.lastIndexOf("/");
   const sub = [payload.base, cut >= 0 ? rel.slice(0, cut) : ""].filter(Boolean).join("/");
   const params = new URLSearchParams({ filename: rel.slice(cut + 1), subfolder: sub, type: "output" });
   return api.apiURL(`/view?${params}`);
 }
 
-function fmt(seconds) {
+export function fmt(seconds) {
   const m = Math.floor(seconds / 60);
   return `${String(m).padStart(2, "0")}:${(seconds - m * 60).toFixed(1).padStart(4, "0")}`;
 }
 
-function saved(node) {
+export function saved(node) {
   return node.properties?.[PROP] ?? null;
 }
 
@@ -94,12 +95,12 @@ function upstreamPayload(node) {
   return saved(node);
 }
 
-function growTo(node, minHeight) {
+export function growTo(node, minHeight) {
   node.setSize([Math.max(node.size[0], 340), Math.max(node.size[1], minHeight)]);
   app.graph?.setDirtyCanvas(true, true);
 }
 
-function mountWidget(node, name, root, height) {
+export function mountWidget(node, name, root, height) {
   const wd = node.addDOMWidget(name, "majoorWidget", root, {
     serialize: false,
     hideOnZoom: false,
@@ -327,153 +328,6 @@ function setupAssemble(node) {
   };
 }
 
-// ---- Compare Video: two videos played in sync, wipe or side by side -----------------------------------------
-
-function setupCompare(node) {
-  const root = el("div", "mjr-root");
-  const stage = el("div", "mjr-stage");
-  const makeVideo = () => {
-    const v = el("video", "mjr-video");
-    v.muted = true;
-    v.preload = "auto";
-    v.playsInline = true;
-    return v;
-  };
-  const a = makeVideo();
-  const b = makeVideo();
-  const divider = el("div", "mjr-divider");
-  const tagA = el("div", "mjr-label");
-  const tagB = el("div", "mjr-label");
-  stage.append(a, b, divider, tagA, tagB);
-  const play = el("button", null, "▶");
-  play.type = "button";
-  const scrub = el("input");
-  scrub.type = "range";
-  scrub.min = "0";
-  scrub.max = "1000";
-  scrub.value = "0";
-  const clock = el("span", null, "00:00.0");
-  const controls = el("div", "mjr-controls");
-  controls.append(play, scrub, clock);
-  const info = el("div", "mjr-info", "Run the graph to compare the two videos.");
-  root.append(stage, controls, info);
-
-  let data = null;
-  let split = 0.5;
-  const widget = (name) => node.widgets?.find((w) => w.name === name);
-  const sideBySide = () => widget("mode")?.value === "side_by_side";
-
-  const height = () => {
-    if (!data) return 44;
-    const w = node.size[0] - 20;
-    const ratio = data.a.height / data.a.width || 9 / 16;
-    const stageH = Math.min(Math.max((sideBySide() ? w / 2 : w) * ratio, 90), 420);
-    return Math.round(stageH + 24 + info.textContent.split("\n").length * 16 + 18);
-  };
-  mountWidget(node, "compare_view", root, height);
-
-  const layout = () => {
-    const side = sideBySide();
-    stage.classList.toggle("mjr-side", side);
-    stage.classList.toggle("mjr-wipe", !side);
-    divider.style.display = side ? "none" : "";
-    b.style.clipPath = side ? "" : `inset(0 0 0 ${split * 100}%)`;
-    divider.style.left = `${split * 100}%`;
-    tagA.textContent = widget("label_a")?.value ?? "A";
-    tagB.textContent = widget("label_b")?.value ?? "B";
-    tagA.style.left = "4px";
-    tagA.style.right = "";
-    tagB.style.left = side ? "calc(50% + 6px)" : "";
-    tagB.style.right = side ? "" : "4px";
-    app.graph?.setDirtyCanvas(true, true);
-  };
-  for (const name of ["mode", "label_a", "label_b"]) {
-    const w = widget(name);
-    if (!w) continue;
-    const prev = w.callback;
-    w.callback = function () {
-      const r = prev?.apply(this, arguments);
-      layout();
-      growTo(node, node.computeSize()[1]);
-      return r;
-    };
-  }
-
-  const duration = () => a.duration || data?.a.duration || 0;
-  const paint = () => {
-    const d = duration();
-    if (d) scrub.value = String(Math.round((a.currentTime / d) * 1000));
-    clock.textContent = fmt(a.currentTime);
-  };
-  const seek = (t) => {
-    a.currentTime = t;
-    b.currentTime = t;
-    paint();
-  };
-  play.addEventListener("click", () => {
-    if (a.paused) {
-      if (a.ended) seek(0);
-      a.play();
-      b.play();
-    } else {
-      a.pause();
-      b.pause();
-    }
-  });
-  a.addEventListener("play", () => { play.textContent = "⏸"; });
-  a.addEventListener("pause", () => { play.textContent = "▶"; });
-  a.addEventListener("timeupdate", () => {
-    if (Math.abs(b.currentTime - a.currentTime) > 0.15) b.currentTime = a.currentTime;
-    paint();
-  });
-  a.addEventListener("ended", () => b.pause());
-  scrub.addEventListener("input", () => seek((Number(scrub.value) / 1000) * duration()));
-
-  let dragging = false;
-  const move = (e) => {
-    const rect = stage.getBoundingClientRect();
-    split = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
-    layout();
-  };
-  stage.addEventListener("pointerdown", (e) => {
-    if (sideBySide()) return;
-    dragging = true;
-    stage.setPointerCapture?.(e.pointerId);
-    move(e);
-  });
-  stage.addEventListener("pointermove", (e) => { if (dragging) move(e); });
-  stage.addEventListener("pointerup", () => { dragging = false; });
-
-  node._mjrRenderCompare = (d) => {
-    data = d;
-    for (const [video, ref] of [[a, d.a], [b, d.b]]) {
-      const url = api.apiURL(`/view?${new URLSearchParams({ filename: ref.file, subfolder: ref.folder, type: ref.kind })}`);
-      if (video.dataset.src !== url) {
-        video.dataset.src = url;
-        video.src = url;
-      }
-    }
-    const line = (name, r) => `${name}: ${r.width}x${r.height} · ${r.fps.toFixed(3)} fps · ${fmt(r.duration)}`;
-    const lines = [line("A", d.a), line("B", d.b)];
-    if (d.a.width !== d.b.width || d.a.height !== d.b.height) lines.push("⚠ different sizes");
-    if (Math.abs(d.a.fps - d.b.fps) > 0.01) lines.push("⚠ different frame rates: playback stays in sync by time, not by frame");
-    if (Math.abs(d.a.duration - d.b.duration) > 0.05) lines.push("⚠ different durations");
-    info.textContent = lines.join("\n");
-    layout();
-    growTo(node, node.computeSize()[1]);
-  };
-
-  node.onRemoved = ((prev) => function () {
-    for (const v of [a, b]) {
-      v.pause();
-      v.removeAttribute("src");
-      v.load();
-    }
-    return prev?.apply(this, arguments);
-  })(node.onRemoved);
-  layout();
-}
-
 function refreshAll() {
   for (const n of app.graph?._nodes ?? []) n._mjrRefresh?.();
 }
@@ -491,9 +345,6 @@ app.registerExtension({
     } else if (node.comfyClass === ASSEMBLE) {
       addStyle();
       setupAssemble(node);
-    } else if (node.comfyClass === COMPARE) {
-      addStyle();
-      setupCompare(node);
     }
   },
 
@@ -502,7 +353,6 @@ app.registerExtension({
     const p = saved(node);
     if (p && node.comfyClass === DETECT) node._mjrRender?.(p);
     if (node.properties?.majoor_assembly && node.comfyClass === ASSEMBLE) node._mjrRenderAssembly?.(node.properties.majoor_assembly);
-    if (node.properties?.majoor_compare && node.comfyClass === COMPARE) node._mjrRenderCompare?.(node.properties.majoor_compare);
   },
 
   afterConfigureGraph() {
@@ -516,16 +366,6 @@ app.registerExtension({
 
   setup() {
     api.addEventListener("executed", ({ detail }) => {
-      const compare = detail?.output?.majoor_compare?.[0];
-      if (compare) {
-        const target = app.graph?.getNodeById(detail.display_node ?? detail.node);
-        if (target?.comfyClass === COMPARE) {
-          target.properties = target.properties || {};
-          target.properties.majoor_compare = compare;
-          target._mjrRenderCompare?.(compare);
-        }
-        return;
-      }
       const assembly = detail?.output?.majoor_assembly?.[0];
       if (assembly) {
         const target = app.graph?.getNodeById(detail.display_node ?? detail.node);

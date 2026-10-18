@@ -12,6 +12,7 @@ class MajoorApplyShotMetadata(io.ComfyNode):
             node_id="MajoorApplyShotMetadata",
             display_name="Majoor Apply Shot Metadata",
             category="Majoor/VideoTools",
+            has_intermediate_output=True,
             description="Attach a generated video to its shot as a new take. Returns an updated copy of the shot list.",
             inputs=[
                 MajoorShotList.Input("shot_list"),

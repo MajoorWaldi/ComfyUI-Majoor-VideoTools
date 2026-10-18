@@ -37,6 +37,24 @@ def video_file(video):
         tmp.unlink(missing_ok=True)
 
 
+def media_ref(path: Path, kind: str, base: Path) -> dict:
+    """Reference to a file under output/input/temp for the frontend widgets.
+
+    Uses 'file'/'folder'/'kind' instead of filename/subfolder/type: ComfyUI registers entries with those keys as assets.
+    """
+    info = probe(path, with_packets=False)
+    folder = path.parent.relative_to(base).as_posix()
+    return {
+        "file": path.name,
+        "folder": "" if folder == "." else folder,
+        "kind": kind,
+        "width": info.display_size[0],
+        "height": info.display_size[1],
+        "fps": float(info.fps),
+        "duration": float(info.duration),
+    }
+
+
 def preview_ref(video) -> dict:
     """Make a VIDEO viewable through /view. Files already in output/input are referenced, anything else is copied to temp."""
     with video_file(video) as path:
@@ -57,15 +75,4 @@ def preview_ref(video) -> dict:
                 shutil.copy2(path, tmp)
                 tmp.replace(dest)
             path = dest
-        info = probe(path, with_packets=False)
-    folder = path.parent.relative_to(base).as_posix()
-    # 'file'/'folder'/'kind' instead of filename/subfolder/type: ComfyUI registers entries with those keys as assets.
-    return {
-        "file": path.name,
-        "folder": "" if folder == "." else folder,
-        "kind": kind,
-        "width": info.display_size[0],
-        "height": info.display_size[1],
-        "fps": float(info.fps),
-        "duration": float(info.duration),
-    }
+        return media_ref(path, kind, base)

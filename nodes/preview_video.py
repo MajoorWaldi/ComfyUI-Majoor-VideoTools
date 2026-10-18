@@ -1,10 +1,10 @@
-import os
 from fractions import Fraction
+from pathlib import Path
 
 import folder_paths
-from comfy_api.latest import VideoComponents, VideoContainer, VideoFromComponents, io, ui
+from comfy_api.latest import VideoComponents, VideoContainer, VideoFromComponents, io
 
-from ..adapters.comfy_video import preview_ref
+from ..adapters.comfy_video import media_ref, preview_ref
 
 
 class MajoorPreviewVideo(io.ComfyNode):
@@ -31,9 +31,7 @@ class MajoorPreviewVideo(io.ComfyNode):
             raise ValueError("Connect either video or images (not both, not neither). Audio alone cannot be previewed.")
 
         if video is not None and audio is None:
-            ref = preview_ref(video)
-            result = ui.SavedResult(ref["file"], ref["folder"], io.FolderType(ref["kind"]))
-            return io.NodeOutput(ui=ui.PreviewVideo([result]))
+            return io.NodeOutput(ui={"majoor_preview": [preview_ref(video)]})
 
         if images is not None:
             components = VideoComponents(images=images, frame_rate=Fraction(fps).limit_denominator(1001), audio=audio)
@@ -41,7 +39,8 @@ class MajoorPreviewVideo(io.ComfyNode):
             source = video.get_components()
             components = VideoComponents(images=source.images, frame_rate=source.frame_rate, audio=audio)
 
-        folder, name, counter, subfolder, _ = folder_paths.get_save_image_path("MajoorPreview", folder_paths.get_temp_directory(), 0, 0)
-        file = f"{name}_{counter:05}_.mp4"
-        VideoFromComponents(components).save_to(os.path.join(folder, file), format=VideoContainer.MP4, codec="auto", preset="ultrafast")
-        return io.NodeOutput(ui=ui.PreviewVideo([ui.SavedResult(file, subfolder, io.FolderType.temp)]))
+        temp = folder_paths.get_temp_directory()
+        folder, name, counter, _, _ = folder_paths.get_save_image_path("MajoorPreview", temp, 0, 0)
+        path = Path(folder) / f"{name}_{counter:05}_.mp4"
+        VideoFromComponents(components).save_to(str(path), format=VideoContainer.MP4, codec="auto", preset="ultrafast")
+        return io.NodeOutput(ui={"majoor_preview": [media_ref(path.resolve(), "temp", Path(temp).resolve())]})
