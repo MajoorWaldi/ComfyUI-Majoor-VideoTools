@@ -1,16 +1,14 @@
-// Majoor VideoTools - Preview Video and Compare Video widgets.
+// Majoor VideoTools - Compare Video widget.
 //
 // ComfyUI keeps the last executed output of every node in app.nodeOutputs, and Load Video previews its file
-// straight from its widget. These widgets read the same places, so they update as soon as a video or an image
+// straight from its widget. This widget reads the same places, so it updates as soon as a video or an image
 // batch is connected (or the upstream node changes) without running the graph. When nothing can be read
-// from upstream they show the result of the last run, which the backend sends as "majoor_preview" /
-// "majoor_compare".
+// from upstream it shows the result of the last run, which the backend sends as "majoor_compare".
 
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { addStyle, el, fmt, growTo, mountWidget } from "./majoor_videotools.js";
 
-const PREVIEW = "MajoorPreviewVideo";
 const COMPARE = "MajoorCompareVideo";
 const VIDEO_FILE = /\.(mp4|webm|mov|mkv|m4v|avi)$/i;
 const POLL_MS = 800;
@@ -37,25 +35,20 @@ function upstreamOf(node, name) {
 const connected = (node, name) => upstreamOf(node, name) !== null;
 const widgetValue = (node, name) => node.widgets?.find((w) => w.name === name)?.value;
 
-// What the node connected to `name` would show, read without executing anything.
-export function resolveMedia(node, name) {
+// The video URL the node connected to `name` would show, read without executing anything.
+function resolveVideo(node, name) {
   const src = upstreamOf(node, name);
-  if (!src) return null;
+  if (!src) return "";
   const up = src.node;
-  const video = (url) => ({ kind: "video", url, key: url });
-  if (up.comfyClass === "LoadVideo") return video(fileURL(parseAnnotated(widgetValue(up, "file"))));
-  if (up.comfyClass === "LoadImage") {
-    const url = fileURL(parseAnnotated(widgetValue(up, "image")));
-    return { kind: "images", urls: [url], key: url };
+  if (up.comfyClass === "LoadVideo") return fileURL(parseAnnotated(widgetValue(up, "file")));
+  const shots = up.properties?.majoor_ui;
+  if (up.comfyClass === "MajoorSelectShot" && src.slot === 0 && shots?.clip) {
+    const parts = shots.clip.split("/");
+    return fileURL({ filename: parts.pop(), subfolder: [shots.base, ...parts].join("/"), type: "output" });
   }
-  const clip = up.properties?.majoor_ui?.clip;
-  if (up.comfyClass === "MajoorSelectShot" && src.slot === 0 && clip) return video(fileURL({ filename: clip.split("/").pop(), subfolder: [up.properties.majoor_ui.base, clip.split("/").slice(0, -1).join("/")].filter(Boolean).join("/"), type: "output" }));
   const out = app.nodeOutputs?.[String(up.id)];
-  const files = out?.images;
-  if (!files?.length) return null;
-  if (out.animated?.some(Boolean) && VIDEO_FILE.test(files[0].filename)) return video(fileURL(files[0]));
-  const urls = files.filter((f) => !VIDEO_FILE.test(f.filename)).map(fileURL);
-  return urls.length ? { kind: "images", urls, key: urls.join("|") } : null;
+  const first = out?.images?.[0];
+  return out?.animated?.some(Boolean) && first && VIDEO_FILE.test(first.filename) ? fileURL(first) : "";
 }
 
 function makeVideo() {
@@ -108,139 +101,6 @@ function untrack(node, release) {
     release();
     return prev?.apply(this, arguments);
   })(node.onRemoved);
-}
-
-// ---- Preview Video --------------------------------------------------------------------------------------------
-
-function setupPreview(node) {
-  const root = el("div", "mjr-root");
-  const stage = el("div", "mjr-stage mjr-single");
-  const video = makeVideo();
-  const frame = el("img", "mjr-frame");
-  stage.append(video, frame);
-  const { row, play, scrub, clock } = controlsRow();
-  const info = el("div", "mjr-info", "Connect a video or images. The preview updates by itself.");
-  root.append(stage, row, info);
-
-  const seq = { urls: [], i: 0, timer: 0 };
-  let current = "";
-  let origin = "";
-  let meta = "";
-
-  const height = () => {
-    const ratio = video.videoWidth ? video.videoHeight / video.videoWidth : 9 / 16;
-    return Math.round(Math.min(Math.max((node.size[0] - 20) * ratio, 90), 420) + 24 + info.textContent.split("\n").length * 16 + 18);
-  };
-  mountWidget(node, "preview_view", root, height);
-
-  const paintInfo = () => {
-    info.textContent = [meta, origin].filter(Boolean).join("\n") || "Connect a video or images. The preview updates by itself.";
-  };
-  const stopSeq = () => {
-    if (seq.timer) clearInterval(seq.timer);
-    seq.timer = 0;
-    play.textContent = "▶";
-  };
-  const showFrame = (i) => {
-    seq.i = ((i % seq.urls.length) + seq.urls.length) % seq.urls.length;
-    frame.src = seq.urls[seq.i];
-    scrub.value = String(Math.round((seq.i / Math.max(seq.urls.length - 1, 1)) * 1000));
-    clock.textContent = `${seq.i + 1}/${seq.urls.length}`;
-  };
-  const fps = () => Math.max(Number(widgetValue(node, "fps")) || 24, 1);
-
-  play.addEventListener("click", () => {
-    if (seq.urls.length > 1 && frame.style.display !== "none") {
-      if (seq.timer) return stopSeq();
-      play.textContent = "⏸";
-      seq.timer = setInterval(() => showFrame(seq.i + 1), 1000 / fps());
-    } else if (video.paused) {
-      video.play();
-    } else {
-      video.pause();
-    }
-  });
-  video.addEventListener("play", () => { play.textContent = "⏸"; });
-  video.addEventListener("pause", () => { play.textContent = "▶"; });
-  video.addEventListener("timeupdate", () => {
-    if (video.duration) scrub.value = String(Math.round((video.currentTime / video.duration) * 1000));
-    clock.textContent = fmt(video.currentTime);
-  });
-  video.addEventListener("loadedmetadata", () => {
-    meta = `${video.videoWidth}x${video.videoHeight} · ${fmt(video.duration)}`;
-    paintInfo();
-    growTo(node, node.computeSize()[1]);
-  });
-  scrub.addEventListener("input", () => {
-    const f = Number(scrub.value) / 1000;
-    if (frame.style.display !== "none" && seq.urls.length) showFrame(Math.round(f * (seq.urls.length - 1)));
-    else if (video.duration) video.currentTime = f * video.duration;
-  });
-
-  const show = (media, label) => {
-    const key = media ? media.key : "";
-    origin = label;
-    if (key !== current) {
-      current = key;
-      stopSeq();
-      video.style.display = media?.kind === "video" ? "" : "none";
-      frame.style.display = media?.kind === "images" ? "" : "none";
-      setSource(video, media?.kind === "video" ? media.url : "");
-      if (media?.kind === "images") {
-        seq.urls = media.urls;
-        showFrame(0);
-        meta = `${media.urls.length} image${media.urls.length > 1 ? "s" : ""} · ${fps()} fps`;
-      } else if (!media) {
-        meta = "";
-      }
-    }
-    paintInfo();
-  };
-
-  const refresh = () => {
-    const hasVideo = connected(node, "video");
-    const hasImages = connected(node, "images");
-    let media = null;
-    let label = "";
-    // An audio input replaces the sound, which only the backend can mix: use the last run for that case.
-    if (hasVideo !== hasImages && !connected(node, "audio")) {
-      media = resolveMedia(node, hasVideo ? "video" : "images");
-      label = media ? "live from the connected node" : "";
-    }
-    if (!media) {
-      const ref = node.properties?.majoor_preview;
-      if (ref) {
-        const url = refURL(ref);
-        media = { kind: "video", url, key: url };
-        label = "result of the last run";
-      }
-    }
-    show(media, label);
-  };
-  const fpsWidget = node.widgets?.find((w) => w.name === "fps");
-  if (fpsWidget) {
-    const prev = fpsWidget.callback;
-    fpsWidget.callback = function () {
-      const r = prev?.apply(this, arguments);
-      if (seq.timer) {
-        stopSeq();
-        play.click();
-      }
-      return r;
-    };
-  }
-
-  node._mjrRender = (ref) => {
-    node.properties = node.properties || {};
-    node.properties.majoor_preview = ref;
-    refresh();
-  };
-  track(node, refresh);
-  untrack(node, () => {
-    stopSeq();
-    video.pause();
-    setSource(video, "");
-  });
 }
 
 // ---- Compare Video --------------------------------------------------------------------------------------------
@@ -354,8 +214,8 @@ function setupCompare(node) {
   b.addEventListener("loadedmetadata", describe);
 
   const pick = (name, side) => {
-    const media = resolveMedia(node, name);
-    if (media?.kind === "video") return media.url;
+    const live = resolveVideo(node, name);
+    if (live) return live;
     const ref = node.properties?.majoor_compare?.[side];
     return ref ? refURL(ref) : "";
   };
@@ -385,10 +245,7 @@ app.registerExtension({
   name: "Majoor.VideoTools.Media",
 
   nodeCreated(node) {
-    if (node.comfyClass === PREVIEW) {
-      addStyle();
-      setupPreview(node);
-    } else if (node.comfyClass === COMPARE) {
+    if (node.comfyClass === COMPARE) {
       addStyle();
       setupCompare(node);
     }
@@ -401,10 +258,8 @@ app.registerExtension({
   setup() {
     api.addEventListener("executed", ({ detail }) => {
       const node = app.graph?.getNodeById(detail.display_node ?? detail.node);
-      const preview = detail?.output?.majoor_preview?.[0];
       const compare = detail?.output?.majoor_compare?.[0];
-      if (preview && node?.comfyClass === PREVIEW) node._mjrRender(preview);
-      else if (compare && node?.comfyClass === COMPARE) node._mjrRender(compare);
+      if (compare && node?.comfyClass === COMPARE) node._mjrRender(compare);
       // an upstream node just produced a new output: re-read it once the frontend has stored it
       setTimeout(() => watchers.forEach((n) => n._mjrRefresh?.()), 0);
     });
