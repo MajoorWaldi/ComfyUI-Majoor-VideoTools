@@ -1,0 +1,15 @@
+[project]
+name = "majoor-videotools"
+version = "0.1.0"
+description = "Detect shots, select one, replace it non-destructively and reassemble the video."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = ["scenedetect>=0.7", "filelock"]
+
+[tool.comfy]
+DisplayName = "Majoor VideoTools"
+requires-comfyui = ">=0.41.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
