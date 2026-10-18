@@ -294,8 +294,7 @@ function setupAssemble(node) {
   const bar = el("div", "mjr-bar");
   const info = el("div", "mjr-info", "Run the graph to see the final shot order.");
   root.append(bar, info);
-  mountWidget(node, "assembly_timeline", root, () => 30 + 6 + info.textContent.split("
-").length * 16 + 8);
+  mountWidget(node, "assembly_timeline", root, () => 30 + 6 + info.textContent.split("\n").length * 16 + 8);
 
   node._mjrRenderAssembly = (a) => {
     const total = a.shots.reduce((sum, s) => sum + s.duration, 0);
@@ -311,8 +310,7 @@ function setupAssemble(node) {
       at += s.duration;
     }
     const changed = a.shots.filter((s) => s.take !== "original").length;
-    info.textContent = [`${a.shots.length} shots · ${changed} replaced · ${fmt(total)}`, ...a.warnings.map((w) => `⚠ ${w}`)].join("
-");
+    info.textContent = [`${a.shots.length} shots · ${changed} replaced · ${fmt(total)}`, ...a.warnings.map((w) => `⚠ ${w}`)].join("\n");
     growTo(node, node.computeSize()[1]);
   };
 }
