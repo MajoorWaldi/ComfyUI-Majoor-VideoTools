@@ -1,6 +1,7 @@
 """Data the frontend widgets (web/majoor_videotools.js) draw from. File entries avoid the
 'filename'+'type' keys on purpose: ComfyUI registers any such entry in an executed output as an asset."""
 from ..adapters.comfy_video import OUTPUT_SUBFOLDER
+from ..core.fx import describe_shot
 from ..core.models import ShotList
 from ..core.timeline import shot_start
 
@@ -20,6 +21,8 @@ def shots_payload(shot_list: ShotList, clip: str | None = None, selected: str | 
                 "thumb": s.thumbnail_ref,
                 "active": s.active_revision_id,
                 "takes": [r.revision_id for r in s.revisions],
+                "prompt": (s.plan or {}).get("prompt", ""),
+                "rhythm": describe_shot(s.shot_id, float(shot_start(src, s)), s.target_duration_seconds, s.frame_count, s.plan, src.fps_num / src.fps_den)[1].split("\n", 1)[1],
             }
             for s in sorted(shot_list.shots, key=lambda s: s.timeline_index)
         ],

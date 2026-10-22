@@ -1,0 +1,22 @@
+# System prompts
+
+Every prompt used by the workflows of this pack, one text file each. Paste a file into the `PrimitiveStringMultiline` / `OllamaChat` node named below.
+
+| File | Role | Node it feeds | Workflow |
+|---|---|---|---|
+| `timeline_planner.txt` | **System.** Edit planner for dense, dynamic edits: few generated shots, many `sub_cuts`, speed, zoom, transitions, text. Names the character `<Picture 1>` (MiniMax H3 reference image) and, given an EDIT RHYTHM, writes only prompts and effects. Writes the JSON read by Timeline from JSON. Its example is `../timeline_fashion_motion.json`. | `OllamaChat` (system) before `Create Timeline` (source json); it also accepts the `rhythm_text` of Create Timeline (source music or video) as the rhythm to follow | Timeline Generate |
+| `dynamic_edit_skill.txt` | **System (skill).** The general prompt for a vision-language model (Qwen3.x VL): writes the whole edit plan for any dynamic video (character, product, ad, motion graphics, social clipping, trailer) from a brief, pictures (`<Picture 1..5>`) and optionally the frames of a reference edit to rebuild with new subjects (Katana-style). Knows every effect of the engine: cuts, zoom, speed, transitions, text, **overlays (surimpression) and split screens**. Superset of `timeline_planner.txt`: same JSON. Its example is `../dynamic_edit_product_ad.json`. | `OllamaChat` (system) before `Create Timeline` | Timeline workflows |
+| `timeline_planner_v1.txt` | **System.** Previous planner: one long cut per shot, no effects. Example: `../timeline_aura_farming.json`. | same | (kept for reference) |
+| `timeline_planner_user_request_*.txt` | **User request** sent with the image to the planner. | `OllamaChat` (prompt) | Timeline Generate |
+| `h3_shot_prompt_from_plan.txt` | **System.** Turns the brief of one shot of a timeline plan (`rhythm_text` + `prompt` + `fx_json` of Select Shot, optionally the take length) into the MiniMax H3 Ref2VA generation prompt, in the official `integrated_multimodal_description` format: the role of the shot, one `[Shot N (start-end s)]` section per cut with its framing and movement, the transitions as events of the picture, and no negative boilerplate ("no cuts", "no text", "one continuous take"). | `PrimitiveStringMultiline` system of an `OllamaChat` per shot, with the reference image as `images` | plan recipe (optional) |
+| `shot_analyzer_v1.0.txt` | **System.** Cinematic shot analyzer: describes one shot (framing, motion, subjects, graphics) as JSON. | `PrimitiveStringMultiline` "Text (System prompt)" in the sub-graph `shot_analysis_create_minimax_prompt` | Cutcut, Set Auto shot |
+| `shot_analyzer_user_prompt.txt` | **User prompt** of the analyzer. | `OllamaChat` "Source Shot Analyzer" (prompt) | Cutcut, Set Auto shot |
+| `h3_shot_edit_director_v2.1.txt` | **System.** Rewrites the analysis plus the edit request into one MiniMax H3 Ref2VA prompt. | `PrimitiveStringMultiline` "SYSTEM · Selective Identity + Motion H3" in `shot_analysis_create_minimax_prompt` | Cutcut, Set Auto shot |
+| `h3_edit_request_selective_identity.txt` | **Edit request** (`string_b`) appended after `=== USER EDIT REQUEST ===`: replace the model with `<Picture 1>`, keep positions and timing. Shared by every shot. | `PrimitiveStringMultiline` at the root of the graph | Cutcut |
+| `h3_subgraph_default_text.txt` | Default text left in the H3 sub-graph "Input Text (Prompt)". Not used (the prompt is routed from the analysis); an unrelated perfume example. | `PrimitiveStringMultiline` in the H3 sub-graph | Cutcut, Set Auto shot |
+
+The prompts of `Cutcut.json` are identical in every shot block (extracted once). Edit a file here, then paste it back into the node: the workflows do not read these files at run time.
+
+**Feeding `h3_shot_prompt_from_plan.txt`**: the prompt of the Ollama chat is the brief of the shot, for example a StringConcatenate chain of Select Shot's `rhythm_text`, a line break, `prompt`, a line break, `fx_json`, and `TAKE LENGTH: <generation_seconds> s`. Use `format = text`, `think` off, and the character image as the chat image.
+
+The skills of the **Edit Skills** node live in `../../skills/` (`dynamic_edit_skill.md`, `timeline_planner.md`, `h3_shot_prompt_from_plan.md`). `dynamic_edit_skill.txt`, `timeline_planner.txt` and `h3_shot_prompt_from_plan.txt` here are the same prompts with every part on, for pasting into a node by hand; a test keeps them identical.

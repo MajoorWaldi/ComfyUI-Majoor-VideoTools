@@ -22,11 +22,13 @@ def projects_root() -> Path:
 
 @contextlib.contextmanager
 def video_file(video):
-    """Yield a path holding the video. Untrimmed file-backed videos are used in place; anything else is saved first."""
+    """Yield a path holding the video. Untrimmed, uncropped file-backed videos are used in place; anything else is saved first."""
     source = video.get_stream_source()
     if isinstance(source, str) and video.get_active_trim_window() == (0.0, 0.0):
-        yield Path(source)
-        return
+        whole = probe(Path(source), with_packets=False)
+        if video.get_dimensions() == (whole.width, whole.height):  # a crop changes the size of the video, not the file
+            yield Path(source)
+            return
     scratch = projects_root() / "_tmp"
     scratch.mkdir(parents=True, exist_ok=True)
     tmp = scratch / f"{uuid.uuid4().hex}.mp4"

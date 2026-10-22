@@ -27,6 +27,7 @@ class Source:
     rotation: int = 0
     first_pts: int = 0
     codec: str = ""
+    template: bool = False  # the source is a generated placeholder video, not footage
 
     @property
     def fps(self) -> Fraction:
@@ -65,6 +66,7 @@ class Shot:
     active_revision_id: str
     revisions: tuple[Revision, ...]
     thumbnail_ref: str | None = None
+    plan: dict | None = None  # prompt, image_prompt, notes and generation_frames of a timeline template
 
     def revision(self, revision_id: str) -> Revision:
         for rev in self.revisions:

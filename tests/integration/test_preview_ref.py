@@ -38,6 +38,22 @@ class FileVideo:
     def get_active_trim_window(self):
         return (0.0, 0.0)
 
+    def get_dimensions(self):
+        from majoor_videotools.core.media_probe import probe
+
+        info = probe(self.path, with_packets=False)
+        return (info.width, info.height)
+
+
+class CroppedVideo(FileVideo):
+    """A file with a crop: the same file, a smaller picture (as VideoFromFile.as_cropped makes it)."""
+
+    def get_dimensions(self):
+        return (64, 48)
+
+    def save_to(self, path):
+        shutil.copy(self.path, path)
+
 
 def test_files_in_output_are_referenced_in_place(comfy_video, fixtures):
     module, dirs = comfy_video
@@ -63,3 +79,12 @@ def test_input_folder_files_are_referenced_in_place(comfy_video, fixtures):
     shutil.copy(fixtures["gen"], dirs["input"] / "in.mp4")
     ref = module.preview_ref(FileVideo(dirs["input"] / "in.mp4"))
     assert (ref["file"], ref["folder"], ref["kind"]) == ("in.mp4", "", "input")
+
+
+def test_a_cropped_video_is_rendered_not_used_in_place(comfy_video, fixtures):
+    module, dirs = comfy_video
+    with module.video_file(FileVideo(fixtures["gen"])) as path:
+        assert str(path) == str(fixtures["gen"])
+    with module.video_file(CroppedVideo(fixtures["gen"])) as path:
+        assert str(path) != str(fixtures["gen"]) and path.is_file()  # the crop is in the copy ComfyUI saves, not in the file
+    assert not list((dirs["output"] / "MajoorVideoTools" / "_tmp").glob("*.mp4"))

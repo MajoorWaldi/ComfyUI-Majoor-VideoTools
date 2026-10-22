@@ -1,0 +1,185 @@
+{
+  "title": "Aura Cream - 8 s product ad",
+  "fps": 24,
+  "aspect_ratio": "9:16",
+  "shots": [
+    {
+      "id": "SHOT_001",
+      "duration": 1.0,
+      "color": "black",
+      "refs": [
+        1
+      ],
+      "prompt": "A fast hook on the product. The jar from <Picture 1>, a frosted white glass jar with a gold lid, stands on a polished white pedestal against a soft pearl-grey studio background, front of the label facing the camera, a thin glint of light running over the gold lid. [Shot 1 (0.0-0.5 s)] Wide product shot, the jar centred, the light glint starting at the left. [Shot 2 (0.5-0.75 s)] Tighter on the lid, the glint crossing it. [Shot 3 (0.75-1.0 s)] Extreme close-up on the gold rim catching the light, ending on a fast whip pan into the next image. Slow locked-off camera, soft high-key light.",
+      "image_prompt": "Product shot of a frosted white glass jar with a gold lid on a white pedestal, pearl-grey studio, soft light, vertical 9:16.",
+      "notes": "Hook: the product, wide to extreme close-up; the last cut whips into the model.",
+      "sub_cuts": [
+        {
+          "duration": 0.5
+        },
+        {
+          "duration": 0.25,
+          "zoom": 1.8,
+          "focus": [
+            0.5,
+            0.3
+          ]
+        },
+        {
+          "duration": 0.25,
+          "zoom": 2.8,
+          "focus": [
+            0.5,
+            0.25
+          ],
+          "transition": "whip"
+        }
+      ]
+    },
+    {
+      "id": "SHOT_002",
+      "duration": 1.0,
+      "color": "navy",
+      "refs": [
+        2
+      ],
+      "prompt": "A quick burst on the model. The woman from <Picture 2>, with a sleek dark bob and a white silk top, faces the camera in a bright studio with a pale backdrop, her skin luminous, and slowly turns her head from left to right. The shot opens with a burst of bright light, then four quick cuts: [Shot 1 (0.0-0.25 s)] close-up, her eyes on the lens. [Shot 2 (0.25-0.5 s)] the same close-up seen from the opposite side, her head turning. [Shot 3 (0.5-0.75 s)] extreme close-up on her cheek and eye. [Shot 4 (0.75-1.0 s)] a slightly wider frame, a small smile. Locked-off camera, soft high-key light.",
+      "image_prompt": "Close-up portrait of a woman with a dark bob and luminous skin, white silk top, bright pale studio, vertical 9:16.",
+      "notes": "Burst: four cuts on the model, with a glow.",
+      "transition": "flash",
+      "overlay": [
+        {
+          "source": "self",
+          "offset": 0.5,
+          "opacity": 0.35,
+          "blend": "screen"
+        }
+      ],
+      "sub_cuts": [
+        {
+          "duration": 0.25
+        },
+        {
+          "duration": 0.25,
+          "flip": true,
+          "zoom": 1.3
+        },
+        {
+          "duration": 0.25,
+          "zoom": 2.2,
+          "focus": [
+            0.5,
+            0.35
+          ]
+        },
+        {
+          "duration": 0.25,
+          "zoom": 1.1
+        }
+      ]
+    },
+    {
+      "id": "SHOT_003",
+      "duration": 1.5,
+      "color": "teal",
+      "refs": [
+        1,
+        2
+      ],
+      "prompt": "A calm comparison, the model on the left and the product on the right of the same bright studio. The woman from <Picture 2> raises her chin and touches her cheek with two fingers, slowly, while the jar from <Picture 1> stays still beside her. [Shot 1 (0.0-0.75 s)] medium shot, her hand rising to her cheek. [Shot 2 (0.75-1.5 s)] close-up, her fingers resting on her skin, a soft smile. Steady camera, soft high-key light, a slow gentle push-in.",
+      "image_prompt": "Medium shot of a woman touching her cheek, bright pale studio, vertical 9:16.",
+      "notes": "Comparison: the model on the left, the glowing close-up of SHOT_004 on the right.",
+      "split": {
+        "layout": "left_right",
+        "panels": [
+          {
+            "source": "self",
+            "zoom": 1.2,
+            "focus": [
+              0.4,
+              0.4
+            ]
+          },
+          {
+            "source": "SHOT_004",
+            "zoom": 1.5,
+            "focus": [
+              0.5,
+              0.35
+            ],
+            "look": "contrast"
+          }
+        ]
+      },
+      "sub_cuts": [
+        {
+          "duration": 0.75
+        },
+        {
+          "duration": 0.75,
+          "zoom": 1.6,
+          "focus": [
+            0.45,
+            0.35
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SHOT_004",
+      "duration": 1.0,
+      "color": "orange",
+      "refs": [
+        2
+      ],
+      "prompt": "A glowing close-up. The woman from <Picture 2>, with a sleek dark bob and a white silk top, looks into the camera in a bright pale studio, her skin radiant, and exhales with a slow, relaxed smile while a soft light flares at the edge of the frame. Slow locked-off camera, soft high-key light.",
+      "image_prompt": "Radiant close-up of a woman smiling, luminous skin, bright pale studio, vertical 9:16.",
+      "notes": "The glow of her skin; the close-up that SHOT_003 compares with."
+    },
+    {
+      "id": "SHOT_005",
+      "duration": 1.0,
+      "color": "gold",
+      "refs": [
+        1
+      ],
+      "prompt": "A texture macro. A swirl of thick white cream with a satin sheen turns slowly on a pearl-grey surface, the gold lid of the jar from <Picture 1> out of focus in the background, soft light, a slow macro camera drifting to the right.",
+      "image_prompt": "Macro of a swirl of thick white cream on a pearl-grey surface, soft light, vertical 9:16.",
+      "notes": "Texture, with the jar of SHOT_001 in the corner.",
+      "transition": "whip",
+      "overlay": [
+        {
+          "source": "SHOT_001",
+          "scale": 0.38,
+          "position": "bottom_right",
+          "opacity": 1
+        }
+      ]
+    },
+    {
+      "id": "SHOT_006",
+      "duration": 2.5,
+      "color": "white",
+      "refs": [
+        1,
+        2
+      ],
+      "prompt": "The payoff. The jar from <Picture 1>, a frosted white glass jar with a gold lid, stands centred on a white pedestal in a bright pearl-grey studio, the woman from <Picture 2>, with a sleek dark bob and a white silk top, behind it and slightly out of focus, her skin radiant. The jar turns a few degrees to show its label, then rests. A very slow push-in, soft high-key light, clean empty space in the upper third of the frame.",
+      "image_prompt": "Hero shot of a frosted white jar with a gold lid on a pedestal, a blurred woman behind it, pearl-grey studio, vertical 9:16.",
+      "notes": "Payoff and end card with the product name.",
+      "transition": "flash",
+      "zoom": [
+        1.0,
+        1.12
+      ],
+      "text": {
+        "content": "aura cream",
+        "position": "top",
+        "size": 0.09,
+        "color": "white",
+        "background": "black",
+        "repeat": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "title": "Aura farming - social edit",
+  "fps": 24,
+  "aspect_ratio": "9:16",
+  "shots": [
+    {
+      "id": "SHOT_001",
+      "duration": 2.0,
+      "color": "black",
+      "prompt": "A young woman with long straight black hair, round dark sunglasses and an oversized white jacket stands motionless in thick low fog at dawn, facing camera. Extreme slow motion. The camera starts at her boots and tilts up slowly to a low-angle hero frame as her hair lifts in a gentle wind. Strong orange rim light from behind, cold blue fill. One continuous shot. No text, no cuts.",
+      "image_prompt": "Low-angle full-body portrait of a young woman with long straight black hair, round dark sunglasses, oversized white jacket, standing in thick fog at dawn, orange rim light from behind, vertical 9:16, photoreal, no text.",
+      "notes": "Hook. Exit: the camera is still rising, so the next shot starts on a push-in."
+    },
+    {
+      "id": "SHOT_002",
+      "duration": 1.5,
+      "color": "navy",
+      "prompt": "Extreme close-up of the eyes of a young woman with long black hair behind round dark sunglasses, the sunset reflected in the lenses. She turns her head a few degrees to the right, very slowly, as dust and embers drift across the frame. Shallow depth of field, warm orange backlight. One continuous shot, no cuts, no text.",
+      "image_prompt": "Extreme close-up of round dark sunglasses reflecting an orange sunset, long black hair framing the face, shallow depth of field, vertical 9:16, no text.",
+      "notes": "Push-in match: continues the rising/approaching motion of the previous shot."
+    },
+    {
+      "id": "SHOT_003",
+      "duration": 1.0,
+      "color": "teal",
+      "prompt": "Close-up of the hand of a young woman in an oversized white jacket slowly lowering from her sunglasses, fingers trailing, wind pushing the white sleeve. Orange rim light, floating dust particles, slow motion. One continuous shot, no cuts, no text.",
+      "image_prompt": "Close-up of a hand lowering from round dark sunglasses, white oversized jacket sleeve, orange rim light, dust particles, vertical 9:16, no text.",
+      "notes": "Ends with the hand leaving the frame to the left: the next shot enters from the right."
+    },
+    {
+      "id": "SHOT_004",
+      "duration": 1.0,
+      "color": "teal",
+      "prompt": "Side tracking shot of a young woman with long black hair, round dark sunglasses and an oversized white jacket walking calmly through fog from right to left, effortless and unhurried, the camera gliding with her. Her jacket flows behind her. Orange backlight, cool shadows. One continuous shot, no cuts, no text.",
+      "image_prompt": "Side view of a young woman in an oversized white jacket and round dark sunglasses walking through fog, orange backlight, vertical 9:16, no text.",
+      "notes": "Drop section starts on the next shot."
+    },
+    {
+      "id": "SHOT_005",
+      "duration": 1.5,
+      "color": "crimson",
+      "prompt": "Low-angle hero shot of a young woman with long black hair, round dark sunglasses and an oversized white jacket, arms relaxed, as a violent gust of wind hits: her jacket and hair whip sideways while her body stays perfectly still and calm. The motion ramps from slow motion to real time, then back to slow motion. Embers and dust streak through the frame, orange rim light. One continuous shot, no cuts, no text.",
+      "image_prompt": "Low-angle hero portrait of a calm young woman in a white oversized jacket and round dark sunglasses, jacket and hair blown sideways by wind, embers in the air, vertical 9:16, no text.",
+      "notes": "Drop. Biggest energy of the edit."
+    },
+    {
+      "id": "SHOT_006",
+      "duration": 1.0,
+      "color": "crimson",
+      "prompt": "Overhead shot looking straight down at a young woman in an oversized white jacket and round dark sunglasses standing in the centre of a ring of drifting fog and embers, slowly raising her chin toward the camera. The camera rotates slowly clockwise. Warm orange glow from below, deep shadows. One continuous shot, no cuts, no text.",
+      "image_prompt": "Top-down view of a woman in a white oversized jacket and round dark sunglasses standing in a ring of fog and embers, warm orange glow, vertical 9:16, no text.",
+      "notes": "The clockwise rotation carries into the next shot."
+    },
+    {
+      "id": "SHOT_007",
+      "duration": 2.0,
+      "color": "orange",
+      "prompt": "Wide silhouette shot of a young woman with long black hair and an oversized white jacket standing on a ridge against a huge glowing sun, slowly rotating clockwise to face the camera, the camera craning up behind her. Fog rolls below, sparks rise. Slow motion, strong rim light. One continuous shot, no cuts, no text.",
+      "image_prompt": "Wide silhouette of a woman in a white oversized jacket on a ridge against a huge sun, fog below, vertical 9:16, no text.",
+      "notes": "Calm before the payoff."
+    },
+    {
+      "id": "SHOT_008",
+      "duration": 2.0,
+      "color": "gold",
+      "prompt": "Medium shot of a young woman with long straight black hair, round dark sunglasses and an oversized white jacket looking directly into the camera with a faint, confident half-smile. She slowly removes her sunglasses with one hand while fog parts around her and the orange backlight flares across the lens. Slow, deliberate, effortless. One continuous shot, no cuts, no text.",
+      "image_prompt": "Medium portrait of a confident young woman in a white oversized jacket, hand raised to round dark sunglasses, orange backlight flare, fog, vertical 9:16, no text.",
+      "notes": "Face reveal. Starts with her already facing camera."
+    },
+    {
+      "id": "SHOT_009",
+      "duration": 3.0,
+      "color": "white",
+      "prompt": "Final hero frame: a young woman with long black hair and an oversized white jacket stands centred in thick fog, holding her round dark sunglasses at her side, perfectly still. The camera pulls back very slowly to a wide symmetrical composition while embers rise around her and the orange sun glows behind. The shot settles on a long, calm hold. One continuous shot, no cuts, no text.",
+      "image_prompt": "Symmetrical wide hero shot of a woman in a white oversized jacket standing centred in fog, holding sunglasses at her side, orange sun behind, vertical 9:16, no text.",
+      "notes": "Payoff and hold, leaves room for a logo or caption in post."
+    }
+  ]
+}

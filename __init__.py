@@ -8,15 +8,30 @@ if __package__:
 
     from .nodes.apply_shot_metadata import MajoorApplyShotMetadata
     from .nodes.compare_video import MajoorCompareVideo
+    from .nodes.deploy_shots import MajoorDeployShots, register_routes
+    from .nodes.music_brief import MajoorMusicBrief
+    from .nodes.edit_mode import MajoorEditMode, register_routes as register_mode_routes
+    from .nodes.audio_rhythm import MajoorAudioRhythm
+    from .nodes.load_video_advanced import MajoorLoadVideoAdvanced, register_routes as register_video_routes
     from .nodes.preview_video import MajoorPreviewVideo
     from .nodes.scene_detect_split import MajoorSceneDetectSplit
+    from .nodes.select_frames import MajoorSelectEveryNFrames
     from .nodes.select_shot import MajoorSelectShot
     from .nodes.shot_assemble import MajoorShotAssemble
+    from .nodes.create_timeline import MajoorCreateTimeline
+    from .nodes.cut_markers import MajoorCutMarkers
+    from .nodes.edit_skills import MajoorEditSkills, register_routes as register_skill_routes
+
+    register_routes()
+    register_skill_routes()
+    register_video_routes()
+    register_mode_routes()
 
     class MajoorVideoToolsExtension(ComfyExtension):
         @override
         async def get_node_list(self) -> list[type[io.ComfyNode]]:
-            return [MajoorSceneDetectSplit, MajoorSelectShot, MajoorApplyShotMetadata, MajoorShotAssemble, MajoorCompareVideo, MajoorPreviewVideo]
+            return [MajoorSceneDetectSplit, MajoorSelectShot, MajoorApplyShotMetadata, MajoorShotAssemble, MajoorCompareVideo, MajoorPreviewVideo, MajoorLoadVideoAdvanced, MajoorAudioRhythm, MajoorMusicBrief, MajoorEditMode,
+                    MajoorCreateTimeline, MajoorCutMarkers, MajoorDeployShots, MajoorEditSkills, MajoorSelectEveryNFrames]
 
     async def comfy_entrypoint() -> MajoorVideoToolsExtension:
         return MajoorVideoToolsExtension()

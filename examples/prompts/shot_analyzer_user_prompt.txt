@@ -1,0 +1,1 @@
+Analyze the attached ordered frames as ONE isolated shot. Report cinematography, motion clues, subjects, timing, environmental graphics and any cuts supported by the visible evidence only. Do not invent audio or precise camera motion. Return JSON only.

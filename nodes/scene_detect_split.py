@@ -3,6 +3,7 @@ from comfy_api.latest import io
 from ..adapters.comfy_video import MajoorShotList, projects_root, video_file
 from ..core.scene_detection import MODES, detect_scenes
 from ..core.timeline import format_timecode
+from ..core.timeline_sources import plan_from_shots, plan_text, rhythm_text
 from .preview import shots_payload
 
 
@@ -24,7 +25,12 @@ class MajoorSceneDetectSplit(io.ComfyNode):
                 io.Boolean.Input("preview_thumbnails", default=True),
                 io.Boolean.Input("force_refresh", default=False, tooltip="Ignore the detection cache. Shot ids stay the same when the cuts are unchanged."),
             ],
-            outputs=[MajoorShotList.Output(display_name="shot_list")],
+            outputs=[
+                MajoorShotList.Output(display_name="shot_list"),
+                io.String.Output(display_name="rhythm_text", tooltip="The shots and the cuts inside them in words, for the LLM that writes the prompts."),
+                io.String.Output(display_name="skeleton_json", tooltip="The rhythm of the video as a plan: connect it to Create Timeline (skeleton_json)."),
+                io.Int.Output(display_name="shot_count", tooltip="How many shots: connect it to max_shots of Deploy Shots or to a loop."),
+            ],
         )
 
     @classmethod
@@ -34,4 +40,5 @@ class MajoorSceneDetectSplit(io.ComfyNode):
         src = shot_list.source
         summary = f"Detected {len(shot_list.shots)} shots · {format_timecode(src.duration_seconds)} · {src.fps_num / src.fps_den:.3f} fps · {src.width}x{src.height}"
         warnings = "".join(f"\n⚠ {w}" for w in shot_list.detection.warnings)
-        return io.NodeOutput(shot_list, ui={"text": (summary + warnings,), "majoor_shots": [shots_payload(shot_list)]})
+        skeleton = plan_text(plan_from_shots(shot_list))
+        return io.NodeOutput(shot_list, rhythm_text(skeleton, src.fps_num / src.fps_den, f"{len(shot_list.shots)} detected shots"), skeleton, len(shot_list.shots), ui={"text": (summary + warnings,), "majoor_shots": [shots_payload(shot_list)]})

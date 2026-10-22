@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .errors import ManifestError, MediaError, ShotNotFoundError
 from .fingerprints import file_fingerprint, short
+from .frames import sample_original_shot, sample_whole_media
 from .media_probe import probe
 from .media_trim import clip_path, materialize_clip
 from .models import ORIGINAL, Revision, Shot, ShotList, ShotMetadata
@@ -69,6 +70,20 @@ def revision_media(store: ProjectStore, shot_list: ShotList, shot: Shot, revisio
     return materialize_clip(store, shot_list.source, shot)
 
 
+def sample_shot_images(store: ProjectStore, shot_list: ShotList, shot: Shot, revision: Revision, mode: str, count: int, max_side: int, from_previous: bool = False, every: int = 1, to_end: bool = True):
+    """Preview frames [N, H, W, 3] of a take; with from_previous, the last frame of the previous shot's active take instead."""
+    if from_previous:
+        previous = next((s for s in shot_list.shots if s.timeline_index == shot.timeline_index - 1), None)
+        if previous is not None:
+            if shot_list.source.template and previous.active.media_range is not None:
+                raise ManifestError(f"{previous.shot_id} has no generated take yet: apply it before continuing from its last frame")
+            return sample_shot_images(store, shot_list, previous, previous.active, "last", 1, max_side)
+    if revision.media_range is not None:
+        return sample_original_shot(store.resolve(shot_list.source.uri), shot_list.source, shot, mode, count, max_side, every, to_end)
+    path = store.resolve(revision.media_ref)
+    return sample_whole_media(path, probe(path, with_packets=False), mode, count, max_side, every, to_end)
+
+
 def check_lineage(shot_list: ShotList, metadata: ShotMetadata) -> Shot:
     if metadata.project_id != shot_list.project_id:
         raise ManifestError(
@@ -97,6 +112,10 @@ def apply_revision(
     video_path = Path(video_path).resolve()
 
     with store.lock():
+        latest = store.read_json("manifest.json")
+        if latest:  # ComfyUI caches the upstream list: it can be older than the takes already stored, which a regenerated shot must not erase
+            shot_list = ShotList.from_dict(latest)
+            shot = check_lineage(shot_list, metadata)
         # Select Shot's own output fed straight back in re-activates that take instead of duplicating it.
         for rev in shot.revisions:
             if revision_clip_path(store, shot_list, shot, rev) == video_path:

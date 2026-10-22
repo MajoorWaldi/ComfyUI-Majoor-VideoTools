@@ -15,11 +15,11 @@ const POLL_MS = 800;
 
 const watchers = new Set();
 
-const fileURL = (e) => api.apiURL(`/view?${new URLSearchParams({ filename: e.filename, subfolder: e.subfolder ?? "", type: e.type ?? "output" })}`);
+export const fileURL = (e) => api.apiURL(`/view?${new URLSearchParams({ filename: e.filename, subfolder: e.subfolder ?? "", type: e.type ?? "output" })}`);
 const refURL = (r) => fileURL({ filename: r.file, subfolder: r.folder, type: r.kind });
 
 // "clips/a.mp4 [input]" -> { filename, subfolder, type }
-function parseAnnotated(value) {
+export function parseAnnotated(value) {
   const m = /^(.*?)(?: \[(input|output|temp)\])?$/.exec(String(value ?? ""));
   const cut = m[1].lastIndexOf("/");
   return { filename: m[1].slice(cut + 1), subfolder: cut >= 0 ? m[1].slice(0, cut) : "", type: m[2] ?? "input" };
