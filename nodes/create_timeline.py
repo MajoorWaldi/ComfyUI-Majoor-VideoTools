@@ -9,7 +9,7 @@ from ..core.errors import MajoorError
 from ..core.prompt_guard import clean_plan_text
 from ..core.template import ASPECTS, PROFILES, SNAP_MODES, create_template
 from ..core.timeline import format_timecode
-from ..core.timeline_sources import CUT_EVERY, VIDEO_MODES, merge_plans, plan_from_music, plan_from_video, plan_text, rhythm_text
+from ..core.timeline_sources import CUT_EVERY, VIDEO_MODES, merge_plans, plan_from_music, plan_from_video, plan_text, rhythm_text, with_size
 from .preview import shots_payload
 
 DEFAULT_PLAN = '{"shots": [{"duration": 2.5, "prompt": ""}]}'
@@ -75,6 +75,8 @@ class MajoorCreateTimeline(io.ComfyNode):
                 io.Video.Input("video", optional=True, tooltip="Required by source=video."),
                 io.Boolean.Input("preview_thumbnails", default=True, optional=True),
                 io.Boolean.Input("card_text", default=True, optional=True, tooltip="Write the brief of each shot (id, place, role, transition, cuts, prompt) on its placeholder card, the text is wrapped and shrunk so that nothing is cut off. Off: plain colored cards."),
+                io.Int.Input("width", default=0, min=0, max=4096, optional=True, tooltip="With height: the size in pixels of the placeholder video, instead of aspect_ratio and resolution. H3 generates at this size (multiples of 32 suit it). Connect Resolution Selector. 0: ignored."),
+                io.Int.Input("height", default=0, min=0, max=4096, optional=True, tooltip="See width."),
                 io.String.Input("skeleton_json", optional=True, force_input=True, tooltip="With source=json: the plan_json of another Create Timeline (music or video). Its shots, durations and the cuts inside them are kept; this plan only brings the prompts and the effects. Empty: ignored."),
             ],
             outputs=[
@@ -86,7 +88,7 @@ class MajoorCreateTimeline(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, source, fps, aspect_ratio, resolution, generation_profile, music=None, video=None, preview_thumbnails=True, card_text=True, skeleton_json="") -> io.NodeOutput:
+    def execute(cls, source, fps, aspect_ratio, resolution, generation_profile, music=None, video=None, preview_thumbnails=True, card_text=True, width=0, height=0, skeleton_json="") -> io.NodeOutput:
         kind = source["source"]
         rate = fps if fps > 0 else 24.0
         aspect = "16:9" if aspect_ratio == "auto" else aspect_ratio
@@ -94,7 +96,7 @@ class MajoorCreateTimeline(io.ComfyNode):
         with audio_file(music) as wav:
             notes: list[str] = []
             if kind == "none":
-                shot_list = create_template(DEFAULT_PLAN, projects_root(), fps=rate, aspect_ratio=aspect, resolution=resolution, profile=generation_profile, thumbnails=False)
+                shot_list = create_template(with_size(DEFAULT_PLAN, width, height) if width and height else DEFAULT_PLAN, projects_root(), fps=rate, aspect_ratio=aspect, resolution=resolution, profile=generation_profile, thumbnails=False)
                 return io.NodeOutput(shot_list, "", "", len(shot_list.shots), ui={"text": ("No rhythm: the LLM decides.",), "majoor_shots": [shots_payload(shot_list)]})
             if kind == "json":
                 text, snap, bpm = source["plan_json"], source["cut_snap"], source["bpm"]
@@ -124,6 +126,8 @@ class MajoorCreateTimeline(io.ComfyNode):
                 text, dropped = clean_plan_text(text)
                 if dropped:
                     notes.append(f"{len(dropped)} negation(s) removed from the prompts: {', '.join(sorted(set(dropped))[:4])}")
+            if width and height:
+                text = with_size(text, width, height)
             shot_list = create_template(text, projects_root(), fps=rate, aspect_ratio=aspect, resolution=resolution, profile=generation_profile,
                                         audio_wav=wav, cut_snap=snap, bpm=bpm, thumbnails=preview_thumbnails, card_text=card_text)
         src = shot_list.source

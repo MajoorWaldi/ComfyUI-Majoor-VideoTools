@@ -11,7 +11,7 @@ from .errors import MajoorError
 from .fx import SUB_MIN_FRAMES
 from .media_probe import probe
 from .scene_detection import merge_short_shots
-from .template import MIN_SHOT_FRAMES, parse_plan
+from .template import MIN_SHOT_FRAMES, _json_text, parse_plan
 
 CUT_EVERY = ("half_beat", "beat", "2_beats", "bar", "2_bars", "4_bars")
 VIDEO_MODES = ("adaptive", "content", "threshold_fade")
@@ -160,6 +160,17 @@ def _aspect_of(plan) -> str:
     return "16:9" if plan.width > plan.height else "9:16" if plan.width < plan.height else "1:1"
 
 
+def with_size(text: str, width: int, height: int) -> str:
+    """The plan with a size in pixels, which replaces its aspect_ratio and resolution. A text that is not JSON is given back: parse_plan reports it."""
+    try:
+        data = json.loads(_json_text(text))
+    except json.JSONDecodeError:
+        return text
+    if isinstance(data, list):
+        data = {"shots": data}
+    return json.dumps({**data, "width": width, "height": height}) if isinstance(data, dict) else text
+
+
 def plan_to_dict(plan, aspect_ratio: str | None = None) -> dict:
     """A parsed Plan back to the JSON form Timeline reads (frames everywhere, effects as parsed)."""
     shots = []
@@ -167,6 +178,8 @@ def plan_to_dict(plan, aspect_ratio: str | None = None) -> dict:
         row: dict = {"id": s.shot_id, "duration_frames": s.frames, "prompt": s.prompt, "image_prompt": s.image_prompt, "notes": s.notes}
         if s.color:
             row["color"] = s.color
+        if s.location:
+            row["location"] = s.location
         fx = dict(s.fx)
         subs = fx.pop("sub_cuts", None)
         row.update({k: v for k, v in fx.items() if v is not None})
@@ -184,7 +197,7 @@ def _effects_of(cut: dict) -> dict:
 
 def _with_lengths(text: str) -> str:
     """The plan of a language model that only writes prompts and effects may leave the lengths out: give them a placeholder, the rhythm decides."""
-    from .template import _find_shots, _json_text
+    from .template import _find_shots
 
     try:
         data = _find_shots(json.loads(_json_text(text)))
@@ -229,6 +242,8 @@ def merge_plans(skeleton_text: str, plan_text_: str, fps: float, aspect_ratio: s
         row["notes"] = " | ".join(x for x in (src.notes, base.notes) if x)
         if src.color:
             row["color"] = src.color
+        if src.location:
+            row["location"] = src.location
         row.update({k: v for k, v in src.fx.items() if k != "sub_cuts" and v is not None})
         src_subs = src.fx.get("sub_cuts") or []
         if base_subs:  # the cuts inside the shot belong to the rhythm

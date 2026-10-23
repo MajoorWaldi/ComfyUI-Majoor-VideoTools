@@ -147,11 +147,11 @@ def _strip_effects(plan_text: str, *, overlays_splits: bool, text_overlays: bool
     return json.dumps(data, indent=2, ensure_ascii=False)
 
 
-def module_states(skill: Skill, *, overlays_splits: bool = True, text_overlays: bool = True, reference_mode: bool = True, genre: str = "all") -> dict[str, bool]:
+def module_states(skill: Skill, *, overlays_splits: bool = True, text_overlays: bool = True, reference_mode: bool = True, genre: str = "all", dialogue: bool = False, locations: bool = False, plate: bool = False) -> dict[str, bool]:
     """Which modules of a skill are on, from the settings of the node. Modules the settings do not know keep their default."""
     if genre not in ("all", "none", *GENRES):
         raise MajoorError(f"Unknown genre '{genre}'. Available: {['all', 'none', *GENRES]}")
-    states = {"overlays_splits": overlays_splits, "text_overlays": text_overlays, "reference_mode": reference_mode, "genre_header": genre != "none"}
+    states = {"overlays_splits": overlays_splits, "text_overlays": text_overlays, "reference_mode": reference_mode, "genre_header": genre != "none", "dialogue": dialogue, "locations": locations, "plate": plate}
     for g in GENRES:
         states[f"genre_{g}"] = genre == "all" or genre == g
     states.update({f"not_{name}": not on for name, on in list(states.items())})  # not_X is on when X is off
@@ -182,15 +182,21 @@ def compose(skill: Skill, states: dict[str, bool] | None = None, variables: dict
     return text, list(dict.fromkeys(on))
 
 
-def user_message(brief: str = "", rhythm_text: str = "", n_pictures: int = 1, videos: tuple[tuple[int, int, int], ...] = ()) -> str:
-    """The message that goes with the skill: the brief, the pictures, the videos, the rhythm. videos: (number, first image, last image) of the frames of each <Video k> among the images of the chat."""
+def user_message(brief: str = "", rhythm_text: str = "", n_pictures: int = 1, videos: tuple[tuple[int, int, int], ...] = (), voice: bool = False, dialogue: str = "", plate: bool = False) -> str:
+    """The message that goes with the skill: the brief, the pictures, the videos, the voice, the dialogue, the rhythm. videos: (number, first image, last image) of the frames of each <Video k> among the images of the chat."""
     blocks = []
     if brief.strip():
         blocks.append("BRIEF\n" + brief.strip())
     if n_pictures > 0:
         blocks.append("PICTURES\n" + " ".join(f"<Picture {i}>" for i in range(1, n_pictures + 1)) + " are the images of this chat, in order.")
+    if plate:
+        blocks.append(f"PLACE\n<Picture {n_pictures}> is the empty plate of the place of this shot (no person in it): the shot happens there. Use it for the place, never as a subject.")
     if videos:
         blocks.append("VIDEOS\n" + "\n".join(f"<Video {k}> = images {a} to {b} of this chat ({b - a + 1} frames in time order, from the first to the last frame of the clip)." for k, a, b in videos))
+    if voice:
+        blocks.append("AUDIO\n<Audio 1> = the voice sample of <Subject 1>: H3 receives it and speaks the lines of the DIALOGUE in this voice.")
+    if dialogue.strip():
+        blocks.append("DIALOGUE (the lines spoken in this shot, with their times counted from the start of the shot)\n" + dialogue.strip())
     if rhythm_text.strip():
         blocks.append(rhythm_text.strip())
     return "\n\n".join(blocks)

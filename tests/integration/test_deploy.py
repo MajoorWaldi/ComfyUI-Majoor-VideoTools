@@ -8,13 +8,14 @@ import pytest
 from majoor_videotools.core import deploy as dp
 from majoor_videotools.core.errors import MajoorError
 
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "recipes"  # shot blocks with a sub-graph, a preview, a shared edit request: they exercise Deploy Shots
 RECIPE_NAME = "minimax_h3_ref2va"
 CUTCUT = Path(r"F:\__WORKFLOWS\docs\Cutcut.json")
 
 
 @pytest.fixture(scope="module")
 def recipe():
-    return dp.load_recipe(RECIPE_NAME)
+    return json.loads((FIXTURES / f"{RECIPE_NAME}.json").read_text(encoding="utf-8"))
 
 
 def _is_shot_list_get(node):
@@ -157,9 +158,9 @@ def test_finale_is_added_only_when_missing_and_asked(recipe):
 
 def test_missing_set_nodes_are_reported(recipe):
     start = bare(recipe)
-    dp.remove_nodes(start, {n["id"] for n in start["nodes"] if n["type"] == dp.SET and n["widgets_values"][0] in ("REF", "OLLAMA")})
+    dp.remove_nodes(start, {n["id"] for n in start["nodes"] if n["type"] == dp.SET and n["widgets_values"][0] in ("REF", "LLM")})
     _, report = dp.deploy(recipe, start, ids(1))
-    assert any("No Set node for: OLLAMA, REF" in w for w in report.warnings)
+    assert any("No Set node for: LLM, REF" in w for w in report.warnings)
 
 
 def test_layout_in_columns_and_input_checks(recipe):
@@ -173,7 +174,7 @@ def test_layout_in_columns_and_input_checks(recipe):
         dp.load_recipe("nope")
     with pytest.raises(MajoorError, match="Invalid recipe"):
         dp.load_recipe("../secret")
-    assert RECIPE_NAME in dp.list_recipes()
+    assert "SECATOR Remix" in dp.list_recipes()
 
 
 def test_input_graph_is_not_modified(recipe):
@@ -204,12 +205,12 @@ PLAN_RECIPE = "minimax_h3_ref2va_plan"
 
 @pytest.fixture(scope="module")
 def plan_recipe():
-    return dp.load_recipe(PLAN_RECIPE)
+    return json.loads((FIXTURES / f"{PLAN_RECIPE}.json").read_text(encoding="utf-8"))
 
 
 def test_recipe_is_picked_by_the_kind_of_shots():
-    assert dp.pick_recipe("auto", True) == "Minimax H3 TimelineShot Creator" and dp.pick_recipe("auto", False) == RECIPE_NAME
-    assert dp.pick_recipe("minimax_h3_ref2va", True) == "minimax_h3_ref2va"  # an explicit choice is kept
+    assert dp.pick_recipe("auto", True) == "Minimax H3 TimelineShot Creator" and dp.pick_recipe("auto", False) == "SECATOR Remix"
+    assert dp.pick_recipe("SECATOR Creative", False) == "SECATOR Creative"  # an explicit choice is kept
 
 
 def test_plan_recipe_block_is_driven_by_the_plan(plan_recipe):
@@ -268,7 +269,7 @@ def _bare_of(recipe_wf):
 
 
 def test_auto_takes_the_timelineshot_recipe_for_plan_shots_and_the_video_one_otherwise():
-    assert dp.pick_recipe("auto", True) == TIMELINESHOT and dp.pick_recipe("auto", False) == "minimax_h3_ref2va"
+    assert dp.pick_recipe("auto", True) == TIMELINESHOT and dp.pick_recipe("auto", False) == "SECATOR Remix"
     assert dp.recipe_info(TIMELINESHOT)["kind"] == "plan" and TIMELINESHOT in dp.list_recipes()
     assert dp.pick_recipe(TIMELINESHOT, False) == TIMELINESHOT  # an explicit choice is kept
 

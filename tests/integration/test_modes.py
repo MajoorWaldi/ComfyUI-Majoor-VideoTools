@@ -13,19 +13,18 @@ RECIPES = Path(__file__).resolve().parents[2] / "recipes"
 
 
 def test_every_mode_has_a_skill_that_the_planner_understands():
-    assert modes.MAX_REFERENCES == 5
+    assert modes.MAX_REFERENCES == 5 and list(modes.MODES) == ["creative", "remix_replace"]
     settings = modes.all_settings()
     assert set(settings) == set(modes.MODES)
     assert all(s["enhancer"].strip() for s in settings.values())
-    assert "<Video 1>" in settings["remix_replace"]["enhancer"] and "<Picture 1>" in settings["image_to_edit"]["enhancer"]
-    assert {m: s["reference_video"] for m, s in settings.items()} == {"image_to_edit": False, "reference_to_edit": True, "music_to_edit": False, "text_to_edit": False, "remix_replace": True}
-    for mode, setting in settings.items():
-        if mode == "remix_replace":  # no planner: its blocks have their own analyzer and director
-            assert 0 <= setting["pose_strength"] <= 1 and "<Picture 1>" in setting["remix_instruction"]
-            continue
-        assert setting["profile"] in ("none", *list_profiles()), mode
-        assert setting["genre"] in ("all", "none", *GENRES), mode
-        assert isinstance(setting["reference_mode"], bool) and setting["extra_instructions"], mode
+    assert "<Video 1>" in settings["remix_replace"]["enhancer"] and "<Picture 1>" in settings["creative"]["enhancer"] and "<Video 1>" in settings["creative"]["enhancer_from_video"]
+    assert {m: s["from_video"] for m, s in settings.items()} == {"creative": False, "remix_replace": True}  # the remix always works on a video
+    remix, creative = settings["remix_replace"], settings["creative"]  # no planner in the remix: its blocks have their own analyzer and director
+    assert 0 <= remix["pose_strength"] <= 1 and "<Picture 1>" in remix["remix_instruction"]
+    for profile in (creative["profile"], creative["profile_from_video"]):
+        assert profile in ("none", *list_profiles())
+    assert creative["genre"] in ("all", "none", *GENRES) and isinstance(creative["reference_mode"], bool)
+    assert creative["extra_instructions"] and "EDIT RHYTHM" in creative["from_video_instructions"]
 
 
 def test_an_unknown_mode_is_refused():
@@ -46,6 +45,13 @@ def test_the_prompts_of_the_recipes_are_skills_of_the_folder():
     assert seen >= 5  # the writer of the plan recipes, the analyzer and the director of the remix recipes
 
 
-def test_the_presets_name_three_modes_and_the_style_is_a_profile():
-    assert set(modes.PRESETS.values()) <= set(modes.MODES) and len(modes.PRESETS) == 3
-    assert modes.ADVANCED not in modes.PRESETS and modes.STYLE_DEFAULT not in list_profiles()
+def test_the_style_default_is_not_a_profile():
+    assert modes.STYLE_DEFAULT not in list_profiles()
+
+
+def test_a_camera_look_is_a_sentence_for_the_planner_and_none_is_nothing():
+    from majoor_videotools.core.camera import CAMERAS, camera_text
+
+    assert camera_text("none") == "" and camera_text("not_a_look") == ""
+    for look, phrase in CAMERAS.items():
+        assert phrase.startswith("shot ") and camera_text(look).startswith("CAMERA LOOK: ") and phrase in camera_text(look), look

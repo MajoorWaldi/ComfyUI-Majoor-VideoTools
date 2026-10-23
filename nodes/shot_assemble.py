@@ -40,16 +40,20 @@ class MajoorShotAssemble(io.ComfyNode):
                 io.Float.Input("music_volume", default=1.0, min=0.0, max=4.0, step=0.05, optional=True),
                 io.Float.Input("sfx_volume", default=1.0, min=0.0, max=4.0, step=0.05, optional=True),
                 io.Float.Input("music_fade", default=0.5, min=0.0, max=10.0, step=0.1, optional=True, tooltip="Seconds of fade out at the end of the music."),
+                io.Boolean.Input("replace_source_audio", default=False, optional=True, tooltip="Mute the soundtrack of the source: the music (and the sfx) are the only audio. Overrides audio_policy source_master; meant to be linked to a toggle."),
+                io.Boolean.Input("voice_shots", default=False, optional=True, tooltip="Use the audio that each shot comes with (the voice that H3 speaks) as the audio of the edit. Overrides audio_policy; meant to be linked to a toggle."),
+                io.Boolean.Input("text", default=True, optional=True, tooltip="Draw the text of the timeline plan with the other effects. Off: no text, the other effects stay. Meant to be linked to a toggle."),
             ],
             outputs=[io.Video.Output(display_name="video")],
         )
 
     @classmethod
-    def execute(cls, shot_list, assembly_mode, missing_shot_policy, duration_policy, fps_policy, audio_policy, output_format, video_codec, output_name, manual_order="", output_fps=24.0, effects=True, sub_cuts=True, music=None, sfx=None, music_volume=1.0, sfx_volume=1.0, music_fade=0.5) -> io.NodeOutput:
+    def execute(cls, shot_list, assembly_mode, missing_shot_policy, duration_policy, fps_policy, audio_policy, output_format, video_codec, output_name, manual_order="", output_fps=24.0, effects=True, sub_cuts=True, music=None, sfx=None, music_volume=1.0, sfx_volume=1.0, music_fade=0.5, replace_source_audio=False, voice_shots=False, text=True) -> io.NodeOutput:
+        audio_policy = "shot_audio" if voice_shots else "mute" if replace_source_audio else audio_policy
         bar = comfy.utils.ProgressBar(1000)
         with contextlib.ExitStack() as stack:
             opts = AssemblyOptions(assembly_mode, manual_order, missing_shot_policy, duration_policy, fps_policy, output_fps, audio_policy, output_format, video_codec, output_name, effects, sub_cuts,
-                                   stack.enter_context(audio_file(music)), stack.enter_context(audio_file(sfx)), music_volume, sfx_volume, music_fade)
+                                   stack.enter_context(audio_file(music)), stack.enter_context(audio_file(sfx)), music_volume, sfx_volume, music_fade, text)
             result = assemble_shots(
                 shot_list,
                 projects_root(),

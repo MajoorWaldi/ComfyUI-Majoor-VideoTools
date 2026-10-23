@@ -1,7 +1,7 @@
 from comfy_api.latest import io
 
 from ..adapters.comfy_video import MajoorShotList, projects_root, video_file
-from ..core.scene_detection import MODES, detect_scenes
+from ..core.scene_detection import ENERGY, MODES, detect_scenes
 from ..core.timeline import format_timecode
 from ..core.timeline_sources import plan_from_shots, plan_text, rhythm_text
 from .preview import shots_payload
@@ -24,6 +24,7 @@ class MajoorSceneDetectSplit(io.ComfyNode):
                 io.String.Input("cut_points", default="", multiline=True, optional=True, tooltip="manual mode: frame numbers, or timecodes (hh:mm:ss.ff, 12.5s), separated by commas or spaces."),
                 io.Boolean.Input("preview_thumbnails", default=True),
                 io.Boolean.Input("force_refresh", default=False, tooltip="Ignore the detection cache. Shot ids stay the same when the cuts are unchanged."),
+                io.Combo.Input("energy", options=list(ENERGY), default="off", optional=True, tooltip="Measure the flashes, the shakes and the punch-ins of the video and give them to a generated take of the shot (Shot Assemble applies them: a generated take is calmer than the footage it replaces). A flash is not taken for a cut. events_and_camera adds the push-in of the camera as a zoom."),
             ],
             outputs=[
                 MajoorShotList.Output(display_name="shot_list"),
@@ -34,9 +35,9 @@ class MajoorSceneDetectSplit(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, video, detection_mode, sensitivity, min_shot_frames, cut_points="", preview_thumbnails=True, force_refresh=False) -> io.NodeOutput:
+    def execute(cls, video, detection_mode, sensitivity, min_shot_frames, cut_points="", preview_thumbnails=True, force_refresh=False, energy="off") -> io.NodeOutput:
         with video_file(video) as path:
-            shot_list = detect_scenes(path, projects_root(), detection_mode, sensitivity, min_shot_frames, cut_points, preview_thumbnails, force_refresh)
+            shot_list = detect_scenes(path, projects_root(), detection_mode, sensitivity, min_shot_frames, cut_points, preview_thumbnails, force_refresh, energy)
         src = shot_list.source
         summary = f"Detected {len(shot_list.shots)} shots · {format_timecode(src.duration_seconds)} · {src.fps_num / src.fps_den:.3f} fps · {src.width}x{src.height}"
         warnings = "".join(f"\n⚠ {w}" for w in shot_list.detection.warnings)

@@ -56,7 +56,7 @@ def clean_plan_text(plan_text: str) -> tuple[str, list[str]]:
     for shot in data.get("shots", []) if isinstance(data, dict) else []:
         if not isinstance(shot, dict):
             continue
-        for key in ("prompt", "image_prompt", "video_prompt"):
+        for key in ("prompt", "image_prompt", "video_prompt", "location"):
             if isinstance(shot.get(key), str):
                 shot[key], gone = strip_negations(shot[key])
                 removed += gone

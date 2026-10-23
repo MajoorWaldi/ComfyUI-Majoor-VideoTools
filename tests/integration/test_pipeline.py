@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("scenedetect")  # detection runs PySceneDetect (pip install -r requirements.txt)
+
 from majoor_videotools.core.assembler import AssemblyOptions, assemble_shots
 from majoor_videotools.core.errors import AssemblyError, ManifestError, MediaError, ShotNotFoundError
 from majoor_videotools.core.frames import sample_original_shot

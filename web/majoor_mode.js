@@ -1,13 +1,13 @@
 // Majoor VideoTools - Edit Mode.
 //
-// The Edit Mode node holds the mode, the reference toggles and the remix settings. Nodes of the graph say what the mode does to them in
-// properties.majoor_mode: {"modes": [...], "toggle": "reference_2", "values": {"widget": {"mode": value, "*": other}}}.
-// A node with "modes" / "toggle" is enabled when its mode is listed and its toggle is on, bypassed otherwise;
-// "values" sets widgets (the rhythm source, the shot list switch...). "request": true marks the base request of the remix LLM (it gets remix_instruction); "profile": true marks a node that only takes the profile (the music); "enhancer": true marks the prompt enhancer: it gets the line of the mode skill for it as extra_instructions; "planner": true marks the planner: it gets the profile, genre, reference_mode and
-// instructions of the mode skill (skills/mode_<mode>.md, read from /majoor/modes). The nodes are set when the mode changes
-// and when the graph is queued; "values" only when the mode changes, so that you can still adjust them by hand.
-// The preset names the three usual modes ("Image to Reel", "Remix", "Music Edit"); "Advanced" leaves the mode to the combo below it. The style replaces the profile of the mode.
-// Before a queue the Ollama nodes of the graph are checked (the model is installed, the server answers) and the nodes the frontend does not know are named, in words the user can act on.
+// The Edit Mode node holds the mode (creative or remix), the options (from_video, ref_video, own_music, the reference pictures) and the remix settings. Nodes of the graph say what the mode
+// does to them in properties.majoor_mode: {"modes": [...], "toggle": "ref_video", "any": ["remix_replace", "from_video"], "unless": "own_music", "values": {"widget": {"mode or toggle": value, "*": other}}}.
+// A node with "modes" / "toggle" / "any" / "unless" is enabled when its mode is listed, its toggle is on, the mode is listed or one of the "any" toggles is on, and the "unless" toggle is off; bypassed otherwise;
+// "values" sets widgets (the rhythm source, the shot list switch...): the key is the mode, or a toggle that is on (the first one that is). "request": true marks the base request of the remix LLM (it gets remix_instruction);
+// "profile": true marks a node that only takes the profile (the music); "enhancer": true marks the prompt enhancer: it gets the line of the mode skill for it as extra_instructions;
+// "pose": true marks a block that is not made by Deploy Shots: it gets the strength of the pose ControlNet like the blocks of the shots; "planner": true marks the planner: it gets the profile, genre, reference_mode and instructions of the mode skill (skills/mode_<mode>.md, read from /majoor/modes), the video ones when from_video is on.
+// The camera look of Edit Mode is added to the planner and the enhancer in the creative mode. The nodes are set when the mode or an option that changes values changes and when the graph is queued; "values" only on those changes, so that you can still adjust them by hand.
+// The style replaces the profile of the mode. Before a queue the nodes of the graph that the frontend does not know (a node pack that is not installed) are named, in words the user can act on.
 // The shot blocks (made by Deploy Shots) get the pose ControlNet strength (remix only) and, in the remix, the replacement instruction.
 
 import { app } from "../../scripts/app.js";
@@ -18,9 +18,7 @@ const ALWAYS = 0;
 const BYPASS = 4;
 const MUTE = 2;
 const REMIX = "remix_replace";
-const ADVANCED = "Advanced";
 const STYLE_DEFAULT = "Mode default";
-const OLLAMA = "OllamaConnectivityV2";
 const SUBGRAPH_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-/;
 
 const widgetOf = (node, name) => node.widgets?.find((w) => w.name === name);
@@ -35,44 +33,55 @@ export const controllerOf = (graph) => graph?._nodes?.find((n) => n.comfyClass =
 
 export function applyMode(graph, controller, { values = true } = {}) {
   const mode = widgetOf(controller, "mode")?.value;
+  const active = (name) => name === mode || widgetOf(controller, name)?.value === true;
   for (const node of graph._nodes ?? []) {
     const tag = node.properties?.majoor_mode;
     if (!tag) continue;
-    if (tag.modes || tag.toggle) {
-      const on = (!tag.modes || tag.modes.includes(mode)) && (!tag.toggle || widgetOf(controller, tag.toggle)?.value);
+    if (tag.modes || tag.toggle || tag.any || tag.unless) {
+      const on = (!tag.modes || tag.modes.includes(mode)) && (!tag.toggle || active(tag.toggle)) && (!tag.any || tag.any.some(active)) && (!tag.unless || !active(tag.unless));
       node.mode = on ? ALWAYS : BYPASS;
     }
     if (!values) continue;
-    for (const [name, byMode] of Object.entries(tag.values ?? {})) setWidget(node, name, mode in byMode ? byMode[mode] : byMode["*"]);
+    for (const [name, by] of Object.entries(tag.values ?? {})) {
+      const key = Object.keys(by).find((k) => k !== "*" && active(k));
+      setWidget(node, name, key === undefined ? by["*"] : by[key]);
+    }
   }
   graph.setDirtyCanvas?.(true, true);
 }
 
-// What the skill of the mode says (read again each time: an edited file is used at once): the planner, and the remix settings of the controller.
-export async function applyModeSettings(graph, controller) {
+// What the skill of the mode says (read again each time: an edited file is used at once): the planner, the enhancer, and with defaults the settings of the controller (the video, the remix).
+export async function applyModeSettings(graph, controller, { defaults = false } = {}) {
   const mode = widgetOf(controller, "mode")?.value;
   let settings = null;
+  let look = "";
   try {
     const answer = await (await api.fetchApi("/majoor/modes")).json();
     settings = answer.modes?.[mode] ?? null;
-    setWidget(controller, "preset", Object.keys(answer.presets ?? {}).find((name) => answer.presets[name] === mode) ?? ADVANCED);
+    look = mode === REMIX ? "" : answer.cameras?.[widgetOf(controller, "camera")?.value] ?? "";  // the camera look is for the creative mode: the remix keeps the camera of the video
   } catch {
     return;
   }
   if (!settings) return;
+  if (defaults) {
+    setWidget(controller, "from_video", settings.from_video);
+    setWidget(controller, "pose_strength", settings.pose_strength);
+    setWidget(controller, "remix_instruction", settings.remix_instruction);
+  }
+  const video = widgetOf(controller, "from_video")?.value === true;
   const style = widgetOf(controller, "style")?.value;
-  const profile = style && style !== STYLE_DEFAULT ? style : settings.profile;
+  const profile = style && style !== STYLE_DEFAULT ? style : video ? settings.profile_from_video ?? settings.profile : settings.profile;
+  const join = (text, more, on) => (on && more ? `${text} ${more}` : text);
   for (const node of graph._nodes ?? []) {
     const tag = node.properties?.majoor_mode;
     if (tag?.planner) {
-      for (const name of ["genre", "reference_mode", "extra_instructions"]) setWidget(node, name, settings[name]);
+      setWidget(node, "genre", settings.genre);
+      setWidget(node, "reference_mode", settings.reference_mode || video);
+      setWidget(node, "extra_instructions", join(join(settings.extra_instructions, settings.from_video_instructions, video), look, true));
       setWidget(node, "profile", profile);
     } else if (tag?.profile) setWidget(node, "profile", profile);  // the music of the edit takes the profile of the planner
-    if (tag?.enhancer) setWidget(node, "extra_instructions", settings.enhancer);  // the prompt enhancer is told what the mode is for
+    if (tag?.enhancer) setWidget(node, "extra_instructions", join(join(settings.enhancer, settings.enhancer_from_video, video), look, true));  // the prompt enhancer is told what the mode is for
   }
-  setWidget(controller, "reference_video", settings.reference_video);
-  setWidget(controller, "pose_strength", settings.pose_strength);
-  setWidget(controller, "remix_instruction", settings.remix_instruction);
 }
 
 // The edit request of a block is the node its string_b input is linked to (the one every block shares), else the widget of the block.
@@ -83,8 +92,6 @@ function writeRequest(graph, block, text) {
   else setWidget(block, "string_b", text);
 }
 
-// The blocks of the shots (made by Deploy Shots). The pose ControlNet of H3 follows the pose of the original shot: it is on in the remix (pose_strength,
-// off with pose_control) and off in the other modes, where the shot is only a placeholder card; at strength 0 H3 skips it. The remix instruction is the edit request.
 // The nodes that run: not bypassed or muted, the ones inside an active subgraph too.
 function activeNodes(graph) {
   const found = [];
@@ -97,24 +104,17 @@ function activeNodes(graph) {
   return found;
 }
 
-// What would fail when the graph is queued: nodes the frontend does not know, an Ollama that does not answer or that lacks the model.
-export async function preflight(graph, registered = globalThis.LiteGraph?.registered_node_types) {
+// What would fail when the graph is queued: nodes the frontend does not know.
+export function preflight(graph, registered = globalThis.LiteGraph?.registered_node_types) {
   const nodes = activeNodes(graph);
   const problems = [];
   const unknown = [...new Set(nodes.filter((n) => !n.subgraph).map((n) => n.comfyClass ?? n.type))].filter((type) => type && registered && !(type in registered) && !SUBGRAPH_ID.test(type));
   if (unknown.length) problems.push(`Missing custom nodes: ${unknown.join(", ")}. Install the node packs that provide them (Manager > Install Missing Custom Nodes) and restart ComfyUI.`);
-  const ollama = nodes.filter((n) => n.comfyClass === OLLAMA).map((n) => ({ url: widgetOf(n, "url")?.value, model: widgetOf(n, "model")?.value }));
-  if (ollama.length) {
-    try {
-      const answer = await api.fetchApi("/majoor/preflight", { method: "POST", body: JSON.stringify({ ollama }) });
-      if (answer.ok) problems.push(...(await answer.json()).problems);
-    } catch {
-      // the check itself failed: the run goes on
-    }
-  }
   return problems;
 }
 
+// The blocks of the shots (made by Deploy Shots). The pose ControlNet of H3 follows the pose of the original shot: it is on in the remix (pose_strength,
+// off with pose_control) and off in the other modes, where the shot is only a placeholder card; at strength 0 H3 skips it. The remix instruction is the edit request.
 export function applyBlocks(graph, controller = controllerOf(graph)) {
   if (!controller) return;
   const remix = widgetOf(controller, "mode")?.value === REMIX;
@@ -123,6 +123,7 @@ export function applyBlocks(graph, controller = controllerOf(graph)) {
   const base = (graph._nodes ?? []).filter((n) => n.properties?.majoor_mode?.request);
   if (remix && instruction) for (const node of base) setWidget(node, "value", instruction);
   for (const node of graph._nodes ?? []) {
+    if (node.properties?.majoor_mode?.pose) setWidget(node, "strength", pose);  // a block of the graph that is not made by Deploy Shots
     if (!String(node.properties?.majoor_deploy?.shot ?? "").startsWith("SHOT_")) continue;
     setWidget(node, "strength", pose);
     if (remix && instruction && !base.length) writeRequest(graph, node, instruction);
@@ -145,33 +146,19 @@ app.registerExtension({
         return result;
       };
     };
-    // a controller saved before the preset and the style existed has two values less: they go to the widgets they belong to, the preset reads Advanced
-    const configure = node.onConfigure;
-    node.onConfigure = function (info) {
-      const saved = info?.widgets_values;
-      if (saved && saved.length === node.widgets.length - 2) {
-        node.widgets[0].value = ADVANCED;
-        node.widgets[1].value = STYLE_DEFAULT;
-        node.widgets.slice(2).forEach((w, i) => { w.value = saved[i]; });
-      }
-      return configure?.apply(this, arguments);
-    };
-    on("preset", async () => {
-      const preset = widgetOf(node, "preset").value;
-      if (preset === ADVANCED) return;
-      try {
-        setWidget(node, "mode", (await (await api.fetchApi("/majoor/modes")).json()).presets?.[preset]);  // the mode callback does the rest
-      } catch {
-        // the server does not answer: the mode stays
-      }
-    });
     on("style", () => applyModeSettings(app.graph, node));
     on("mode", async () => {
       applyMode(app.graph, node);
-      await applyModeSettings(app.graph, node);
+      await applyModeSettings(app.graph, node, { defaults: true });
+      applyMode(app.graph, node);  // the video option that the mode skill sets
       applyBlocks(app.graph, node);
     });
-    for (const name of ["reference_2", "reference_3", "reference_4", "reference_5", "reference_video"]) on(name, () => applyMode(app.graph, node, { values: false }));
+    on("camera", () => applyModeSettings(app.graph, node));
+    for (const name of ["from_video", "own_music", "voice", "quality_check"]) on(name, async () => {
+      applyMode(app.graph, node);
+      await applyModeSettings(app.graph, node);
+    });
+    for (const name of ["reference_2", "reference_3", "reference_4", "reference_5", "ref_video"]) on(name, () => applyMode(app.graph, node, { values: false }));
     for (const name of ["pose_control", "pose_strength", "remix_instruction"]) on(name, () => applyBlocks(app.graph, node));
   },
 
@@ -181,7 +168,7 @@ app.registerExtension({
       const controller = controllerOf(app.graph);
       if (controller) {
         applyMode(app.graph, controller, { values: false });
-        const problems = await preflight(app.graph);
+        const problems = preflight(app.graph);
         if (problems.length) {
           const detail = problems.join(" ");
           const toast = app.extensionManager?.toast;
@@ -196,7 +183,10 @@ app.registerExtension({
     const build = app.graphToPrompt;
     app.graphToPrompt = function (...args) {
       const controller = controllerOf(app.graph);
-      if (controller) applyMode(app.graph, controller, { values: false });
+      if (controller) {
+        applyMode(app.graph, controller, { values: false });
+        applyBlocks(app.graph, controller);  // the strength of a block never stays at a value that was saved for another widget
+      }
       return build.apply(this, args);
     };
   },

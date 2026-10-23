@@ -45,6 +45,7 @@ class AssemblyOptions:
     music_volume: float = 1.0
     sfx_volume: float = 1.0
     music_fade: float = 0.5  # seconds of fade out at the end of the music
+    text: bool = True  # the text of a timeline plan, drawn with the other effects
 
 
 @dataclass
@@ -229,7 +230,7 @@ def _plan(shot_list: ShotList, store: ProjectStore, opts: AssemblyOptions, fps: 
         keep = opts.duration_policy == "use_generated_duration" or revision.duration_policy == "keep_generated"
         fx = (shot.plan or {}).get("fx")
         if fx and not keep and opts.effects:  # effects of a timeline plan: sub-cuts, speed, zoom, transition, text
-            segments += _fx_segments(shot, revision.revision_id, path, generated.duration, fx, target_frames, fps, width, height, store, opts.sub_cuts, resolve_take, warnings)
+            segments += _fx_segments(shot, revision.revision_id, path, generated.duration, fx if opts.text else {k: v for k, v in fx.items() if k != "text"}, target_frames, fps, width, height, store, opts.sub_cuts, resolve_take, warnings)
             continue
         fps_filter = f"fps={fps.numerator}/{fps.denominator}"
         short_by = target - actual

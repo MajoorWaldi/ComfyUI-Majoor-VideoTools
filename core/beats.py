@@ -8,6 +8,8 @@ MIN_BPM = 60.0
 MAX_BPM = 180.0
 WINDOW = 2048
 FINE_WINDOW = 256  # short window: its onsets are timed to within a few ms, the long one is better for tempo
+BASS_WINDOW = 1024  # long enough to tell the kick from the hats (43 Hz per bin at 44.1 kHz)
+BASS_HZ = 200.0
 
 
 def read_wav_mono(path: Path) -> tuple[np.ndarray, int]:
@@ -30,15 +32,19 @@ def write_wav(path: Path, samples: np.ndarray, rate: int) -> None:
         w.writeframes(pcm.tobytes())
 
 
-def onset_envelope(samples: np.ndarray, rate: int, size: int = WINDOW) -> tuple[np.ndarray, float]:
-    """Onset strength per hop and the hop length in seconds."""
+def onset_envelope(samples: np.ndarray, rate: int, size: int = WINDOW, max_hz: float = 0.0) -> tuple[np.ndarray, float]:
+    """Onset strength per hop and the hop length in seconds; max_hz > 0 keeps only the bins below that frequency."""
     hop = max(rate // 100, 1)
     if len(samples) < size + hop:
         return np.zeros(1, dtype=np.float32), hop / rate
     window = np.hanning(size).astype(np.float32)
     starts = np.arange(0, len(samples) - size, hop)
     frames = np.stack([samples[s : s + size] * window for s in starts])
-    magnitude = np.log1p(10.0 * np.abs(np.fft.rfft(frames, axis=1)))
+    magnitude = np.abs(np.fft.rfft(frames, axis=1))
+    if max_hz > 0:  # linear, not log: a kick is a few strong bins, a burst of noise is many weak ones
+        magnitude = magnitude[:, 1 : max(int(max_hz * size / rate), 2)]
+    else:
+        magnitude = np.log1p(10.0 * magnitude)
     flux = np.maximum(magnitude[1:] - magnitude[:-1], 0.0).sum(axis=1)
     flux = np.concatenate([[0.0], flux])
     local = np.convolve(flux, np.ones(31) / 31, mode="same")
@@ -70,10 +76,15 @@ def detect_beats(samples: np.ndarray, rate: int, bpm: float = 0.0) -> tuple[floa
     env, hop_seconds = onset_envelope(samples, rate)
     bpm = bpm if bpm > 0 else estimate_bpm(env, hop_seconds)
     fine, hop_seconds = onset_envelope(samples, rate, FINE_WINDOW)
+    bass, _ = onset_envelope(samples, rate, BASS_WINDOW, BASS_HZ)  # the kick marks the beat; hats and claps on the off-beat pull the phase away from it
     period = 60.0 / bpm / hop_seconds  # in env frames
     phases = np.arange(0.0, period, 0.25)
     n = len(fine)
-    # tolerate a +-1 frame spread around each beat, a played tempo is never perfectly grid-aligned
-    scores = [sum(fine[np.round(np.arange(p, n, period) + d).astype(int).clip(0, n - 1)].sum() for d in (-1, 0, 1)) for p in phases]
-    start = phases[int(np.argmax(scores))] * hop_seconds
+
+    def score(env: np.ndarray) -> np.ndarray:
+        # tolerate a +-1 frame spread around each beat, a played tempo is never perfectly grid-aligned
+        found = np.array([sum(env[np.round(np.arange(p, n, period) + d).astype(int).clip(0, n - 1)].sum() for d in (-1, 0, 1)) for p in phases])
+        return found / found.max() if found.max() > 0 else found
+
+    start = phases[int(np.argmax(score(fine) + 2 * score(np.pad(bass, (0, max(n - len(bass), 0))))))] * hop_seconds
     return bpm, np.arange(start, len(samples) / rate, 60.0 / bpm)

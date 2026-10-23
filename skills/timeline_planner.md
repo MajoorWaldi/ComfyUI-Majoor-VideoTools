@@ -30,11 +30,13 @@ Reply with the JSON object only: no Markdown fences, no comments, no text before
   "character": "what you see in Picture 1, one short sentence",
   "fps": 24,
   "aspect_ratio": "9:16",
-  "shots": [
+<<module locations default=off>>  "locations": {"L1": "the first place, one sentence", "L2": "another place"},
+<<end>>  "shots": [
     {
       "id": "SHOT_001",
       "duration": 1.0,
-      "color": "navy",
+<<module locations default=off>>      "location": "L1",
+<<end>>      "color": "navy",
       "prompt": "...",
       "image_prompt": "...",
       "notes": "...",
@@ -53,7 +55,8 @@ FIELDS OF A SHOT
 - notes: for the human editor, one short line: the role of the shot and how it connects to the next one.
 - color: a CSS color name or hex code that only color-codes the timeline by role (hook = black, build = navy or teal, drop = crimson, calm = orange, payoff = gold or white). It does not appear in the final video.
 - layers (optional): ONLY when the user explicitly asks for a layout reference card. Leave it out otherwise.
-
+<<module locations default=off>>- location: the id of the place of the shot, as in the top-level `locations` object ("L1"). `locations` lists each place of the edit once, as ONE short sentence of what is fixed there (architecture, materials, colors, light, time of day) and no person: its empty plate is generated once and is the background of every shot that happens there. Give the same id to every shot in the same place, even when the place comes back later; a new id only for a really different place. At most 3 places in the edit; put `location` in every shot object.
+<<end>>
 EFFECTS (all optional; each can be set on the shot, and again on a sub-cut where it overrides the shot's value)
 - sub_cuts: list of 2 to 8 cuts out of this shot's take, played one after the other. Each: {"duration": seconds (at least 0.125, normally 0.125 to 0.5 inside a burst, 0.5 to 1 in a calm part), "start": seconds in the take (optional, default: continues where the previous cut stopped; use it to jump back to a good moment), plus any effect below}.
 - zoom: 1 to 4, a number or [from, to] for a push-in or pull-out during the cut. focus: [x, y] from 0 to 1, the point that stays in frame when zooming ([0.5, 0.2] = centre, upper part: the face of a standing person). Use zoom 1.3 to 1.8 for a medium crop, 2 to 3 for a close-up. Keep zoom <= 3, the take has limited resolution.
@@ -67,7 +70,7 @@ EFFECTS (all optional; each can be set on the shot, and again on a sub-cut where
 - refs: [1, 2] the pictures (<Picture 1>, <Picture 2>...) shown by the shot, when there are several.
 
 HOW TO WRITE EACH PROMPT
-- THE PERSON IS THE ONE IN THE PICTURE. Look at <Picture 1> first and write in "character" what you really see in it: sex and age, hair, clothes, accessories, in one short sentence. Every prompt then starts with "the person from <Picture 1>, " followed by that same sentence. The people in the EXAMPLE are someone else: never copy their sex, hair, clothes or setting, copy only the structure, the effects and the level of detail. Without a picture, invent a subject and write it in "character".
+- THE PERSON IS THE ONE IN THE PICTURE. The subject of <Picture 1> MUST BE PRESERVED (a person, an animal, a product or an object): write it exactly as the picture shows it, with every visible trait (a person: sex, age, build, skin, the shape and color of the hair, facial hair, glasses, jewelry, clothes; an animal: species, coat, markings; a product or an object: shape, colors, materials, label), and never change, add or remove one unless the brief explicitly asks for it. Look at <Picture 1> first and write in "character" what you really see in it: sex and age, hair, facial hair, glasses, jewelry, clothes, in one short sentence. Every prompt then starts with "the person from <Picture 1>, " followed by that same sentence. The people in the EXAMPLE are someone else: never copy their sex, hair, clothes or setting, copy only the structure, the effects and the level of detail. Without a picture, invent a subject and write it in "character".
 - The generator is a reference-to-video model: the character's reference image is `<Picture 1>`. Name the character in every prompt as "the person from <Picture 1>" and repeat the same short description of the outfit and look each time (the image fixes the face, the text fixes the shot). Never describe the face in detail, never invent a second character. Other pictures of this chat (`<Picture 2>` to `<Picture 5>`) are references that the brief names (a product, an outfit, a place): write `<Picture 2>` only in a shot that shows it, with its short description, and list the pictures of each shot in `refs`. With one picture, never write `<Picture 2>`.
 - The generator makes the take once, at least 5 seconds long, then the node cuts the shot out of it (several pieces for a shot with sub_cuts, played faster when you set a speed). So put the whole motion of the shot in the first seconds, and for a shot with several cuts make the take rich enough to give each piece something different (a turn, a step, a gesture), still framed wide enough to crop.
 - The prompt carries the structure of the shot, in positive words: the role of the shot as one sentence of intent ("A fast hook: ..."), then, for a shot with sub_cuts, its cuts one by one with their time marks in seconds of the shot and the framing of each (wide, medium, close-up, extreme close-up, seen from the opposite side for a flip), the transition into the shot or into a cut as an event of the picture (a burst of bright light, a fast whip pan, a sudden push-in, the picture dipping to black), and the pace (fast and sharp for a burst, slow for a hold). The generator reads this and the cuts, zooms and transitions are then also made in post: both agree. NEVER write negative boilerplate: no "one continuous take", no "no cuts", no "no text", no "no subtitles", no "without ...": it contradicts the cuts. Do not write the text overlays of the `text` effect either (the node draws them), and no logos. The same goes for image_prompt, which describes only the first frame.

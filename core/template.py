@@ -59,6 +59,7 @@ class PlanShot:
     color: str = ""
     layers: tuple[Layer, ...] = ()
     fx: dict = field(default_factory=dict)  # post effects applied by Shot Assemble (see core/fx.py)
+    location: str = ""  # the place of the shot, written the same word for word in every shot that happens there: its empty plate is generated once
 
 
 @dataclass(frozen=True)
@@ -180,9 +181,21 @@ def parse_plan(text: str, fps: float, aspect_ratio: str, resolution: int) -> Pla
         raise MajoorError(f"resolution '{data.get('resolution')}' is not a number") from None
     if not 64 <= long_side <= 4096:
         raise MajoorError("resolution (the longest side of the placeholder video) must be between 64 and 4096")
-    scale = long_side / max(aw, ah)
-    width, height = (max(int(aw * scale) // 2 * 2, 2), max(int(ah * scale) // 2 * 2, 2))
+    if data.get("width") and data.get("height"):  # a size in pixels replaces aspect_ratio and resolution
+        try:
+            width, height = int(data["width"]) // 2 * 2, int(data["height"]) // 2 * 2
+        except (ValueError, TypeError):
+            raise MajoorError(f"width and height ('{data['width']}', '{data['height']}') must be numbers") from None
+        if not 64 <= min(width, height) or max(width, height) > 4096:
+            raise MajoorError("width and height must be between 64 and 4096")
+    else:
+        scale = long_side / max(aw, ah)
+        width, height = (max(int(aw * scale) // 2 * 2, 2), max(int(ah * scale) // 2 * 2, 2))
 
+    places = data.get("locations")
+    if isinstance(places, list):  # [{"id": "L1", "description": ...}]
+        places = {str(p.get("id", "")): p.get("description", p.get("location", "")) for p in places if isinstance(p, dict)}
+    places = {str(k): str(v).strip() for k, v in places.items()} if isinstance(places, dict) else {}
     shots, seen = [], set()
     for i, row in enumerate(data["shots"], start=1):
         if not isinstance(row, dict):
@@ -210,7 +223,7 @@ def parse_plan(text: str, fps: float, aspect_ratio: str, resolution: int) -> Pla
                 _rgb(color, sid)
         except MajoorError:
             color = ""  # the color only codes the timeline by role: 'none' or 'transparent' from an LLM is no reason to stop
-        shots.append(PlanShot(sid, frames, str(row.get("prompt", row.get("video_prompt", ""))).strip(), str(row.get("image_prompt", "")).strip(), str(row.get("notes", "")).strip(), color, _layers(row, sid), fx))
+        shots.append(PlanShot(sid, frames, str(row.get("prompt", row.get("video_prompt", ""))).strip(), str(row.get("image_prompt", "")).strip(), str(row.get("notes", "")).strip(), color, _layers(row, sid), fx, places.get(str(row.get("location", "")).strip(), str(row.get("location", "")).strip())))
     if len(shots) > MAX_SHOTS:
         raise MajoorError(f"{len(shots)} shots: a timeline holds at most {MAX_SHOTS}. Use fewer, longer shots and put the quick cuts in sub_cuts (or cut the music every bar instead of every beat).")
     if sum(s.frames for s in shots) > MAX_SECONDS * rate:
@@ -399,6 +412,8 @@ def create_template(
         shots = []
         for shot, spec, frames in zip(build_shots(source, info, edges), plan.shots, durations):
             data = {"prompt": spec.prompt, "image_prompt": spec.image_prompt, "notes": spec.notes, "generation_frames": generation_frames(frames, profile)}
+            if spec.location:
+                data["location"] = spec.location
             if spec.fx:
                 data["fx"] = _shot_fx(spec.fx, shot.start_frame, frames, sub_grid if snapping else [])
             shots.append(dataclasses.replace(shot, shot_id=spec.shot_id, source_media_ref=source.uri, plan=data))

@@ -12,6 +12,9 @@ if __package__:
     from .nodes.music_brief import MajoorMusicBrief
     from .nodes.edit_mode import MajoorEditMode, register_routes as register_mode_routes
     from .nodes.audio_rhythm import MajoorAudioRhythm
+    from .nodes.get_video_components import MajoorGetVideoComponentsAdvanced
+    from .nodes.motion_graphics import MajoorMotionGraphics
+    from .nodes.music_fit import MajoorMusicFit
     from .nodes.load_video_advanced import MajoorLoadVideoAdvanced, register_routes as register_video_routes
     from .nodes.preview_video import MajoorPreviewVideo
     from .nodes.scene_detect_split import MajoorSceneDetectSplit
@@ -31,7 +34,7 @@ if __package__:
         @override
         async def get_node_list(self) -> list[type[io.ComfyNode]]:
             return [MajoorSceneDetectSplit, MajoorSelectShot, MajoorApplyShotMetadata, MajoorShotAssemble, MajoorCompareVideo, MajoorPreviewVideo, MajoorLoadVideoAdvanced, MajoorAudioRhythm, MajoorMusicBrief, MajoorEditMode,
-                    MajoorCreateTimeline, MajoorCutMarkers, MajoorDeployShots, MajoorEditSkills, MajoorSelectEveryNFrames]
+                    MajoorCreateTimeline, MajoorCutMarkers, MajoorDeployShots, MajoorEditSkills, MajoorSelectEveryNFrames, MajoorGetVideoComponentsAdvanced, MajoorMotionGraphics, MajoorMusicFit]
 
     async def comfy_entrypoint() -> MajoorVideoToolsExtension:
         return MajoorVideoToolsExtension()

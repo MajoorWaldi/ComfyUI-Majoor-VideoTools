@@ -12,6 +12,7 @@ from majoor_videotools.core.models import ShotList
 from majoor_videotools.core.paths import ProjectStore
 from majoor_videotools.core.revisions import apply_revision, make_metadata, sample_shot_images
 from majoor_videotools.core.template import create_template, generation_frames, parse_duration, parse_plan
+from majoor_videotools.core.timeline_sources import with_size
 
 PLAN = """```json
 {"shots": [
@@ -97,6 +98,18 @@ def test_template_carries_music_as_master_audio(root, tmp_path):
     assert any("placeholder kept" in w for w in res.warnings)
 
 
+def test_a_size_in_pixels_replaces_aspect_and_resolution(root):
+    plan = '{"shots": [{"duration": 1}, {"duration": 1}]}'
+    sl = template(root, plan=with_size(plan, 576, 1024))  # the widgets say 16:9 at 320: the size wins
+    assert (sl.source.width, sl.source.height) == (576, 1024)
+    odd = template(root, plan=with_size('[{"duration": 1}]', 770, 1345)).source  # a bare list of shots is accepted, the sizes are made even
+    assert (odd.width, odd.height) == (770, 1344)
+    assert with_size("not json", 576, 1024) == "not json"
+    with pytest.raises(MajoorError, match="between 64 and 4096"):
+        template(root, plan=with_size(plan, 32, 1024))
+    assert template(root, plan=plan).source.width == 320  # without it the aspect and the resolution stay
+
+
 def test_beats_find_tempo_and_phase(tmp_path):
     for bpm, offset in ((120, 0.13), (96, 0.31)):
         samples, rate = read_wav_mono(click_track(tmp_path / f"{bpm}.wav", bpm, 16, offset))
@@ -104,6 +117,22 @@ def test_beats_find_tempo_and_phase(tmp_path):
         period = 60 / bpm
         assert abs(found - bpm) < 1.5
         assert max(abs(((b - offset) + period / 2) % period - period / 2) for b in beats[:8]) < 0.03
+
+
+def test_the_phase_follows_the_kick_not_the_hats(tmp_path):
+    rate, bpm, offset = 44100, 140, 0.21
+    period = 60 / bpm
+    samples = np.zeros(rate * 10, np.float32)
+    for k in range(int(10 / period)):
+        t = offset + k * period
+        start = int(t * rate)
+        n = int(0.12 * rate)
+        samples[start:start + n] += (0.6 * np.sin(2 * np.pi * 55 * np.arange(n) / rate) * np.exp(-np.arange(n) / (0.03 * rate)))[: len(samples) - start]  # kick
+        for h in (0.5, 0.25, 0.75):  # louder, sharper hats on the off-beats and the sixteenths
+            hs = int((t + h * period) * rate)
+            samples[hs:hs + 200] += np.random.default_rng(k).uniform(-0.9, 0.9, 200)[: len(samples) - hs]
+    found, beats = detect_beats(samples, rate, bpm=bpm)
+    assert max(abs(((b - offset) + period / 2) % period - period / 2) for b in beats[:8]) < 0.03
 
 
 def test_cuts_snap_to_beats(root, tmp_path):
@@ -377,6 +406,7 @@ def test_plan_from_video_keeps_the_rhythm_of_the_reference(tmp_path, monkeypatch
     fake = types.ModuleType("majoor_videotools.adapters.pyscenedetect")
     fake.detect_cut_times = lambda path, mode, sensitivity, min_frames: [0.25, 0.5, 0.75, 2.0, 2.25, 4.0]
     monkeypatch.setitem(sys.modules, "majoor_videotools.adapters.pyscenedetect", fake)
+    monkeypatch.setattr(sys.modules.setdefault("majoor_videotools.adapters", types.ModuleType("majoor_videotools.adapters")), "pyscenedetect", fake, raising=False)  # a real module already imported is an attribute of its package: that wins over sys.modules
     plan, detail = plan_from_video(video, min_shot_seconds=1.0)
     rows = plan["shots"]
     assert detail["aspect_ratio"] == "9:16" and detail["cuts"] == 7 and plan["fps"] == 24
@@ -438,8 +468,9 @@ def test_effects_and_sub_cuts_can_be_switched_off_at_assembly(root, fixtures):
     full = assemble_shots(sl, root, AssemblyOptions(audio_policy="mute"))
     plain = assemble_shots(sl, root, AssemblyOptions(audio_policy="mute", effects=False))
     one_piece = assemble_shots(sl, root, AssemblyOptions(audio_policy="mute", sub_cuts=False))
-    assert len({full.path, plain.path, one_piece.path}) == 3  # three different exports of the same takes
-    assert all(probe(r.path).frame_count == 60 for r in (full, plain, one_piece))
+    no_text = assemble_shots(sl, root, AssemblyOptions(audio_policy="mute", text=False))
+    assert len({full.path, plain.path, one_piece.path, no_text.path}) == 4  # four different exports of the same takes: the text is its own switch
+    assert all(probe(r.path).frame_count == 60 for r in (full, plain, one_piece, no_text))
     assert [t[0] for t in plain.timeline] == ["BURST", "RAMP"] and len(plain.warnings) == 2  # the usual "take trimmed to the target" notes
     assert not full.warnings
 
@@ -500,7 +531,7 @@ def test_every_prompt_file_is_listed_and_the_h3_writer_knows_the_format():
         assert "continuous" not in text and "no cuts" not in text and "no text" not in text, shot["id"]
         if shot.get("sub_cuts"):
             assert " s " in shot["prompt"] and "cut" in shot["prompt"].lower(), shot["id"]
-    assert len(writer.split()) < 1800  # a prompt a local model can follow
+    assert len(writer.split()) < 2100  # a prompt a local model can follow: 1793 words without the dialogue and plate modules, which are off unless a voice, a dialogue or a place is given
 
 
 def test_negations_are_removed_from_prompts_but_cuts_and_transitions_stay():
@@ -745,3 +776,18 @@ def test_an_aspect_ratio_that_the_engine_does_not_have_gives_the_one_of_the_node
     assert parse_plan('{"aspect_ratio": "2.39:1", "shots": [{"duration": 1}]}', 24, "9:16", 320).height > parse_plan('{"aspect_ratio": "2.39:1", "shots": [{"duration": 1}]}', 24, "9:16", 320).width
     with pytest.raises(MajoorError, match="not supported"):
         parse_plan('{"aspect_ratio": "2.39:1", "shots": [{"duration": 1}]}', 24, "21:9", 320)
+
+
+def test_the_location_of_a_shot_goes_through_the_plan():
+    from majoor_videotools.core.timeline_sources import merge_plans, plan_to_dict
+    from majoor_videotools.core.prompt_guard import clean_plan_text
+
+    place = "A zinc rooftop terrace in Paris at dusk, string lights, no people around"
+    plan = parse_plan(json.dumps({"shots": [{"id": "A", "duration": 1, "prompt": "x", "location": place}, {"id": "B", "duration": 1, "prompt": "y"}]}), 24, "9:16", 256)
+    assert [s.location for s in plan.shots] == [place, ""]
+    rows = plan_to_dict(plan)["shots"]
+    assert rows[0]["location"] == place and "location" not in rows[1]
+    merged, _ = merge_plans(json.dumps({"shots": [{"id": "A", "duration": 1}, {"id": "B", "duration": 1}]}), json.dumps({"shots": [{"id": "A", "prompt": "x", "location": place}, {"id": "B", "prompt": "y", "location": place}]}), 24, "9:16", 256)
+    assert [r["location"] for r in merged["shots"]] == [place, place]
+    cleaned = json.loads(clean_plan_text(json.dumps({"shots": [{"id": "A", "location": "A quiet street, no text, shops open"}]}))[0])
+    assert "no text" not in cleaned["shots"][0]["location"] and "shops open" in cleaned["shots"][0]["location"]

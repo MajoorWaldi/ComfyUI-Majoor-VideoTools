@@ -5,7 +5,9 @@ import shutil
 from fractions import Fraction
 from pathlib import Path
 
+from . import energy as energy_tools
 from .errors import MajoorError
+from .fx import parse_fx
 from .fingerprints import file_fingerprint, json_fingerprint
 from .frames import write_thumbnail
 from .media_probe import MediaInfo, probe
@@ -14,7 +16,8 @@ from .paths import ProjectStore
 from .timeline import frame_time, nearest_frame_index
 
 MODES = ("adaptive", "content", "threshold_fade", "manual")
-DETECTION_VERSION = "1"
+ENERGY = ("off", "events", "events_and_camera")  # what a shot did that a generated take will not do again: flashes, shakes, punch-ins (and the push of the camera)
+DETECTION_VERSION = "2"
 
 
 def parse_cut_points(text: str, info: MediaInfo) -> list[int]:
@@ -62,8 +65,8 @@ def merge_short_shots(cuts: list[int], frame_count: int, min_frames: int, warnin
     return bounds[1:-1]
 
 
-def project_id_for(source_fingerprint: str, mode: str, sensitivity: float, min_frames: int, cut_points: str) -> str:
-    params = {"mode": mode, "s": round(sensitivity, 4), "min": min_frames, "cuts": cut_points.strip() if mode == "manual" else ""}
+def project_id_for(source_fingerprint: str, mode: str, sensitivity: float, min_frames: int, cut_points: str, energy: str = "off") -> str:
+    params = {"mode": mode, "s": round(sensitivity, 4), "min": min_frames, "cuts": cut_points.strip() if mode == "manual" else "", **({"energy": energy} if energy != "off" else {})}
     return "p_" + json_fingerprint([source_fingerprint, params])[:12]
 
 
@@ -148,11 +151,14 @@ def detect_scenes(
     cut_points: str = "",
     thumbnails: bool = True,
     force_refresh: bool = False,
+    energy: str = "off",
 ) -> ShotList:
     if mode not in MODES:
         raise MajoorError(f"Unknown detection_mode '{mode}'. Available: {list(MODES)}")
+    if energy not in ENERGY:
+        raise MajoorError(f"Unknown energy '{energy}'. Available: {list(ENERGY)}")
     fingerprint = file_fingerprint(video_path)
-    project_id = project_id_for(fingerprint, mode, sensitivity, min_shot_frames, cut_points)
+    project_id = project_id_for(fingerprint, mode, sensitivity, min_shot_frames, cut_points, energy)
     store = ProjectStore(store_root, project_id)
 
     with store.lock():
@@ -173,13 +179,22 @@ def detect_scenes(
                 rel_pts = [p - info.first_pts for p in info.pts]
                 times = pyscenedetect.detect_cut_times(source_path, mode, sensitivity, min_shot_frames)
                 cuts = sorted({nearest_frame_index(rel_pts, Fraction(t) / info.time_base) for t in times} - {0})
+            events: list[energy_tools.Event] = []
+            if energy != "off":
+                gray = energy_tools.read_gray(source_path, info.fps)
+                events = energy_tools.detect_events(energy_tools.measure(gray))
+                if mode != "manual":  # a flash is not a cut: the cuts that a detector puts on its frames go
+                    cuts = energy_tools.clean_cuts(cuts, events, gray, warnings)
             cuts = merge_short_shots(cuts, info.frame_count, min_shot_frames, warnings)
             if info.timing_mode == "VFR":
                 warnings.append("Variable frame rate source: shot bounds use PTS, frame indices are informative")
-            cached = {"cuts": cuts, "warnings": warnings}
+            cached = {"cuts": cuts, "warnings": warnings, "events": [[e.kind, e.frame, e.frames, e.strength] for e in events]}
             store.write_json(cache_rel, cached)
 
         shots = build_shots(source, info, cached["cuts"])
+        if energy != "off":  # what each shot did, as the effects that Shot Assemble puts on a generated take of it
+            events = [energy_tools.Event(k, f, n, s) for k, f, n, s in cached.get("events", [])]
+            shots = tuple(_with_energy(s, events, info.fps, energy == "events_and_camera") for s in shots)
         if thumbnails:
             shots = tuple(_with_thumbnail(store, source_path, source, info, s, force_refresh) for s in shots)
         shot_list = ShotList(
@@ -192,6 +207,14 @@ def detect_scenes(
         shot_list.validate()
         persist_manifest(store, shot_list, only_if_absent=True)
     return shot_list
+
+
+def _with_energy(shot: Shot, events: list[energy_tools.Event], fps: Fraction, camera: bool) -> Shot:
+    from .template import _shot_fx  # template imports this module
+
+    row = energy_tools.shot_fx(events, shot.start_frame, shot.end_frame_exclusive, camera)
+    fx = _shot_fx(parse_fx(row, shot.shot_id, fps, lambda value, rate: 0), shot.start_frame, shot.frame_count, []) if row else {}  # sub-cut weights become frames, as in a template
+    return dataclasses.replace(shot, plan={"fx": fx}) if fx else shot
 
 
 def _with_thumbnail(store: ProjectStore, source_path: Path, source: Source, info: MediaInfo, shot: Shot, force: bool) -> Shot:

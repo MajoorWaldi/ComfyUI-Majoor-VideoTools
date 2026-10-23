@@ -153,14 +153,14 @@
     },
     {
       "id": 1042,
-      "type": "OllamaConnectivityV2",
+      "type": "CLIPLoader",
       "pos": [
         -6417.480766639765,
         -3467.0390247881683
       ],
       "size": [
         400,
-        360
+        120
       ],
       "flags": {},
       "order": 1,
@@ -168,31 +168,27 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "connection",
-          "type": "OLLAMA_CONNECTIVITY",
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
           "links": [
             2006
           ]
         }
       ],
       "properties": {
-        "cnr_id": "comfyui-ollama",
-        "ver": "2.1.0",
-        "Node name for S&R": "OllamaConnectivityV2"
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "CLIPLoader"
       },
       "widgets_values": [
-        "http://127.0.0.1:11434",
-        "qwen3.8:latest",
-        2,
-        "minutes",
-        null
+        "qwen3vl_8b_fp8_scaled.safetensors",
+        "stable_diffusion",
+        "default"
       ],
       "widgets_values_named": {
-        "url": "http://127.0.0.1:11434",
-        "model": "qwen3.8:latest",
-        "keep_alive": 2,
-        "keep_alive_unit": "minutes",
-        "🔄 Reconnect": null
+        "clip_name": "qwen3vl_8b_fp8_scaled.safetensors",
+        "type": "stable_diffusion",
+        "device": "default"
       }
     },
     {
@@ -213,29 +209,29 @@
       "mode": 0,
       "inputs": [
         {
-          "name": "OLLAMA_CONNECTIVITY",
-          "type": "OLLAMA_CONNECTIVITY",
+          "name": "CLIP",
+          "type": "CLIP",
           "link": 2006
         }
       ],
       "outputs": [
         {
-          "name": "OLLAMA_CONNECTIVITY",
-          "type": "OLLAMA_CONNECTIVITY",
+          "name": "CLIP",
+          "type": "CLIP",
           "links": []
         }
       ],
-      "title": "Set_OLLAMA",
+      "title": "Set_LLM",
       "properties": {
         "Node name for S&R": "SetNode",
         "aux_id": "kijai/ComfyUI-KJNodes",
-        "previousName": "OLLAMA"
+        "previousName": "LLM"
       },
       "widgets_values": [
-        "OLLAMA"
+        "LLM"
       ],
       "widgets_values_named": {
-        "Constant": "OLLAMA"
+        "Constant": "LLM"
       }
     },
     {
@@ -2186,7 +2182,7 @@
       0,
       1043,
       0,
-      "OLLAMA_CONNECTIVITY"
+      "CLIP"
     ],
     [
       2016,
@@ -2711,82 +2707,72 @@
             "inputs": [],
             "outputs": [
               {
-                "name": "OLLAMA_CONNECTIVITY",
-                "type": "OLLAMA_CONNECTIVITY",
+                "name": "CLIP",
+                "type": "CLIP",
                 "links": [
                   2017
                 ]
               }
             ],
-            "title": "Get_OLLAMA",
+            "title": "Get_LLM",
             "properties": {
               "Node name for S&R": "GetNode",
               "aux_id": "kijai/ComfyUI-KJNodes"
             },
             "widgets_values": [
-              "OLLAMA"
+              "LLM"
             ],
             "widgets_values_named": {
-              "Constant": "OLLAMA"
+              "Constant": "LLM"
             }
           },
           {
             "id": 2,
-            "type": "OllamaChat",
+            "type": "TextGenerate",
             "pos": [
               -6427.452249603029,
               -2839.0523977392404
             ],
             "size": [
               400,
-              294
+              460
             ],
             "flags": {},
             "order": 1,
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "connectivity",
-                "name": "connectivity",
-                "shape": 7,
-                "type": "OLLAMA_CONNECTIVITY",
+                "localized_name": "clip",
+                "name": "clip",
+                "type": "CLIP",
                 "link": 2017
               },
               {
-                "localized_name": "options",
-                "name": "options",
-                "shape": 7,
-                "type": "OLLAMA_OPTIONS",
-                "link": null
-              },
-              {
-                "localized_name": "images",
-                "name": "images",
+                "localized_name": "image",
+                "name": "image",
                 "shape": 7,
                 "type": "IMAGE",
                 "link": 4
               },
               {
-                "localized_name": "meta",
-                "name": "meta",
+                "localized_name": "video",
+                "name": "video",
                 "shape": 7,
-                "type": "OLLAMA_META",
+                "type": "IMAGE",
                 "link": null
               },
               {
-                "localized_name": "history",
-                "name": "history",
+                "localized_name": "audio",
+                "name": "audio",
                 "shape": 7,
-                "type": "OLLAMA_HISTORY",
+                "type": "AUDIO",
                 "link": null
               },
               {
-                "localized_name": "system",
-                "name": "system",
+                "localized_name": "system_prompt",
+                "name": "system_prompt",
+                "shape": 7,
                 "type": "STRING",
-                "widget": {
-                  "name": "system"
-                },
                 "link": 2277
               },
               {
@@ -2801,8 +2787,8 @@
             ],
             "outputs": [
               {
-                "localized_name": "result",
-                "name": "result",
+                "localized_name": "generated_text",
+                "name": "generated_text",
                 "type": "STRING",
                 "links": [
                   5
@@ -2813,38 +2799,41 @@
                 "name": "thinking",
                 "type": "STRING",
                 "links": null
-              },
-              {
-                "localized_name": "meta",
-                "name": "meta",
-                "type": "OLLAMA_META",
-                "links": null
-              },
-              {
-                "localized_name": "history",
-                "name": "history",
-                "type": "OLLAMA_HISTORY",
-                "links": null
               }
             ],
             "properties": {
-              "cnr_id": "comfyui-ollama",
-              "ver": "2.1.0",
-              "Node name for S&R": "OllamaChat"
+              "cnr_id": "comfy-core",
+              "Node name for S&R": "TextGenerate"
             },
             "widgets_values": [
-              "You are an AI artist.",
               "create a viral media edit of this girl , aura farming for 7s seconde  ",
+              4096,
+              "on",
+              0.7,
+              64,
+              0.95,
+              0.05,
+              1.05,
+              0,
+              0,
               false,
-              "json",
-              false
+              true,
+              "auto"
             ],
             "widgets_values_named": {
-              "system": "You are an AI artist.",
               "prompt": "create a viral media edit of this girl , aura farming for 7s seconde  ",
-              "think": false,
-              "format": "json",
-              "reset_session": false
+              "max_length": 4096,
+              "sampling_mode": "on",
+              "sampling_mode.temperature": 0.7,
+              "sampling_mode.top_k": 64,
+              "sampling_mode.top_p": 0.95,
+              "sampling_mode.min_p": 0.05,
+              "sampling_mode.repetition_penalty": 1.05,
+              "sampling_mode.seed": 0,
+              "sampling_mode.presence_penalty": 0,
+              "thinking": false,
+              "use_default_template": true,
+              "mtp": "auto"
             }
           },
           {
@@ -2994,14 +2983,14 @@
             "origin_slot": 0,
             "target_id": 2,
             "target_slot": 0,
-            "type": "OLLAMA_CONNECTIVITY"
+            "type": "CLIP"
           },
           {
             "id": 4,
             "origin_id": -10,
             "origin_slot": 0,
             "target_id": 2,
-            "target_slot": 2,
+            "target_slot": 1,
             "type": "IMAGE"
           },
           {
@@ -3017,7 +3006,7 @@
             "origin_id": -10,
             "origin_slot": 1,
             "target_id": 2,
-            "target_slot": 6,
+            "target_slot": 5,
             "type": "STRING"
           },
           {
@@ -3025,7 +3014,7 @@
             "origin_id": 1200,
             "origin_slot": 0,
             "target_id": 2,
-            "target_slot": 5,
+            "target_slot": 4,
             "type": "STRING"
           },
           {
@@ -3235,23 +3224,23 @@
             "inputs": [],
             "outputs": [
               {
-                "name": "OLLAMA_CONNECTIVITY",
-                "type": "OLLAMA_CONNECTIVITY",
+                "name": "CLIP",
+                "type": "CLIP",
                 "links": [
                   364
                 ]
               }
             ],
-            "title": "Get_OLLAMA",
+            "title": "Get_LLM",
             "properties": {
               "Node name for S&R": "GetNode",
               "aux_id": "kijai/ComfyUI-KJNodes"
             },
             "widgets_values": [
-              "OLLAMA"
+              "LLM"
             ],
             "widgets_values_named": {
-              "Constant": "OLLAMA"
+              "Constant": "LLM"
             }
           },
           {
@@ -3273,7 +3262,7 @@
                 "localized_name": "connectivity",
                 "name": "connectivity",
                 "shape": 7,
-                "type": "OLLAMA_CONNECTIVITY",
+                "type": "CLIP",
                 "link": 364
               },
               {
@@ -4938,7 +4927,7 @@
             "origin_slot": 0,
             "target_id": 151,
             "target_slot": 0,
-            "type": "OLLAMA_CONNECTIVITY"
+            "type": "CLIP"
           },
           {
             "id": 361,
@@ -8088,7 +8077,7 @@
           {
             "id": "92cb720f-acbd-4342-8f0f-6419f36b0778",
             "name": "connectivity",
-            "type": "OLLAMA_CONNECTIVITY",
+            "type": "CLIP",
             "linkIds": [
               116
             ],
@@ -8169,61 +8158,51 @@
         "nodes": [
           {
             "id": 57,
-            "type": "OllamaChat",
+            "type": "TextGenerate",
             "pos": [
               849.7072125486595,
               1202.1057181140607
             ],
             "size": [
-              440,
-              400
+              400,
+              460
             ],
             "flags": {},
             "order": 0,
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "connectivity",
-                "name": "connectivity",
-                "shape": 7,
-                "type": "OLLAMA_CONNECTIVITY",
+                "localized_name": "clip",
+                "name": "clip",
+                "type": "CLIP",
                 "link": 116
               },
               {
-                "localized_name": "options",
-                "name": "options",
-                "shape": 7,
-                "type": "OLLAMA_OPTIONS",
-                "link": null
-              },
-              {
-                "localized_name": "images",
-                "name": "images",
+                "localized_name": "image",
+                "name": "image",
                 "shape": 7,
                 "type": "IMAGE",
                 "link": 2337
               },
               {
-                "localized_name": "meta",
-                "name": "meta",
+                "localized_name": "video",
+                "name": "video",
                 "shape": 7,
-                "type": "OLLAMA_META",
+                "type": "IMAGE",
                 "link": null
               },
               {
-                "localized_name": "history",
-                "name": "history",
+                "localized_name": "audio",
+                "name": "audio",
                 "shape": 7,
-                "type": "OLLAMA_HISTORY",
+                "type": "AUDIO",
                 "link": null
               },
               {
-                "localized_name": "system",
-                "name": "system",
+                "localized_name": "system_prompt",
+                "name": "system_prompt",
+                "shape": 7,
                 "type": "STRING",
-                "widget": {
-                  "name": "system"
-                },
                 "link": 2335
               },
               {
@@ -8238,8 +8217,8 @@
             ],
             "outputs": [
               {
-                "localized_name": "result",
-                "name": "result",
+                "localized_name": "generated_text",
+                "name": "generated_text",
                 "type": "STRING",
                 "links": [
                   120,
@@ -8250,40 +8229,43 @@
                 "localized_name": "thinking",
                 "name": "thinking",
                 "type": "STRING",
-                "links": []
-              },
-              {
-                "localized_name": "meta",
-                "name": "meta",
-                "type": "OLLAMA_META",
-                "links": []
-              },
-              {
-                "localized_name": "history",
-                "name": "history",
-                "type": "OLLAMA_HISTORY",
-                "links": []
+                "links": null
               }
             ],
             "title": "MAJOOR · H3 Edit Director v2.1",
             "properties": {
-              "cnr_id": "comfyui-ollama",
-              "ver": "2.1.0",
-              "Node name for S&R": "OllamaChat"
+              "cnr_id": "comfy-core",
+              "Node name for S&R": "TextGenerate"
             },
             "widgets_values": [
-              "You are the MAJOOR Edit Director.",
               "",
+              4096,
+              "on",
+              0.7,
+              64,
+              0.95,
+              0.05,
+              1.05,
+              0,
+              0,
               false,
-              "text",
-              true
+              true,
+              "auto"
             ],
             "widgets_values_named": {
-              "system": "You are the MAJOOR Edit Director.",
               "prompt": "",
-              "think": false,
-              "format": "text",
-              "reset_session": true
+              "max_length": 4096,
+              "sampling_mode": "on",
+              "sampling_mode.temperature": 0.7,
+              "sampling_mode.top_k": 64,
+              "sampling_mode.top_p": 0.95,
+              "sampling_mode.min_p": 0.05,
+              "sampling_mode.repetition_penalty": 1.05,
+              "sampling_mode.seed": 0,
+              "sampling_mode.presence_penalty": 0,
+              "thinking": false,
+              "use_default_template": true,
+              "mtp": "auto"
             }
           },
           {
@@ -8512,7 +8494,7 @@
             "origin_slot": 0,
             "target_id": 57,
             "target_slot": 0,
-            "type": "OLLAMA_CONNECTIVITY"
+            "type": "CLIP"
           },
           {
             "id": 120,
@@ -8559,7 +8541,7 @@
             "origin_id": 1198,
             "origin_slot": 0,
             "target_id": 57,
-            "target_slot": 5,
+            "target_slot": 4,
             "type": "STRING"
           },
           {
@@ -8567,7 +8549,7 @@
             "origin_id": 1198,
             "origin_slot": 1,
             "target_id": 57,
-            "target_slot": 6,
+            "target_slot": 5,
             "type": "STRING"
           },
           {
@@ -8575,7 +8557,7 @@
             "origin_id": 1198,
             "origin_slot": 3,
             "target_id": 57,
-            "target_slot": 2,
+            "target_slot": 1,
             "type": "IMAGE"
           }
         ],
