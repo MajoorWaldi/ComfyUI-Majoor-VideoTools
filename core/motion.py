@@ -541,15 +541,24 @@ def draw_layers(frame: np.ndarray, layers: list[dict], t: float, length: float, 
             _paste(frame, sprite, x + int(state["dx"] * width), y + int(state["dy"] * height), state["alpha"])
 
 
-def render_motion(source: Path, layers: list[dict], out: Path, on_progress=None, is_cancelled=None, masks=None) -> None:
+def render_motion(source: Path, layers: list[dict], out: Path, on_progress=None, is_cancelled=None, masks=None) -> dict | None:
     """Compatibility entry point; all production composition now uses HyperFrames."""
-    from .hyperframes import render_hyperframes
+    from .hyperframes import optional_hyperframes_fallback, render_hyperframes
     import shutil
     if needs_mask(layers) and masks is None:
         raise MajoorError("These layers need the mask of the subject")
-    result, _ = render_hyperframes(source, out.parent / '_hyperframes',
-        '{"preset":"minimal","reactive":false,"intensity":0}',
-        layers_text=json.dumps(layers), masks=masks, progress=on_progress, cancelled=is_cancelled)
+    fallback = None
+    try:
+        result, _ = render_hyperframes(source, out.parent / '_hyperframes',
+            '{"preset":"minimal","reactive":false,"intensity":0}',
+            layers_text=json.dumps(layers), masks=masks, progress=on_progress, cancelled=is_cancelled)
+    except Exception as error:
+        fallback = optional_hyperframes_fallback(error, is_cancelled)
+        if fallback is None:
+            raise
+        result = source
+        if on_progress:
+            on_progress(1.0)
     out.parent.mkdir(parents=True, exist_ok=True)
     temporary = out.with_suffix('.partial.mp4')
     try:
@@ -557,3 +566,4 @@ def render_motion(source: Path, layers: list[dict], out: Path, on_progress=None,
         temporary.replace(out)
     finally:
         temporary.unlink(missing_ok=True)
+    return fallback

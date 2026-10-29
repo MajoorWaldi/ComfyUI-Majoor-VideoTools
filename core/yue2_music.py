@@ -41,7 +41,21 @@ def music_score(abc: str, instrumental: bool) -> tuple[str, dict]:
             and ins[-1] == len(lines) - 2
             and lines[-1].strip() and not lines[-1].endswith(('|', '|]'))
         )
-        if not final_ins_cut:
+        final_group_mismatch = re.fullmatch(
+            r'group ([1-9][0-9]*): voices have different measure counts', str(error)
+        )
+        final_ins_music = ins[-1] + 1 if ins else len(lines)
+        while final_ins_music < len(lines) and lines[final_ins_music].startswith(('M:', 'K:')):
+            final_ins_music += 1
+        discard_mismatched_final_group = (
+            final_group_mismatch is not None
+            and len(starts) > 1
+            and int(final_group_mismatch.group(1)) == len(starts)
+            and len(ins) == len(starts)
+            and ins[-1] > starts[-1]
+            and final_ins_music == len(lines) - 1
+        )
+        if not final_ins_cut and not discard_mismatched_final_group:
             raise MajoorError(f'YuE2 instrumental score preparation failed: {error}') from error
         prefix = lines[:starts[-1]]
         while prefix and prefix[-1].startswith('% '):
@@ -50,7 +64,11 @@ def music_score(abc: str, instrumental: bool) -> tuple[str, dict]:
             converted, report = convert_score('\n'.join(prefix) + '\n', overlap='vocal', keep_chords=True)
         except (ValueError, KeyError, IndexError, ZeroDivisionError):
             raise MajoorError(f'YuE2 instrumental score preparation failed: {error}') from error
-        recovery = {'discarded_incomplete_final_group': True,
-                    'score_warning': 'Token-limited ABC: incomplete final voice pair discarded; preceding groups validated.'}
+        score_warning = (
+            'Token-limited ABC: incomplete final voice pair discarded; preceding groups validated.'
+            if final_ins_cut else
+            'Token-limited ABC: final group with mismatched voice measure counts discarded; preceding groups validated.'
+        )
+        recovery = {'discarded_incomplete_final_group': True, 'score_warning': score_warning}
         warnings.warn(recovery['score_warning'], RuntimeWarning, stacklevel=2)
     return converted, {'instrumental': True, 'converted': True, **report, **recovery}

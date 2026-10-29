@@ -1,5 +1,8 @@
 # Unified finishing renderer
 
+> **Experimental finishing.** HyperKut Studio is beta. Finishing starts disabled; review the encoded result when enabling these features.
+
+
 SECATOR now composites typography and motion graphics with HyperFrames. `MajoorMotionGraphics` is retained as a compatibility node and delegates to the same renderer; its former frame-by-frame video encoder has been removed. The JSON contract remains available, including text, emoji, boxes, brackets, outlines, frame/subject/background effects and tracked labels.
 
 The Studio final graphs (Text, Music, Remix) contain one `MajoorHyperFrames` directly after `MajoorShotAssemble`. Planner text is translated to shared layers with its timing, position, font, color, rotation and repetition. Assembly text drawing is disabled for this path, while the user-facing text switch remains effective. Standalone assembly workflows retain their existing behavior; they are not rewritten automatically.

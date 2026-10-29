@@ -1,5 +1,8 @@
 # Optional HyperFrames finishing
 
+> **Experimental finishing.** HyperKut Studio is beta. Finishing starts disabled; review the encoded result when enabling these features.
+
+
 The Studio enables animated design by default, with the added music mix at zero. Its presets choose a compatible graphic style. Existing explicit edit settings remain authoritative. The standalone node still requires activation.
 
 Connect **Shot Assemble → Motion Design — HyperFrames → Save Video**. Existing Motion Graphics nodes are compatibility adapters to the same compositor. The Studio uses a single finishing node; do not add a second graphics pass by default. `enabled=false` disables decorative design; separately requested layers can still render and require the runtime. A pass with neither decoration nor layers can bypass rendering.
@@ -50,7 +53,7 @@ Before full encoding, HyperFrames captures up to 16 representative composition f
 
 Content hashes of the source, GSAP, direction and resolved cues select a project under `output/MajoorVideoTools/hyperframes/`. HTML, assets, measured audio data, direction, report and render log remain editable. Equal requests reuse the existing output. Original audio is remuxed from the final source, never newly generated. If the original codec cannot be remuxed to MP4, the node reports an error instead of silently replacing the mix.
 
-Cancellation terminates the rendering process tree on Windows. Errors leave the original assembly intact and fail explicitly; they do not overwrite a previous successful export. A 15-minute render timeout avoids indefinite waits. The Studio bypasses rendering when decorative design, manual/planned layers and source-layer restoration are all inactive. A disabled decoration toggle alone is not a guarantee that no graphics are requested.
+Cancellation terminates the rendering process tree on Windows. Invalid inputs and cancellation remain errors. If the optional local renderer/runtime itself is unavailable or fails, both the finishing node and the compatibility Motion Graphics node deliver the unchanged source video and log a warning with the specific cause; they do not overwrite a previous successful export. The report retains the stable `optional:hyperframes:unavailable` warning code and includes `warning_details` with the cause. The Motion Graphics passthrough is not cached, so a later execution can retry after installing or repairing HyperFrames. A 15-minute render timeout avoids indefinite waits. The Studio bypasses rendering when decorative design, manual/planned layers and source-layer restoration are all inactive. A disabled decoration toggle alone is not a guarantee that no graphics are requested.
 
 If the pinned CLI announces a completed, validated render but keeps its process alive, the adapter allows five seconds for normal shutdown, then verifies dimensions, fps, frame count, duration and full video decoding before closing only that child process tree and continuing the audio remux. Missing completion markers or an invalid artifact still fail; cancellation remains authoritative. The finishing report records `recovered_shutdown` when this recovery was used.
 

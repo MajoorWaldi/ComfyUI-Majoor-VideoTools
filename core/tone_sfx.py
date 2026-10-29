@@ -13,7 +13,7 @@ _CACHE={}
 def bank_path():
     return Path(os.environ.get('MAJOOR_TONE_RUNTIME',Path(__file__).resolve().parents[1]/'runtime/tonejs'))/'bank'
 
-def tone_library():
+def _read_tone_library():
     root=bank_path();manifest=root/'tone.json'
     if not manifest.is_file():return {},'procedural-v1'
     payload=manifest.read_bytes();key=hashlib.sha256(payload).hexdigest()
@@ -39,6 +39,22 @@ def tone_library():
             sounds[name]=samples/max(float(np.abs(samples).max()),1e-6)
     _CACHE.clear();_CACHE[cache_key]=(sounds,'tone-'+key)
     return _CACHE[cache_key]
+
+def tone_library_status():
+    """Optional bank: untrusted or incomplete files never reach the mixer."""
+    try:
+        if not (bank_path() / 'tone.json').is_file():
+            return {}, 'procedural-v1', 'optional:tone:missing'
+        sounds, key = _read_tone_library()
+        return sounds, key, None
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, EOFError, wave.Error, MajoorError):
+        return {}, 'procedural-v1', 'optional:tone:unavailable'
+
+
+def tone_library():
+    sounds, key, _ = tone_library_status()
+    return sounds, key
+
 
 PALETTES = {
     'subtle': {'hit': ('ui_click_soft', 'tick'), 'whoosh': ('stereo_sweep',), 'impact': ('hit',)},
@@ -89,9 +105,12 @@ def design_cues(events,seconds,overrides=(),available=None, *, preparations=None
 
 def tone_anchors():
     """Optional PCM48k anchors; old banks keep their historical LEAD values."""
-    manifest = bank_path() / 'tone.json'
-    if not manifest.is_file(): return {}
-    entries = json.loads(manifest.read_text(encoding='utf-8')).get('entries', {})
-    return {kind: row['anchor_sample'] for kind, row in entries.items()
-            if kind in KINDS and isinstance(row.get('anchor_sample'), int)
-            and not isinstance(row['anchor_sample'], bool) and row['anchor_sample'] >= 0}
+    try:
+        manifest = bank_path() / 'tone.json'
+        if not manifest.is_file(): return {}
+        entries = json.loads(manifest.read_text(encoding='utf-8')).get('entries', {})
+        return {kind: row['anchor_sample'] for kind, row in entries.items()
+                if kind in KINDS and isinstance(row.get('anchor_sample'), int)
+                and not isinstance(row['anchor_sample'], bool) and row['anchor_sample'] >= 0}
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return {}

@@ -1,6 +1,8 @@
 """Optional local HTML finishing pass. No generated executable code or hosted API."""
+import hashlib
 import html
 import json
+import logging
 import math
 import os
 import re
@@ -11,15 +13,57 @@ from pathlib import Path
 
 import numpy as np
 from filelock import FileLock
+from PIL import Image, ImageDraw
 
 from ..adapters.ffmpeg import CREATIONFLAGS, run_capture, run_ffmpeg
+from .audio_quality import assess_loudness, measure_loudness
 from .beats import strong_accents
+from .delivery_review import review_delivery
+from .errors import FFmpegError, MajoorError
 from .fingerprints import file_fingerprint, json_fingerprint
+from .fx import TEXT_POSITIONS, safe_box
+from .hyperframes_layers import prepare_layers
+from .layout_review import subject_overlap
 from .media_probe import probe
+from .motion import needs_mask, parse_layers
+from .motion_scenes import readability
+from .motion_score import read_score
+from .motion_timing import preview_times, shot_layers
+from .text_timing import TEXT_TIMING
 
 VERSION = '10'
 CLI_VERSION = '0.8.201'
 PRESETS = ('editorial', 'minimal', 'energetic')
+OPTIONAL_HYPERFRAMES_WARNING = 'optional:hyperframes:unavailable'
+
+
+def optional_hyperframes_fallback(error, cancelled=None):
+    """Return one shared passthrough report for renderer failures, not bad inputs."""
+    if isinstance(error, InterruptedError):
+        return None
+    if isinstance(error, FFmpegError) and 'cancel' in str(error).casefold():
+        raise InterruptedError('HyperFrames render cancelled') from error
+    if cancelled and cancelled():
+        raise InterruptedError('HyperFrames render cancelled') from error
+    if isinstance(error, (ValueError, MajoorError)) and not isinstance(error, FFmpegError):
+        return None
+    if not isinstance(error, (OSError, RuntimeError, subprocess.SubprocessError, FFmpegError)):
+        return None
+
+    reason = f'{type(error).__name__}: {error}'.strip()[:2000]
+    message = f'Optional HyperFrames finishing unavailable; original video retained. {reason}'
+    logging.getLogger(__name__).warning('%s', message)
+    return {
+        'version': 1,
+        'renderer': 'passthrough',
+        'status': 'fallback',
+        'reused': False,
+        'layers': [],
+        'warnings': [OPTIONAL_HYPERFRAMES_WARNING],
+        'warning_details': [{'code': OPTIONAL_HYPERFRAMES_WARNING, 'message': message}],
+        'original_retained': True,
+        'reason': reason,
+    }
 
 
 def parse_direction(text: str) -> dict:
@@ -32,7 +76,7 @@ def parse_direction(text: str) -> dict:
             raise ValueError('Direction keys: preset, accent, reactive, title, intensity')
     else:
         words = text.strip().casefold()
-        preset = words if words in PRESETS else 'minimal' if any(w in words for w in ('minimal', 'sobre', 'discret', 'soft')) else 'energetic' if any(w in words for w in ('energi', 'Ã©nergi', 'nerveux', 'bold', 'dynam')) else 'editorial'
+        preset = words if words in PRESETS else 'minimal' if any(w in words for w in ('minimal', 'sobre', 'discret', 'soft')) else 'energetic' if any(w in words for w in ('energi', 'énergi', 'nerveux', 'bold', 'dynam')) else 'editorial'
         color = re.search(r'#[0-9a-fA-F]{6}\b', text)
         data = {'preset': preset, 'accent': color.group() if color else '#e4c081'}
     defaults = {'reactive': False, 'intensity': 0.18} if data.get('preset') == 'minimal' else {}
@@ -139,8 +183,6 @@ def write_composition(project: Path, source: Path, info, direction: dict, cues: 
         letters = ''.join('<span>' + html.escape(c) + '</span>' for c in cue['text'])
         cards.append(f'<div id="title{i}" class="clip title {cue["position"]}" data-start="{cue["start"]}" data-duration="{cue["end"]-cue["start"]}" data-track-index="1"><div class="panel"><div class="words">{letters}</div><div class="rule"></div></div></div>')
     scene = Path(__file__).resolve().parents[1] / 'web/hyperframes_scene.html'
-    from .fx import safe_box, TEXT_POSITIONS
-    from .text_timing import TEXT_TIMING
     config = {'duration': duration, 'fps': fps, 'cues': cues, 'audio': audio, 'layers': layers or [], 'layer_assets': layer_assets or {},
               'text_timing': TEXT_TIMING, 'safe_boxes': {name: safe_box(width,height,pos[0]) for name,pos in TEXT_POSITIONS.items()}, **direction}
     # Script JSON cannot terminate the script tag, including user-supplied captions.
@@ -212,8 +254,6 @@ def validate_silent_render(path, info, cancelled=None):
 
 def capture_previews(node, cli, project, info, layers, cues, timeline, cancelled=None, *, masks=None):
     """Render real composition stills before encoding; validate decoding, not aesthetics."""
-    from PIL import Image, ImageDraw
-    from .motion_timing import preview_times
     times = preview_times(layers, cues, timeline, float(info.duration), float(info.fps))
     folder = project / 'previews'
     folder.mkdir(exist_ok=True)
@@ -261,7 +301,6 @@ def capture_previews(node, cli, project, info, layers, cues, timeline, cancelled
                 for other in visible[:i]:
                     x,y,z,w=other['rect']
                     if min(c,z)>max(a,x) and min(d,w)>max(b,y): warnings.append({'time':sample['time'],'kind':'text_overlap','layer':i})
-        from .layout_review import subject_overlap
         subject = subject_overlap(layout['samples'], masks, info.display_size, float(info.duration))
         report['layout']={'status':'measured','report':str(folder/'layout.json'),'warnings':warnings,
                           'subject_overlap':subject,'contrast':'not_evaluated'}
@@ -276,9 +315,6 @@ def render_hyperframes(source: Path, output_root: Path, direction_text='', cues_
     duration, fps = float(info.duration), float(info.fps)
     if not 0 < duration <= 180 or not 1 <= fps <= 60:
         raise ValueError('HyperFrames finishing supports up to 180 seconds and 60 fps')
-    from .motion import parse_layers, needs_mask
-    from .hyperframes_layers import prepare_layers
-    from .motion_timing import shot_layers
     raw_layers, _ = shot_layers(layers_text, timeline, duration, fps)
     layers = parse_layers(json.dumps(raw_layers), duration)
     if needs_mask(layers) and masks is None:
@@ -291,10 +327,8 @@ def render_hyperframes(source: Path, output_root: Path, direction_text='', cues_
     template = Path(__file__).resolve().parents[1] / 'web/hyperframes_scene.html'
     mask_fp = ''
     if needs_mask(layers):
-        import hashlib
         mask_fp = hashlib.sha256(np.ascontiguousarray(masks, dtype=np.float32).tobytes()).hexdigest()
     driver = template.with_name('hyperframes_layers.js')
-    from .motion_score import read_score
     score_rows = json.loads(layers_text or '[]')
     score_rows = score_rows.get('layers', []) if isinstance(score_rows, dict) else score_rows
     shared_score = read_score(source, score_rows, duration, fps)
@@ -310,14 +344,13 @@ def render_hyperframes(source: Path, output_root: Path, direction_text='', cues_
             return result, {**report, 'original': str(source), 'reused': True}
         configured = json.loads(layers_text or '[]')
         configured = configured.get('layers', []) if isinstance(configured, dict) else configured
-        sync_requested = any(row.get('sync') == 'onset' for row in configured)
+        sync_requested = any(isinstance(row, dict) and row.get('sync') == 'onset' for row in configured)
         audio = analyze_audio(source, info) if direction['reactive'] or sync_requested else {'bands': [], 'hits': [], 'audio': info.has_audio}
         if shared_score:
             resolved, alignment = shared_score['layers'], shared_score['alignment']
         else:
             resolved, alignment = shot_layers(layers_text, timeline, duration, fps, audio.get('onsets', audio['hits']))
         layers = parse_layers(json.dumps(resolved), duration)
-        from .motion_scenes import readability
         layout_review=readability(layers,*info.display_size,duration)
         layer_assets = prepare_layers(project, source, info, layers, masks, cancelled)
         display_audio = audio if direction['reactive'] else {'bands': [], 'hits': [], 'audio': audio['audio']}
@@ -336,11 +369,9 @@ def render_hyperframes(source: Path, output_root: Path, direction_text='', cues_
                 raise RuntimeError('HyperFrames output failed duration, dimensions or audio validation')
             report = {'reused': False, 'layers': layers, 'mask_used': needs_mask(layers), 'renderer': 'hyperframes', 'preset': direction['preset'], 'direction': direction, 'cues': cues, 'audio_reactive': bool(audio['audio'] and direction['reactive']), 'hits': len(audio['hits']), 'project': str(project), 'original': str(source), 'limits': 'Bounded presets; plain brief selects a preset and #RRGGBB accent. Use JSON for precise control. No automatic tracking or semantic prompt generation.'}
             report.update(score_source='assembly_measured_music' if shared_score else 'final_mix_fallback', score_events=shared_score['events'] if shared_score else [], alignment=alignment, previews=previews, recovered_shutdown=recovered_shutdown, readability=layout_review)
-            from .audio_quality import measure_loudness, assess_loudness
             delivered_audio = measure_loudness(staged)
             report['delivered_audio'] = {'measurement': delivered_audio, 'assessment': assess_loudness(delivered_audio),
                                          'scope': 'decoded final remux; assessment is advisory for unnormalized input'}
-            from .delivery_review import review_delivery
             try:
                 report['delivery_review'] = review_delivery(staged, source)
             except Exception as error:

@@ -15,5 +15,5 @@ _, planner, _ = _build("timeline_planner", True, True, True, "all", 0, 0, "auto"
 _, music, _ = _build("music_brief_from_plan", True, True, True, "all", 0, 0, "auto", 1, "", "", "viral_aura_farming", {})
 assert "Viral / Aura Farming" in planner and "Cut density: low," in planner and "EDITING PROFILE" not in music
 _, minimax, _ = _build("music_brief_minimax3", True, True, True, "all", 0, 0, "auto", 1, "", "", "beauty_premium", {})
-assert "MUSIC DIRECTION OF THE PROFILE" in minimax and "soft contemporary instrumental" in minimax and "EDITING PROFILE" not in minimax
+assert "MUSIC DIRECTION OF THE PROFILE" in minimax and "soft and refined" in minimax and "EDITING PROFILE" not in minimax
 print("edit skills ok")

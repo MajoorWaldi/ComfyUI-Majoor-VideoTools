@@ -1,11 +1,9 @@
-from pathlib import Path
-
 import torch
 from comfy_api.latest import io
 
+from ..adapters.comfy_video import ensure_video_supported, sample_video_components, video_has_audio
 from ..core.errors import MajoorError
 from ..core.frame_select import parse_frames
-from ..core.media_probe import probe
 
 
 class MajoorGetVideoComponentsAdvanced(io.ComfyNode):
@@ -15,13 +13,13 @@ class MajoorGetVideoComponentsAdvanced(io.ComfyNode):
             node_id="MajoorGetVideoComponentsAdvanced",
             display_name="Get Video Components Advanced",
             category="Majoor/VideoTools",
-            description="Get Video Components with the size, the length and the number of frames of the video as numbers, and a choice of the frames to output by their index.",
+            description="Get video metadata and selected image frames. File-backed videos are sampled before the frame batch is allocated, with a 512 MiB memory budget.",
             inputs=[
                 io.Video.Input("video"),
                 io.String.Input(
                     "frames",
                     default="",
-                    tooltip="Frames to output, in the order written: '0-10, 24, 30-90:5, -1'. A range is inclusive, ':n' is a step, negative numbers count from the end, '~8' keeps 8 frames spread evenly. Empty outputs every frame.",
+                    tooltip="Frames to output, in the order written: '0-10, 24, 30-90:5, -1'. A range is inclusive, ':n' is a step, negative numbers count from the end, '~8' keeps 8 frames spread evenly. Empty outputs every frame. Selected file frames are decoded before allocating the batch; output is limited to 512 MiB.",
                 ),
                 io.Boolean.Input("load_images", default=True, tooltip="Off: the video is not decoded, only the numbers are read (width, height, duration, fps, frame_count): images is an empty batch, audio and frame_indices are empty."),
             ],
@@ -41,18 +39,13 @@ class MajoorGetVideoComponentsAdvanced(io.ComfyNode):
 
     @classmethod
     def execute(cls, video, frames, load_images=True) -> io.NodeOutput:
+        ensure_video_supported(video)
         width, height = video.get_dimensions()
         if not load_images:
-            return io.NodeOutput(video, width, height, float(video.get_duration()), float(video.get_frame_rate()), video.get_frame_count(), torch.zeros((0, height, width, 3)), None, "", probe(Path(video.get_stream_source()), with_packets=False).has_audio)
-        components = video.get_components()
-        images = components.images
-        count = images.shape[0]
+            return io.NodeOutput(video, width, height, float(video.get_duration()), float(video.get_frame_rate()), video.get_frame_count(), torch.zeros((0, height, width, 3)), None, "", video_has_audio(video))
+        images, audio, frame_rate, count = sample_video_components(video, frames)
         if count == 0:
             raise MajoorError("The video has no frame.")
         indices = parse_frames(frames, count) if frames.strip() else list(range(count))
-        if not indices:
-            raise MajoorError("frames selects no frame.")
-        if indices != list(range(count)):
-            images = images[indices]
         text = f"0-{count - 1}" if len(indices) == count and indices == list(range(count)) else ", ".join(map(str, indices))
-        return io.NodeOutput(video, width, height, float(video.get_duration()), float(components.frame_rate), count, images, components.audio, text, components.audio is not None)
+        return io.NodeOutput(video, width, height, float(video.get_duration()), float(frame_rate), count, images, audio, text, audio is not None)

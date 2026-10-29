@@ -2,6 +2,7 @@
 import json
 import math
 from .motion_scenes import style_layer
+from .motion_contract import validate_motion_rows
 
 
 def _local_seconds(value, length):
@@ -19,6 +20,7 @@ def shot_layers(text, timeline, duration, fps, hits=()):
     rows = data.get('layers', []) if isinstance(data, dict) else data
     if not isinstance(rows, list) or len(rows) > 120:
         raise ValueError('Motion layers must contain at most 120 objects')
+    validate_motion_rows(rows)
     windows = {}
     for shot in json.loads(timeline or '[]'):
         start, length = float(shot['start']), float(shot['duration'])

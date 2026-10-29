@@ -37,7 +37,7 @@ def test_music_save_node_checks_the_fork_id_before_writing(tmp_path):
     method = next(n for n in node.body if isinstance(n, ast.FunctionDef) and n.name == 'execute')
     method.decorator_list = []
     method.returns = None
-    scope = {'ProjectStore':ProjectStore,'projects_root':lambda:tmp_path/'projects','MUSIC_FILE':'music/retained.wav'}
+    scope = {'ProjectStore':ProjectStore,'projects_root':lambda scope=None:tmp_path/'projects','MUSIC_FILE':'music/retained.wav'}
     exec(compile(ast.Module(body=[method],type_ignores=[]),'music-save-boundary','exec'),scope)
     with pytest.raises(PathError):
         scope['execute'](None, None, None, '../outside')

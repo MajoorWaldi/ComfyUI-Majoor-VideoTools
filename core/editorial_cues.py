@@ -1,7 +1,7 @@
 """Bound editorial accents without moving their declared visual timestamps."""
 import math
 
-ROLES = {'action': 4, 'reveal': 3, 'narrative': 2, 'decoration': 1}
+from .motion_contract import EVENT_ROLE_PRIORITY as ROLES
 
 
 def arbitrate_cues(automatic, explicit, seconds, *, protected=(), quiet=False, preparations=None):

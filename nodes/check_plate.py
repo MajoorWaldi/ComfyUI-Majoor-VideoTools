@@ -16,6 +16,6 @@ class MajoorCheckPlate(io.ComfyNode):
     def execute(cls,assessment,image=None,metadata=None):
         result=parse_plate_assessment(assessment) if image is not None else {'status':'uncertain','reason':'No location image was provided'}
         if metadata is not None:
-            store=ProjectStore(projects_root(),metadata.project_id)
+            store=ProjectStore(projects_root(metadata),metadata.project_id)
             store.write_json(f'logs/plate_checks/{metadata.shot_id}.json',result)
         return io.NodeOutput(image if result['status']=='clear' else None,result['status'],result['reason'],ui={'text':[result['status']+': '+result['reason']]})

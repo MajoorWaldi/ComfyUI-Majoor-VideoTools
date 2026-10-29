@@ -29,6 +29,6 @@ class MajoorApplyShotMetadata(io.ComfyNode):
     @classmethod
     def execute(cls, shot_list, metadata, video, activate_new_take, duration_policy, revision_label="", generation_prompt="") -> io.NodeOutput:
         with video_file(video) as path:
-            updated = apply_revision(shot_list, projects_root(), metadata, path, revision_label, activate_new_take, duration_policy, generation_prompt)
+            updated = apply_revision(shot_list, projects_root(shot_list), metadata, path, revision_label, activate_new_take, duration_policy, generation_prompt)
         shot = updated.get_shot(metadata.shot_id)
         return io.NodeOutput(updated, ui={"text": (f"{shot.shot_id} → {shot.active_revision_id} (revision {updated.project_revision})",), "majoor_shots": [shots_payload(updated)]})
