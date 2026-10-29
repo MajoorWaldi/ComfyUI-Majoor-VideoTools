@@ -3,7 +3,7 @@ import wave
 from pathlib import Path
 import numpy as np
 import pytest
-from majoor_videotools.core.tone_sfx import tone_library, design_cues, KINDS
+from majoor_videotools.core.tone_sfx import tone_library, tone_library_status, _read_tone_library, design_cues, KINDS
 from majoor_videotools.core.sfx import render_track, RATE
 from majoor_videotools.core.errors import MajoorError
 
@@ -25,7 +25,9 @@ def test_missing_runtime_keeps_legacy_fallback(monkeypatch,tmp_path):
 def test_palette_rejects_incompatible_manifest(monkeypatch,tmp_path):
     monkeypatch.setenv('MAJOOR_TONE_RUNTIME',str(tmp_path))
     (tmp_path/'bank').mkdir();(tmp_path/'bank/tone.json').write_text('{"engine":"unknown"}')
-    with pytest.raises(MajoorError,match='palette'):tone_library()
+    with pytest.raises(MajoorError,match='palette'):_read_tone_library()
+    assert tone_library_status()==({}, 'procedural-v1', 'optional:tone:unavailable')
+    assert tone_library()==({}, 'procedural-v1')
 
 def test_lead_is_cropped_at_zero_instead_of_moved_late():
     sample=np.arange(1000,dtype=np.float32)/1000
@@ -80,3 +82,17 @@ def test_stereo_user_wav_keeps_its_channels(tmp_path):
     bank,_=load_library(str(tmp_path))
     assert bank['stereo_sweep'].shape==(4800,2)
     assert np.any(bank['stereo_sweep'][:,0]) and not np.any(bank['stereo_sweep'][:,1])
+
+
+@pytest.mark.parametrize('manifest', ['{', '[]', 'null', '{"engine":"tone.js","version":"15.1.22","entries":null}'])
+def test_unusable_optional_bank_falls_back_without_reading_invalid_assets(monkeypatch,tmp_path,manifest):
+    monkeypatch.setenv('MAJOOR_TONE_RUNTIME',str(tmp_path))
+    (tmp_path/'bank').mkdir()
+    (tmp_path/'bank/tone.json').write_text(manifest)
+    assert tone_library_status()==({}, 'procedural-v1', 'optional:tone:unavailable')
+    assert tone_library()==({}, 'procedural-v1')
+
+
+def test_absent_bank_returns_warning_for_the_studio(monkeypatch,tmp_path):
+    monkeypatch.setenv('MAJOOR_TONE_RUNTIME',str(tmp_path))
+    assert tone_library_status()==({}, 'procedural-v1', 'optional:tone:missing')

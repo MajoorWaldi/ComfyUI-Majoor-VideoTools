@@ -204,6 +204,7 @@ def detect_scenes(
                                 energy=energy_tools.summarize_energy(events,cached['cuts'],source.duration_seconds) if energy!='off' else None),
             shots=shots,
             schema_version=SCHEMA_VERSION,
+            storage_root=Path(store_root).resolve(),
         )
         shot_list.validate()
         persist_manifest(store, shot_list, only_if_absent=True)

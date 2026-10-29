@@ -1,2 +1,5 @@
 scenedetect>=0.7
 filelock
+numpy
+Pillow
+opencv-python

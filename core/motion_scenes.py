@@ -25,9 +25,8 @@ def graphic_handoff(cut, before=.35, after=.35, *, velocity=(.2,0), at=(.5,.7), 
 
 
 def style_layer(row):
-    from .editorial_cues import ROLES
-    if row.get('event_role', 'decoration') not in ROLES:
-        raise ValueError('Motion event_role must be action, reveal, narrative or decoration')
+    from .motion_contract import validate_motion_rows
+    validate_motion_rows([row])
     design = row.get('design')
     if design is not None and (not isinstance(design,str) or design not in STYLES):
         raise ValueError('Motion design must be tech, editorial or pop')

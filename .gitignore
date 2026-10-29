@@ -29,3 +29,4 @@ desktop.ini
 
 # the app of the challenge: its own repository (see its README)
 HyperKut Studio/
+/tests/test_worker_scope.py

@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
@@ -71,7 +72,7 @@ def probe(path: Path, with_packets: bool = True) -> MediaInfo:
             raise MediaError(f"'{path.name}' contains no decodable video packets")
         diffs = [b - a for a, b in zip(pts, pts[1:])]
         if diffs:
-            frame_ticks = max(set(diffs), key=diffs.count)
+            frame_ticks = Counter(diffs).most_common(1)[0][0]
             cfr = sum(abs(d - frame_ticks) > 1 for d in diffs) <= max(1, len(diffs) // 100)  # tolerate a stray timestamp
         else:
             frame_ticks, cfr = 0, True

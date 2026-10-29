@@ -4,6 +4,7 @@ from fractions import Fraction
 
 from majoor_videotools.core.dialogue import lines_of_shot
 from majoor_videotools.core.media_probe import probe
+from majoor_videotools.core import media_probe
 from majoor_videotools.core.project import fork_shot_list, load_shot_list
 from majoor_videotools.core.scene_detection import detect_scenes
 from majoor_videotools.core.revisions import apply_revision, make_metadata
@@ -34,6 +35,30 @@ def test_audio_stream_before_video_is_probed(tmp_path):
     subprocess.run(['ffmpeg','-y','-v','error','-f','lavfi','-i','sine=frequency=440:duration=1','-f','lavfi','-i','color=c=red:s=64x64:r=24:d=1','-map','0:a','-map','1:v','-c:a','aac','-c:v','libx264','-pix_fmt','yuv420p',str(path)],check=True)
     info=probe(path)
     assert info.frame_count==24 and info.fps==Fraction(24)
+
+
+def test_packet_interval_mode_counts_diffs_linearly(monkeypatch):
+    packet_count = 5000
+    metadata = {
+        "streams": [{
+            "index": 0, "codec_type": "video", "width": 64, "height": 64,
+            "time_base": "1/1000", "avg_frame_rate": "25/1",
+            "r_frame_rate": "25/1", "nb_frames": str(packet_count),
+        }],
+        "format": {"duration": "200"},
+    }
+
+    def fake_capture(args, _binary):
+        if "-show_entries" in args:
+            return "\n".join(str(index * 40) for index in range(packet_count)).encode()
+        return json.dumps(metadata).encode()
+
+    monkeypatch.setattr(media_probe.Path, "is_file", lambda _path: True)
+    monkeypatch.setattr(media_probe, "run_capture", fake_capture)
+    info = media_probe.probe(media_probe.Path("synthetic-cfr.mp4"))
+    assert info.timing_mode == "CFR"
+    assert info.frame_count == packet_count
+    assert info.duration == Fraction(packet_count, 25)
 
 
 def test_tasks_fork_the_initial_collection_without_reusing_each_others_takes(fixtures,tmp_path):

@@ -563,8 +563,10 @@ def assemble_shots(
             # Explicit scene cues are already timed with their graphics, not re-snapped.
             events=sorted(set(events+[(t,k) for t,k,_ in explicit]))
         if events:
-            from .tone_sfx import tone_library, design_cues, tone_anchors
-            tone_bank,tone_key=tone_library()
+            from .tone_sfx import tone_library_status, design_cues, tone_anchors
+            tone_bank,tone_key,tone_warning=tone_library_status()
+            if tone_warning:
+                warnings.append(tone_warning)
             library,library_key=load_library(opts.sfx_library)
             preparations = {}
             anchors = tone_anchors() if tone_bank else {}
@@ -599,6 +601,7 @@ def assemble_shots(
                 sound_balance=cue_balance(events,bus*opts.sfx_volume,music_measurement[0],bus_rate,music_measurement[1])
             tracks.append((next_input + (source_input is not None) + len(extra_inputs), opts.sfx_volume, 0.0))
             extra_inputs.append(sfx_path)
+    store.write_json('exports/optional-audio.json', {'version': 1, 'warnings': [w for w in warnings if w.startswith('optional:')]})
     dialogue_input = None
     if dialogue is not None:
         dialogue_input = next_input + (source_input is not None) + len(extra_inputs)

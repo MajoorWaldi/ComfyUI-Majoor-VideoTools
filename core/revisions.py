@@ -49,6 +49,7 @@ def make_metadata(shot_list: ShotList, shot: Shot, revision: Revision) -> ShotMe
         project_revision=shot_list.project_revision,
         selected_revision_id=revision.revision_id,
         revision_ids=tuple(r.revision_id for r in shot.revisions),
+        storage_root=shot_list.storage_root,
     )
 
 
@@ -85,6 +86,9 @@ def sample_shot_images(store: ProjectStore, shot_list: ShotList, shot: Shot, rev
 
 
 def check_lineage(shot_list: ShotList, metadata: ShotMetadata) -> Shot:
+    if (shot_list.storage_root is not None and metadata.storage_root is not None
+            and Path(shot_list.storage_root).resolve() != Path(metadata.storage_root).resolve()):
+        raise ManifestError('Shot metadata belongs to a different worker workspace')
     if metadata.project_id != shot_list.project_id:
         raise ManifestError(
             f"Shot metadata belongs to project {metadata.project_id} but the shot list is project {shot_list.project_id}. "
@@ -109,13 +113,15 @@ def apply_revision(
     generation_prompt: str = "",
 ) -> ShotList:
     shot = check_lineage(shot_list, metadata)
+    if shot_list.storage_root is not None and Path(shot_list.storage_root).resolve() != Path(store_root).resolve():
+        raise ManifestError('Take destination differs from its worker workspace')
     store = ProjectStore(store_root, shot_list.project_id)
     video_path = Path(video_path).resolve()
 
     with store.lock():
         latest = store.read_json("manifest.json")
         if latest:  # ComfyUI caches the upstream list: it can be older than the takes already stored, which a regenerated shot must not erase
-            shot_list = ShotList.from_dict(latest)
+            shot_list = dataclasses.replace(ShotList.from_dict(latest), storage_root=Path(store_root).resolve())
             shot = check_lineage(shot_list, metadata)
         # Select Shot's own output fed straight back in re-activates that take instead of duplicating it.
         for rev in shot.revisions:

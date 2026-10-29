@@ -1,5 +1,8 @@
 # Local Tone.js sound design
 
+> **Experimental finishing.** HyperKut Studio is beta. Finishing starts disabled; review the encoded result when enabling these features.
+
+
 The existing automatic sound-effects switch now uses a locally synthesized Tone.js palette when installed. No new Studio panel, model, paid API or third-party samples. Music remains unchanged; one SFX bus is mixed by the existing assembler. Disabling automatic effects bypasses this path.
 
 Install explicitly with `scripts/install_tone.ps1` (Node 22+, local Chrome/Edge). Tone.js 15.1.22 and puppeteer-core 25.16.0 are pinned; generation never installs packages or launches a browser. The installer renders 30 mono/stereo PCM48k cues with Tone.Offline. The original 16 are: impact, hit, whoosh, swell, shutter, glitch, sub drop, riser, reverse, downlifter, click, pop, tick, sparkle, tape stop and stutter. Synthesized approximations are not recordings of physical objects.

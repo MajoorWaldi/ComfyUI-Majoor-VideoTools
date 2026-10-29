@@ -484,6 +484,7 @@ def create_template(
             detection=Detection("template", 0.0, MIN_SHOT_FRAMES, key[:16], tuple(warnings), tuple(float(t) for t in half)),
             shots=tuple(shots),
             schema_version=SCHEMA_VERSION,
+            storage_root=Path(store_root).resolve(),
         )
         shot_list.validate()
         persist_manifest(store, shot_list, only_if_absent=True)

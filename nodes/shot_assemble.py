@@ -96,7 +96,7 @@ class MajoorShotAssemble(io.ComfyNode):
                 rhythm_warnings.extend(shot_list.detection.warnings)
             result = assemble_shots(
                 shot_list,
-                projects_root(),
+                projects_root(shot_list),
                 opts,
                 on_progress=lambda f: bar.update_absolute(int(f * 1000), 1000),
                 is_cancelled=comfy.model_management.processing_interrupted,

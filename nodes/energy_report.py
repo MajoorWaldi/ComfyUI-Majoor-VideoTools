@@ -13,11 +13,11 @@ class MajoorEnergyReport(io.ComfyNode):
     @classmethod
     def define_schema(cls):
         return io.Schema(node_id='MajoorEnergyReport',display_name='Reference Energy Report',category='Majoor/VideoTools',is_output_node=True,
-            inputs=[io.Video.Input('video'),MajoorShotList.Input('shot_list'),io.Video.Input('reference_video',optional=True)],outputs=[])
+            inputs=[io.Video.Input('video'),MajoorShotList.Input('shot_list'),io.Video.Input('reference_video',optional=True)],outputs=[io.Boolean.Output(display_name="report_saved")])
 
     @classmethod
     def execute(cls,video,shot_list,reference_video=None):
-        store=ProjectStore(projects_root(),shot_list.project_id)
+        store=ProjectStore(projects_root(shot_list),shot_list.project_id)
         with video_file(video) as path:
             fingerprint=file_fingerprint(path)
             cache=f'cache/energy/{short(fingerprint,24)}-v2.json'
@@ -44,4 +44,4 @@ class MajoorEnergyReport(io.ComfyNode):
         report['audio']=audio
         report['result_fingerprint']=fingerprint
         store.write_json('exports/energy.json',report)
-        return io.NodeOutput(ui={'text':[str(report)]})
+        return io.NodeOutput(True, ui={'text':[str(report)]})

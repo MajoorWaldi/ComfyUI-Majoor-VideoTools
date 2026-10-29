@@ -20,6 +20,9 @@ def comfy_video(tmp_path, monkeypatch):
     api = types.ModuleType("comfy_api")
     latest = types.ModuleType("comfy_api.latest")
     latest.io = io
+    latest.AudioInput = dict
+    latest.VideoFromComponents = object
+    latest.VideoFromFile = object
     monkeypatch.setitem(sys.modules, "folder_paths", folder_paths)
     monkeypatch.setitem(sys.modules, "comfy_api", api)
     monkeypatch.setitem(sys.modules, "comfy_api.latest", latest)

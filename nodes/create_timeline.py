@@ -81,6 +81,7 @@ class MajoorCreateTimeline(io.ComfyNode):
                 io.Int.Input("height", default=0, min=0, max=4096, optional=True, tooltip="See width."),
                 io.String.Input("skeleton_json", optional=True, force_input=True, tooltip="With source=json: the plan_json of another Create Timeline (music or video). Its shots, durations and the cuts inside them are kept; this plan only brings the prompts and the effects. Empty: ignored."),
                 io.Boolean.Input('rhythm_reference_only', default=False, optional=True, tooltip='Expose musical timing as a guide rather than a fixed shot-count contract. Existing fixed skeletons remain unchanged.'),
+                io.String.Input("project_root", default="", optional=True, force_input=True),
                 io.Combo.Input("music_edit_mode", options=list(MODES), default="legacy", optional=True, tooltip="For source=json with music: adaptive energy-aware cuts, seeded random musical cuts, a regular grid, or free narrative timing. Legacy preserves existing workflows."),
                 io.Combo.Input("music_cut_density", options=["auto", "low", "medium", "high"], default="auto", optional=True),
                 io.Float.Input("music_cut_variation", default=0.5, min=0, max=1, step=0.01, optional=True),
@@ -100,7 +101,7 @@ class MajoorCreateTimeline(io.ComfyNode):
     @classmethod
     def execute(cls, source, fps, aspect_ratio, resolution, generation_profile, music=None, video=None, preview_thumbnails=True, card_text=True, width=0, height=0, skeleton_json="", rhythm_reference_only=False,
                 music_edit_mode="legacy", music_cut_density="auto", music_cut_variation=0.5, music_cut_sync=0.8,
-                music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto") -> io.NodeOutput:
+                music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", project_root="") -> io.NodeOutput:
         kind = source["source"]
         rate = fps if fps > 0 else 24.0
         aspect = "16:9" if aspect_ratio == "auto" else aspect_ratio
@@ -109,7 +110,7 @@ class MajoorCreateTimeline(io.ComfyNode):
         with audio_file(music) as wav:
             notes: list[str] = []
             if kind == "none":
-                shot_list = create_template(with_size(DEFAULT_PLAN, width, height) if width and height else DEFAULT_PLAN, projects_root(), fps=rate, aspect_ratio=aspect, resolution=resolution, profile=generation_profile, thumbnails=False)
+                shot_list = create_template(with_size(DEFAULT_PLAN, width, height) if width and height else DEFAULT_PLAN, projects_root(worker_root=project_root), fps=rate, aspect_ratio=aspect, resolution=resolution, profile=generation_profile, thumbnails=False)
                 return io.NodeOutput(shot_list, "", "", len(shot_list.shots), ui={"text": ("No rhythm: the LLM decides.",), "majoor_shots": [shots_payload(shot_list)]})
             if kind == "json":
                 text, snap, bpm = source["plan_json"], source["cut_snap"], source["bpm"]
@@ -163,12 +164,12 @@ class MajoorCreateTimeline(io.ComfyNode):
                     notes.append(f"{len(dropped)} negation(s) removed from the prompts: {', '.join(sorted(set(dropped))[:4])}")
             if width and height:
                 text = with_size(text, width, height)
-            shot_list = create_template(text, projects_root(), fps=rate, aspect_ratio=aspect, resolution=resolution, profile=generation_profile,
+            shot_list = create_template(text, projects_root(worker_root=project_root), fps=rate, aspect_ratio=aspect, resolution=resolution, profile=generation_profile,
                                         audio_wav=wav, cut_snap=snap, bpm=bpm, thumbnails=preview_thumbnails, card_text=card_text,
                                         reference_beats=reference_beats, timing_warnings=timing_warnings)
         src = shot_list.source
-        summary = f"Timeline of {len(shot_list.shots)} shots · {format_timecode(src.duration_seconds)} · {src.fps_num / src.fps_den:.3f} fps · {src.width}x{src.height}"
-        warnings = "".join(f"\n⚠ {w}" for w in [*notes, *shot_list.detection.warnings])
+        summary = f"Timeline of {len(shot_list.shots)} shots Â· {format_timecode(src.duration_seconds)} Â· {src.fps_num / src.fps_den:.3f} fps Â· {src.width}x{src.height}"
+        warnings = "".join(f"\nâš  {w}" for w in [*notes, *shot_list.detection.warnings])
         rhythm = rhythm_text(text, src.fps_num / src.fps_den, extra)
         if rhythm_reference_only:
             rhythm = 'MUSIC TIMING GUIDE (candidate grid cuts, not mandatory shot ids or a generated-take count):\n' + rhythm.replace('EDIT RHYTHM:', 'CANDIDATE GRID:', 1)

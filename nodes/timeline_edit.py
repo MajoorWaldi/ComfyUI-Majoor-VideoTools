@@ -93,6 +93,6 @@ class MajoorTimelineEdit(io.ComfyNode):
     def execute(cls, shot_list, edit_json="", music=None) -> io.NodeOutput:
         document = parse_document(shot_list, edit_json)
         result = compile_edit(shot_list, document)
-        payload = editor_payload(shot_list, ProjectStore(projects_root(), shot_list.project_id), music)
+        payload = editor_payload(shot_list, ProjectStore(projects_root(shot_list), shot_list.project_id), music)
         payload["document"] = document
         return io.NodeOutput(result, music, ui={"majoor_timeline": [payload]})
