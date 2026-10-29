@@ -26,15 +26,15 @@ class MajoorSaveProjectInfo(io.ComfyNode):
                         "so that a program that drives ComfyUI through its API can read it: the outputs of the API only carry files.",
             is_output_node=True,
             inputs=[MajoorShotList.Input("shot_list"), io.String.Input("name", default="job", tooltip="Name of the file (letters, digits, - and _)."),
-                    io.String.Input('fork_project_id', default='', optional=True, tooltip='Optional independent project, p_ followed by 8–32 hexadecimal digits.')],
-            outputs=[],
+                    io.String.Input('fork_project_id', default='', optional=True, tooltip='Optional independent project, p_ followed by 8â€“32 hexadecimal digits.')],
+            outputs=[MajoorShotList.Output(display_name="saved_shot_list")],
         )
 
     @classmethod
     def execute(cls, shot_list, name, fork_project_id='') -> io.NodeOutput:
         if fork_project_id:
-            shot_list = fork_shot_list(projects_root(), shot_list, fork_project_id)
-        path = projects_root() / "_jobs" / f"{sanitize_name(name)}.json"
+            shot_list = fork_shot_list(projects_root(shot_list), shot_list, fork_project_id)
+        path = projects_root(shot_list) / "_jobs" / f"{sanitize_name(name)}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         # The index lives beside projects, so use a temporary file in the same folder.
         fd, tmp = tempfile.mkstemp(dir=path.parent, suffix='.tmp')
@@ -44,7 +44,7 @@ class MajoorSaveProjectInfo(io.ComfyNode):
             os.replace(tmp, path)
         finally:
             Path(tmp).unlink(missing_ok=True)
-        return io.NodeOutput(ui={"text": (str(path),)})
+        return io.NodeOutput(shot_list, ui={"text": (str(path),)})
 
 
 class MajoorLoadShotList(io.ComfyNode):
@@ -83,12 +83,12 @@ class MajoorSaveProjectMusic(io.ComfyNode):
             is_output_node=True,
             inputs=[MajoorShotList.Input("shot_list"), io.Audio.Input("music"),
                     io.String.Input("fork_project_id", default="", optional=True, tooltip="The project of Save Project Info when it makes its own copy: the music goes to that one.")],
-            outputs=[],
+            outputs=[io.Audio.Output(display_name="saved_music")],
         )
 
     @classmethod
     def execute(cls, shot_list, music, fork_project_id="") -> io.NodeOutput:
-        path = ProjectStore(projects_root(), fork_project_id.strip() or shot_list.project_id).resolve(MUSIC_FILE)
+        path = ProjectStore(projects_root(shot_list), fork_project_id.strip() or shot_list.project_id).resolve(MUSIC_FILE)
         path.parent.mkdir(parents=True, exist_ok=True)
         samples = music["waveform"][0].cpu().numpy().T  # [channels, T] -> [T, channels]
         fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
@@ -98,7 +98,7 @@ class MajoorSaveProjectMusic(io.ComfyNode):
             os.replace(tmp, path)
         finally:
             Path(tmp).unlink(missing_ok=True)
-        return io.NodeOutput(ui={"text": (str(path),)})
+        return io.NodeOutput(music, ui={"text": (str(path),)})
 
 
 class MajoorLoadProjectMusic(io.ComfyNode):
@@ -109,17 +109,17 @@ class MajoorLoadProjectMusic(io.ComfyNode):
             display_name="Load Project Music",
             category="Majoor/VideoTools",
             description="The music that Save Project Music kept for the project: the edit starts from this file, not from the music models.",
-            inputs=[io.String.Input("project_id", default="", tooltip="p_ followed by hexadecimal digits.")],
+            inputs=[io.String.Input("project_id", default="", tooltip="p_ followed by hexadecimal digits."), MajoorShotList.Input("project", optional=True)],
             outputs=[io.Audio.Output(display_name="music")],
         )
 
     @classmethod
-    def fingerprint_inputs(cls, project_id):
-        return ProjectStore(projects_root(), project_id.strip()).resolve(MUSIC_FILE).stat().st_mtime_ns
+    def fingerprint_inputs(cls, project_id, project=None):
+        return ProjectStore(projects_root(project), project_id.strip()).resolve(MUSIC_FILE).stat().st_mtime_ns
 
     @classmethod
-    def execute(cls, project_id) -> io.NodeOutput:
-        path = ProjectStore(projects_root(), project_id.strip()).resolve(MUSIC_FILE)
+    def execute(cls, project_id, project=None) -> io.NodeOutput:
+        path = ProjectStore(projects_root(project), project_id.strip()).resolve(MUSIC_FILE)
         if not path.is_file():
             raise FileNotFoundError(f"Project {project_id} has no kept music ({path}): run the first step of the job again")
         samples, rate = read_wav(path)

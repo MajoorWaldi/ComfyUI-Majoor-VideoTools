@@ -1,5 +1,8 @@
 # Music-driven edit timing
 
+> **Experimental finishing.** HyperKut Studio is beta. Finishing starts disabled; review the encoded result when enabling these features.
+
+
 When beat snapping is enabled, Create Timeline first builds its existing tempo grid, then adjusts grid points toward nearby measured audio attacks. The adjustment is limited to two output frames and preserves grid order. The existing shot-length and micro-cut limits still apply. Weak or absent attacks leave the grid unchanged. Snapping disabled leaves the original edit timing unchanged.
 
 The music is neither stretched nor rewritten. Reference-remake shot positions are not globally retimed by this change: only Create Timeline's explicitly enabled music snapping uses the refinement. Existing cached projects stay available; new timelines use cache version 5.

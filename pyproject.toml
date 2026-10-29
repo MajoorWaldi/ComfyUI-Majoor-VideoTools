@@ -5,7 +5,7 @@ description = "Cut a video into identified shots, regenerate any shot with any w
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
-dependencies = ["scenedetect>=0.7", "filelock"]
+dependencies = ["scenedetect>=0.7", "filelock", "numpy", "Pillow", "opencv-python"]
 
 [tool.comfy]
 DisplayName = "Majoor VideoTools"

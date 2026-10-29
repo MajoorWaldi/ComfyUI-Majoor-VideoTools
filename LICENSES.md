@@ -7,7 +7,7 @@ Reviewed 2026-10-26. This inventory identifies applicable sources; it grants no 
 | Component | License / terms | Scope |
 |---|---|---|
 | Majoor VideoTools original code | MIT | This pack's original code and templates |
-| SECATOR OpenKatana original code | MIT | The separately versioned Studio; its own LICENSE applies |
+| HyperKut Studio original code | MIT | The separately versioned Studio; its own LICENSE applies |
 | HyperFrames 0.8.201 | Apache-2.0 | External video renderer |
 | Tone.js 15.1.22 | MIT | External synthesis library |
 | puppeteer-core 25.16.0 | Apache-2.0 | Browser automation; **not MIT** |
@@ -18,7 +18,7 @@ Reviewed 2026-10-26. This inventory identifies applicable sources; it grants no 
 | KJNodes / Easy-Use | GPL-3.0 in installed LICENSE files | Visual workflow dependencies; not required by exported Studio API graphs |
 | FFmpeg, browser, fonts, codecs and other dependencies | Their own licenses / build terms | Not relicensed by this project |
 
-See [third-party notices](THIRD_PARTY_NOTICES.md). The GSAP publisher announces free commercial use, but its actual standard terms remain authoritative. The official Standard License and FAQ were reviewed on 2026-10-28. They permit AI-generated code and niche visual tools that do not directly compete with Webflow; they restrict certain competing animation builders. HyperKut is a video-only tool, so no automatic paid-license requirement was identified, but this is an interpretation rather than written product-specific approval. See the Studio docs/gsap-license-review.md for scope and the clarification draft. Runtime packages are obtained by explicit installers rather than bundled as this project's MIT source.
+See [third-party notices](THIRD_PARTY_NOTICES.md). The GSAP publisher announces free commercial use, but its actual standard terms remain authoritative. The official Standard License and FAQ were reviewed on 2026-10-28. They permit AI-generated code and niche visual tools that do not directly compete with Webflow; they restrict certain competing animation builders. HyperKut is a video-only tool, so no automatic paid-license requirement was identified, but this is an interpretation rather than written product-specific approval. See the official GSAP Standard License and FAQ for its permitted-use scope. Runtime packages are obtained by explicit installers rather than bundled as this project's MIT source.
 
 ## Model weights
 

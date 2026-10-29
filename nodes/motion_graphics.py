@@ -1,5 +1,8 @@
 import hashlib
 import json
+from pathlib import Path
+
+import numpy as np
 from filelock import FileLock
 
 import comfy.model_management
@@ -7,19 +10,18 @@ import comfy.utils
 from comfy_api.latest import VideoFromFile, io
 
 from ..adapters.comfy_video import projects_root, video_file
+from ..core.fingerprints import file_fingerprint
 from ..core.media_probe import probe
 from ..core.motion import ANIMATIONS, TYPES, needs_mask, parse_layers, render_motion
 
 CODE_VERSION = "3-hyperframes"
+WEB = Path(__file__).resolve().parents[1] / "web"
 
 
 class MajoorMotionGraphics(io.ComfyNode):
     @classmethod
-    def fingerprint_inputs(cls):
-        from pathlib import Path
-        from ..core.fingerprints import file_fingerprint
-        web = Path(__file__).resolve().parents[1] / 'web'
-        return file_fingerprint(web / 'hyperframes_scene.html') + file_fingerprint(web / 'hyperframes_layers.js')
+    def fingerprint_inputs(cls, **kwargs):
+        return file_fingerprint(WEB / "hyperframes_scene.html") + file_fingerprint(WEB / "hyperframes_layers.js")
 
     @classmethod
     def define_schema(cls) -> io.Schema:
@@ -55,12 +57,18 @@ class MajoorMotionGraphics(io.ComfyNode):
             if not parsed:
                 return io.NodeOutput(video, summary)
             masks = mask.cpu().numpy() if mask is not None and needs_mask(parsed) else None
-            key = hashlib.sha256(json.dumps([CODE_VERSION, cls.fingerprint_inputs(), path.stat().st_size, path.stat().st_mtime_ns, parsed, None if masks is None else [masks.shape, hashlib.sha256(masks[:, ::8, ::8].tobytes()).hexdigest()]], sort_keys=True).encode()).hexdigest()[:10]
+            key = hashlib.sha256(json.dumps([CODE_VERSION, cls.fingerprint_inputs(), path.stat().st_size, path.stat().st_mtime_ns, parsed, None if masks is None else [masks.shape, hashlib.sha256(np.ascontiguousarray(masks).tobytes()).hexdigest()]], sort_keys=True).encode()).hexdigest()[:10]
             name = "".join(c for c in output_name if c.isalnum() or c in "-_") or "motion"
             out = projects_root() / "motion" / f"{name}_{key}.mp4"
             out.parent.mkdir(parents=True,exist_ok=True)
             with FileLock(str(out)+'.lock',timeout=120):
                 if not out.exists():
                     bar = comfy.utils.ProgressBar(1000)
-                    render_motion(path, parsed, out, on_progress=lambda f: bar.update_absolute(int(f * 1000), 1000), is_cancelled=comfy.model_management.processing_interrupted, masks=masks)
-        return io.NodeOutput(VideoFromFile(str(out)), summary)
+                    fallback = render_motion(path, parsed, out, on_progress=lambda f: bar.update_absolute(int(f * 1000), 1000), is_cancelled=comfy.model_management.processing_interrupted, masks=masks)
+                    if fallback:
+                        out.unlink(missing_ok=True)
+                else:
+                    fallback = None
+        warning_details = fallback.get("warning_details", []) if fallback else []
+        ui = {"text": (warning_details[0]["message"],), "hyperkut_optional_warnings": warning_details} if warning_details else None
+        return io.NodeOutput(video if fallback else VideoFromFile(str(out)), summary, ui=ui)

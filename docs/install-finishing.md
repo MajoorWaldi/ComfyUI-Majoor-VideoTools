@@ -12,7 +12,7 @@ Current instructions: 2026-10-26. These commands document the existing installer
 | Build the 30-sound palette | Tone.js runtime, Node.js 22+ and local Chrome/Edge |
 | Mix an already generated Tone bank | Existing Python/FFmpeg assembler; no browser launched for each assembly |
 
-Animated design is **enabled by default in the Studio**. Install HyperFrames for that default path. Graphics are optional at the application level, not automatically bypassed whenever a legacy node is present: disabling animated decoration does not disable separately requested text/layers. Any remaining layer request still needs the shared renderer. Basic typography does not require BiRefNet; subject-dependent layers do.
+Animated design is **experimental and disabled by default in the Studio**. Install HyperFrames when you enable graphics. Graphics are optional at the application level, not automatically bypassed whenever a legacy node is present: disabling animated decoration does not disable separately requested text/layers. Any remaining layer request still needs the shared renderer. Basic typography does not require BiRefNet; subject-dependent layers do.
 
 ## Windows / PowerShell
 

@@ -39,10 +39,25 @@ def test_token_limited_final_pair_is_discarded_without_changing_valid_music():
     assert info['meter_and_tempo_preserved']
 
 
+def test_token_limited_final_group_with_mismatched_measure_counts_is_discarded():
+    header='X:1\nT:\nM:4/4\nL:1/16\nQ:1/4=120\nV: Vocal clef=treble name="Vocal Melody" snm="Vocal"\nV: Ins clef=treble name="Ins Melody" snm="Inst."\nK:C\n'
+    pair='V: Vocal\n"C"z16|\nV: Ins\nC4D4E4F4|\n'
+    mismatch='V: Vocal\n"C"z16|z16|\nV: Ins\nC4D4E4F4|\n'
+    good=header+pair*130
+    expected,_=music_score(good,True)
+    with pytest.warns(RuntimeWarning,match='mismatched voice measure counts'):
+        actual,info=music_score(good+mismatch,True)
+    assert actual==expected
+    assert info['discarded_incomplete_final_group']
+    assert info['meter_and_tempo_preserved']
+
+
 def test_truncation_recovery_refuses_damage_in_the_middle_or_no_valid_pair():
     header='X:1\nT:\nM:4/4\nL:1/16\nQ:1/4=120\nV: Vocal clef=treble name="Vocal Melody" snm="Vocal"\nV: Ins clef=treble name="Ins Melody" snm="Inst."\nK:C\n'
     pair='V: Vocal\n"C"z16|\nV: Ins\nC4D4E4F4|\n'
     cut='V: Vocal\n"C"z16|\nV: Ins\nC4D4E'
-    for broken in [header+cut,header+pair+cut+'\n'+pair,header+pair.replace('C4D4E4F4|','C4D4|')+cut]:
+    mismatch='V: Vocal\n"C"z16|z16|\nV: Ins\nC4D4E4F4|\n'
+    for broken in [header+cut,header+pair+cut+'\n'+pair,header+pair.replace('C4D4E4F4|','C4D4|')+cut,
+                   header+pair+mismatch+pair,header+pair+mismatch+'trailing data']:
         with pytest.raises(Exception,match='YuE2 instrumental score preparation failed'):
             music_score(broken,True)

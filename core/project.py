@@ -14,7 +14,7 @@ def load_shot_list(root: Path, project_id: str) -> ShotList:
     manifest = ProjectStore(root, project_id).read_json("manifest.json")
     if manifest is None:
         raise MajoorError(f"Project {project_id} has no manifest in {root}: run Create Timeline (or Scene Detect) first")
-    return ShotList.from_dict(manifest)
+    return dataclasses.replace(ShotList.from_dict(manifest), storage_root=Path(root).resolve())
 
 
 def fork_shot_list(root: Path, shot_list: ShotList, project_id: str) -> ShotList:
@@ -26,7 +26,7 @@ def fork_shot_list(root: Path, shot_list: ShotList, project_id: str) -> ShotList
     with source.lock(), target.lock():
         existing = target.read_json('manifest.json')
         if existing:
-            return ShotList.from_dict(existing)
+            return dataclasses.replace(ShotList.from_dict(existing), storage_root=Path(root).resolve())
         refs = {shot_list.source.uri}
         refs.update(s.thumbnail_ref for s in shot_list.shots if s.thumbnail_ref)
         refs.update(r.media_ref for s in shot_list.shots for r in s.revisions)
@@ -40,6 +40,6 @@ def fork_shot_list(root: Path, shot_list: ShotList, project_id: str) -> ShotList
                     os.link(src, dst)
                 except OSError:
                     shutil.copy2(src, dst)
-        result = dataclasses.replace(shot_list, project_id=project_id)
+        result = dataclasses.replace(shot_list, project_id=project_id, storage_root=Path(root).resolve())
         persist_manifest(target, result)
         return result

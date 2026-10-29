@@ -17,7 +17,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install_hyperframes.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\install_tone.ps1
 ```
 
-Node.js 22+, npm, FFmpeg/ffprobe and a suitable local browser are required by these capabilities. HyperFrames is needed for the default enabled Studio animated design and for requested shared graphic layers. Tone's installer synthesizes the 30-cue bank once; mixing the bank does not launch a browser on every edit. Sound effects keep the existing toggle and the legacy fallback when no Tone bank is installed. No packages are installed during a generation request. Full runtime details: [pack guide](https://github.com/MajoorWaldi/ComfyUI-Majoor-VideoTools/blob/main/docs/install-finishing.md) / [local guide](install-finishing.md).
+Node.js 22+, npm, FFmpeg/ffprobe and a suitable local browser are required by these capabilities. HyperFrames is needed for explicitly requested Studio animated design and for requested shared graphic layers. Tone's installer synthesizes the 30-cue bank once; mixing the bank does not launch a browser on every edit. Sound effects keep the existing toggle and the legacy fallback when no Tone bank is installed. No packages are installed during a generation request. Full runtime details: [pack guide](https://github.com/MajoorWaldi/ComfyUI-Majoor-VideoTools/blob/main/docs/install-finishing.md) / [local guide](install-finishing.md).
 
 ## 3. Studio Python and frontend
 

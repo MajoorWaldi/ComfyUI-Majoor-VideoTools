@@ -18,6 +18,7 @@ class MajoorSceneDetectSplit(io.ComfyNode):
             is_output_node=True,
             inputs=[
                 io.Video.Input("video"),
+                io.String.Input("project_root", default="", optional=True, force_input=True),
                 io.Combo.Input("detection_mode", options=list(MODES), default="adaptive", tooltip="threshold_fade proposes cuts around fades to black; manual uses cut_points only."),
                 io.Float.Input("sensitivity", default=0.5, min=0.0, max=1.0, step=0.01, tooltip="Higher detects more cuts."),
                 io.Int.Input("min_shot_frames", default=6, min=1, max=100000, tooltip="Cuts creating shorter shots are merged and reported as warnings."),
@@ -35,11 +36,11 @@ class MajoorSceneDetectSplit(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, video, detection_mode, sensitivity, min_shot_frames, cut_points="", preview_thumbnails=True, force_refresh=False, energy="off") -> io.NodeOutput:
+    def execute(cls, video, detection_mode, sensitivity, min_shot_frames, cut_points="", preview_thumbnails=True, force_refresh=False, energy="off", project_root="") -> io.NodeOutput:
         with video_file(video) as path:
-            shot_list = detect_scenes(path, projects_root(), detection_mode, sensitivity, min_shot_frames, cut_points, preview_thumbnails, force_refresh, energy)
+            shot_list = detect_scenes(path, projects_root(worker_root=project_root), detection_mode, sensitivity, min_shot_frames, cut_points, preview_thumbnails, force_refresh, energy)
         src = shot_list.source
-        summary = f"Detected {len(shot_list.shots)} shots · {format_timecode(src.duration_seconds)} · {src.fps_num / src.fps_den:.3f} fps · {src.width}x{src.height}"
-        warnings = "".join(f"\n⚠ {w}" for w in shot_list.detection.warnings)
+        summary = f"Detected {len(shot_list.shots)} shots Â· {format_timecode(src.duration_seconds)} Â· {src.fps_num / src.fps_den:.3f} fps Â· {src.width}x{src.height}"
+        warnings = "".join(f"\nâš  {w}" for w in shot_list.detection.warnings)
         skeleton = plan_text(plan_from_shots(shot_list))
         return io.NodeOutput(shot_list, rhythm_text(skeleton, src.fps_num / src.fps_den, f"{len(shot_list.shots)} detected shots"), skeleton, len(shot_list.shots), ui={"text": (summary + warnings,), "majoor_shots": [shots_payload(shot_list)]})

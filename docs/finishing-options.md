@@ -1,5 +1,8 @@
 # Incremental finishing options
 
+> **Experimental finishing.** HyperKut Studio is beta. Finishing starts disabled; review the encoded result when enabling these features.
+
+
 These options reuse the installed H3, YuE2, HyperFrames and Tone.js engines. No new dependencies or model calls are added. Existing projects keep their manual layers and explicit settings.
 
 ## Optional layer packs

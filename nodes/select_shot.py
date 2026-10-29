@@ -56,7 +56,7 @@ class MajoorSelectShot(io.ComfyNode):
     def execute(cls, shot_list, shot_id, take, frame_sampling, sample_count, preview_resolution, index=1, revision_id="", start_from_previous=False, every_n=8, spread_to_end=True) -> io.NodeOutput:
         shot = find_shot(shot_list, shot_id, index)
         revision = find_revision(shot, take, revision_id)
-        store = ProjectStore(projects_root(), shot_list.project_id)
+        store = ProjectStore(projects_root(shot_list), shot_list.project_id)
         path = revision_media(store, shot_list, shot, revision)
 
         frames = sample_shot_images(store, shot_list, shot, revision, frame_sampling, sample_count, preview_resolution, start_from_previous, every_n, spread_to_end)
