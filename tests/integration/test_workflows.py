@@ -11,6 +11,18 @@ from conftest import ROOT
 NAMES = ("SECATOR Remix", "SECATOR Creative Text", "SECATOR Creative Music")
 
 
+@pytest.mark.parametrize("name", ("SECATOR Remix", "SECATOR Creative Text"))
+def test_visual_music_workflows_use_combined_yue2_and_instrumental_score(name):
+    workflow = _load(name)
+    nodes = workflow['nodes'] + [node for sub in workflow['definitions']['subgraphs'] for node in sub['nodes']]
+    types = {node['type'] for node in nodes}
+    assert {'YuE2GenerateABC', 'YuE2GenerateMusic', 'MajoorYuE2Style', 'MajoorYuE2Score'} <= types
+    assert not any('AceStep' in kind for kind in types)
+    loaders = [node for node in nodes if node['type'] == 'CheckpointLoaderSimple']
+    assert [node['widgets_values'][0] for node in loaders] == ['yue2_3b_int8_convrot.safetensors']
+    assert [output['type'] for output in loaders[0]['outputs']] == ['MODEL', 'CLIP', 'VAE']
+
+
 def _load(name):
     return json.loads((ROOT / "workflows" / f"{name}.json").read_text(encoding="utf-8"))
 

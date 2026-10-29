@@ -1,10 +1,71 @@
 # Majoor VideoTools
 
-ComfyUI nodes to **cut a video into identified shots, regenerate any shot with any workflow, and rebuild the video without touching the source**, plus three ready workflows for automatic edits with local models (MiniMax H3, ACE-Step 1.5 for the music, Gemma 4 as the LLM, FLUX.2 klein for the places, BiRefNet for the subject mask).
+ComfyUI nodes to **cut a video into identified shots, regenerate any shot with any workflow, and rebuild the video without touching the source**, plus three ready workflows for automatic edits with local models (MiniMax H3, YuE2 for the music, Gemma 4 as the LLM, FLUX.2 klein for the places, BiRefNet for the subject mask).
 
 Des nodes ComfyUI pour découper une vidéo en shots identifiés, régénérer n'importe quel shot avec n'importe quel workflow et remonter la vidéo sans toucher à la source, et trois workflows prêts à l'emploi pour des montages automatiques avec des modèles locaux.
 
-Category of the nodes: `Majoor/VideoTools`. License: MIT.
+Category of the nodes: `Majoor/VideoTools`. Original code: MIT ([LICENSE](LICENSE)). Model weights and dependencies retain separate terms: [LICENSES.md](LICENSES.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+
+The Studio also includes local planned-shot rendering, location-plate checks and final energy/audio reports. See [implementation and limits](docs/submission-readiness.md).
+
+## Manual post-generation editing: Timeline Edit
+
+Connect the final shot list to **Timeline Edit**, then its shot-list output to
+**Shot Assemble**. Optionally connect music to the editor and pass its AUDIO
+output to the assembler. Run once to load the takes, open the editor, then run
+again to export changes. For repeated edits, **Load Shot List** avoids rerunning
+the generation graph.
+
+The first version supports ripple trim (edge handles or frame inputs), slip,
+cut, reorder/drag-drop, duplicate, ripple delete, per-occurrence take selection,
+undo/redo, a measured music waveform, play/pause, seek, zoom and frame steps.
+The edit is saved in the workflow; source media and the generation manifest are
+not modified. **It edits raw takes, not the automatic plan effects.** AI
+regeneration/extension, retimed overlays and gapless proxy playback remain
+planned. Browser preview may pause at source switches and is not certified
+frame-perfect.
+
+See [node help](web/docs/MajoorTimelineEdit.md), the
+[implementation checklist](docs/notes/timeline-edit-implementation.md) and a
+[portable API wiring example](examples/timeline_edit.api.json). Replace both
+example project IDs with a real project with retained music; without music,
+remove node 2 and the `music` connections. For matching musical preview/export,
+use `audio_policy=mute`, `music_fade=0`, with auto SFX and external motion layers off.
+
+## Current Studio capabilities and roadmap — 27 October 2026
+
+The maintained [capability matrix and checklist](ROADMAP.md) distinguishes implemented features, partial workflows, improvements and future work. Availability does not guarantee identity, action, story or musical quality in every generated result.
+
+| Capability | Current state |
+|---|---|
+| Text → multi-shot video, hooks, product ads and short stories | Available; narrative/action consistency and creative quality still need review. |
+| Remix and music-driven editing | Available; generated takes and editorial cuts are distinct. Music timing guides the Studio planner rather than imposing a fixed take count. |
+| Up to five character/product/style/scene images | Available; describe each image's role in the prompt. No dedicated role selector or exact-first-frame guarantee. |
+| Original music, shot audio and SFX | YuE2, H3 and Tone.js available; improve full-edit musical phrasing and measured sync. |
+| Animated text and motion graphics | Unified HyperFrames available; style layer packs, subject-derived accent colors and numeric counters remain to finish. |
+| Social formats and per-shot editing | Vertical/square/landscape, prompt edits, take selection, regeneration and re-editing available. Dedicated automatic finished-video reframe is not implemented. |
+| Animated infographics | Partial: text/vector tools exist; structured charts, data-driven layouts and counters are planned. |
+| UGC/talking characters | Partial: identity references, voice samples and timed H3 dialogue exist; no dedicated validated avatar workflow. |
+| Faceless/narrated explainers | Partial: scenes exist; continuous narrator audio and script-driven timing remain to build. |
+| Speech recognition and aligned subtitles | Not implemented in the Studio. Visual overlay reading and animated titles are not speech transcription. |
+| YouTube/long-video semantic highlights | Not implemented. Existing scene detection and Remix do not choose the most meaningful passage. |
+| Translation and voice-preserving dubbing | Not implemented as a dedicated workflow; EN/FR interface localization is separate. |
+| Product URL / brand research | Not implemented; manual product photos and briefs are supported. |
+| Selectable video backends, integrated 4K upscale, conversational agent | Planned; the maintained local video path uses H3. XHigh 1.5 MP is not 4K upscaling. |
+
+**Recent work:** shot-local H3 prompts, clearer narrative state handoffs, furnished location plates, shared text safe areas and word timing, adaptive dense-edit planning and a fifteen-second CPU assembly check with twenty segments including three-frame inserts. The normal H3 workflow still requests at least 124 frames per generated take; twenty independent takes cost more than twenty cuts reused from fewer takes.
+
+**Presets and experiments:** old presets were removed deliberately. Six creative auditions have local final exports; choosing the best outputs and creating new reviewed presets/demo media is still pending. Scene-illustration pre-generation was tested and set aside, so it is not part of the maintained pipeline. See the [roadmap](ROADMAP.md) for priorities, deferred experiments and release checks.
+
+**Creative controls:** Text/Music use named fidelity/freedom levels rather than pseudo-percentages; Remix shows its actual pose-guidance range. These choices apply to new jobs, preserve manually edited briefs when changed, and do not replace the original settings of an existing take during regeneration. See the [Studio README](HyperKut%20Studio/README.md).
+
+## Installation and current Studio finishing
+
+For the original nodes, install this pack in ComfyUI/custom_nodes and its requirements into the **ComfyUI Python environment**. The Studio has its own Python environment and [installation guide](docs/studio-installation.md).
+
+The current Studio uses unified HyperFrames graphics and a locally synthesized 30-sound Tone.js palette. Follow [finishing installation](docs/install-finishing.md), including Node.js 22+, FFmpeg and a suitable local browser. Animated design is enabled by default; these are not merely frontend build tools. Tone synthesis happens during explicit installation, not as an extra model call per edit.
+
+Download locations, exact configured names and outstanding checkpoint provenance: [model inventory](docs/models-and-downloads.md). Read [model/territory licenses](LICENSES.md) before using or presenting outputs. The old visual-workflow descriptions below are not a substitute for the maintained Studio API guide.
 
 ## Start here: three workflows (`workflows/`)
 
@@ -13,13 +74,15 @@ Drag a file of the `workflows/` folder into ComfyUI. Each one does one job and c
 | Workflow | You give | You get |
 |---|---|---|
 | **`SECATOR Remix`** | a video (the **template**: its cuts, rhythm, effects and camera stay), up to 5 pictures (REF 1 is the subject that replaces: a person, an animal, a product, kept exactly as the picture shows it), optionally one reference video, a sentence about what to replace | the same edit with your subject. Each shot is read by an LLM (up to 96 frames), its audio is heard, the H3 prompt is written, MiniMax H3 replaces the subject and keeps pose, motion and timing |
-| **`SECATOR Creative Text`** | an idea, up to 5 pictures and/or one reference video, the mood of the sound | a soundtrack made by ACE-Step 1.5 in that mood at the BPM you set (a long track: **Music Fit** cuts its strongest window, on the bars), then an edit cut on its beats: cuts on the bars, effects on the kick and the snare; every shot generated by H3, at the format and quality you choose |
+| **`SECATOR Creative Text`** | an idea, up to 5 pictures and/or one reference video, the mood of the sound | a visual plan, then YuE2 music directed by that plan and your music preferences; Music Fit selects a suitable window and the editor aligns planned accents to measured audio. H3 makes the independent takes at the chosen format/quality. Exact generated musical structure and visual fidelity need review. |
 | **`SECATOR Creative Music`** | your music, an idea, up to 5 pictures and/or one reference video | an edit built on your music (a song of any length: **Music Fit** takes its strongest window, or the start you give): its beats are read, the cuts and the effects follow them |
 
 Steps (all three): load your media and fill the controls; run once (Remix: Scene Detect cuts the video and measures its energy; Creative: the idea is enhanced, the plan and the beats are made); press **Create shots** in **Deploy Shots** (one block per shot is added below); run again.
 
-- **Sound in the Remix** (toggles at the top): by default the soundtrack of the video is kept. **REPLACE THE SOUND** makes a new soundtrack with ACE-Step 1.5 (the **SOUND MOOD** are its tags, the **BPM** is given to it) and **Music Fit** cuts its strongest window to the length of the video; the cuts of the template stay where they are, so the music fits the pace, not each cut. A video **without sound** gets a new soundtrack by itself. **VOICE ON** (+ a VOICE sample and the DIALOGUE): H3 speaks the lines in that voice and the shots keep their own audio.
-- **Format and quality** (Creative): **FORMAT AND QUALITY** is ComfyUI's own **Resolution Selector** (ratio and megapixels, multiple of 32) wired to Create Timeline and to the planner. H3 generates at the size of the shot and never above 0.98 MP (768 x 1344 for 9:16, what the model is made for): 0.35 MP is the default draft, 0.6 MP is 576 x 1024. In **Remix** the size is the one of the video you load and **QUALITY** is only a cap on the megapixels (0.98 by default).
+- **Sound in the Remix** (toggles at the top): by default the soundtrack of the video is kept. **REPLACE THE SOUND** makes a new soundtrack with YuE2 (the **SOUND MOOD** are its tags, the **BPM** is given to it) and **Music Fit** cuts its strongest window to the length of the video; the cuts of the template stay where they are, so the music fits the pace, not each cut. A video **without sound** gets a new soundtrack by itself. **VOICE ON** (+ a VOICE sample and the DIALOGUE): H3 speaks the lines in that voice and the shots keep their own audio.
+- **Format and quality** (Creative): **FORMAT AND QUALITY** uses Resolution Selector, with dimensions aligned to multiples of 32. Studio settings are Draft 0.35 MP (often called 0.4 MP in auditions), Standard 0.6 MP, Max 0.98 MP (about 1 MP) and XHigh 1.5 MP. XHigh is an above-baseline generation option with higher memory/runtime demands, not a 4K upscaler or a quality guarantee. Native visual-workflow quality controls retain their configured defaults; in Remix source geometry and the quality cap also affect the result.
+- **Effects on the beat** (Creative): **CREATE TIMELINE** snaps the cuts of the plan, and the cuts inside a shot where the zoom punches, flips, flashes and speed ramps start, to the half beats of the music (`cut_snap = half_beat`, with the kick-following grid of **Music Fit** and Create Timeline). Measured on a 13.5 s edit at 159 BPM: 24 cut points, median distance to the nearest half beat 0.045 s without it (the 0.19 s between two half beats makes 0.047 s what chance gives) and 0.009 s with it, all of them within 0.02 s.
+- **Sound of the shots, sound effects, bad takes** (Creative): **SOUND DESIGN** keeps the sound that H3 makes with each shot (ambiences, foley, hits) and mixes it with the music, which gives way to it (**Shot Assemble** `shot_volume`, `duck_music`); **SOUND EFFECTS** (`auto_sfx`, also in Remix, off by default) uses the installed Tone.js palette under actual cuts/transitions, with the historical six-sound fallback when no bank is installed (see [sound-design setup](docs/tone-sound-design.md)); **RETRY BAD TAKES** checks every take with **Take Check** and generates it again once, with another seed, when it is black, white or only noise. **SUBJECT MASK FRAMES** (96) sets how many frames BiRefNet reads for the contour, which glides between two masks and is blurred a little instead of trembling.
 - **Switches** (all three workflows): **EFFECTS** (the zoom, speed, flip, look, transitions and sub-cuts of the plan; in Remix the flashes, shakes and punch-ins measured on the template), **TEXT** (Creative: the planner stops writing text and Shot Assemble draws none; its new `text` input), and **MOTION GRAPHICS ON** (the node does not run when it is off). **SUBJECT MASK** only matters for the layers that use the subject.
 - **Creative**: the **profile** of `Skill · timeline_planner` is the style (`viral_aura_farming` by default; `glow_up`, `outfit_change`, `beauty_premium`, `product_advertising`, `narrative_cinematic`, `music_video`); **CAMERA LOOK** takes one of the looks of the note beside it; **PLACES** gives every shot a place and the empty plate of that place as a reference (see below); a **reference video** gives H3 its motion and camera and makes the enhancer end with the TRICK of the video (the one device that makes it work).
 - **Remix, several people** (a lineup of looks, clones, cut-outs, faded copies): given the source frames as its reference video, H3 tends to replace one person only. The reader counts the people (`GROUP: no` is the only answer that keeps the source frames: a missing line counts as a group), and every shot with more than one person is redrawn from its pose map and the prompt (`[reference generation]`): every person becomes REF 1, with the outfit of its position when WHAT TO REPLACE says that the outfits come from the shot (an outfit check, a lookbook; the GUIDE note of the workflow has an example prompt). The cost: the graphics and the background of such a shot are redrawn, not kept. **POSE ONLY** forces this for every shot; **POSE STRENGTH** is 0.9 by default (the pose is the only thing that holds the positions in that mode).
@@ -47,6 +110,7 @@ Load Video → Scene Detect & Split → Select Shot ─┬─ video / images →
 | **Shot Assemble** | Rebuilds the video from the active take of every shot (original order or `manual_order`). `effects` and `sub_cuts` switch the effects of a plan; `audio_policy` (`source_master`, `shot_audio`, `mute`), `music` and `sfx` (mixed over it), `replace_source_audio` and `voice_shots` (two toggles that override the policy). | `video` |
 | **Create Timeline** | The template without footage (above); `skeleton_json` keeps the rhythm of another plan and takes only the prompts and effects of the LLM; `width` and `height` (optional, 0 = off) give the size in pixels of the placeholder video instead of `aspect_ratio` and `resolution`: connect ComfyUI's **Resolution Selector**. **Edit Skills** has the same two inputs and then names the closest ratio in the prompt. | `shot_list`, `plan_json`, `rhythm_text`, `shot_count` |
 | **Cut Markers** | A timeline editor for the rhythm of an edit (below). | `plan_json`, `rhythm_text`, `shot_count` |
+| **Take Check** | Looks at a generated take (eight frames): black or white from start to end, or only noise, is bad; a dark, busy or still shot is not, and a smeared face is not caught (the judge of the Remix is for that). The Creative workflows generate a bad take again once. | `ok`, `report` |
 | **Music Fit** | Cuts a long music to the length of the edit, on its bars: the window starts on a downbeat, on the strongest part (a drop) unless `start` says otherwise; a music that is too short is looped by whole bars. | `music`, `info` |
 | **Audio Rhythm** | The kicks, snares and hi-hats of a music, shot by shot, in the `rhythm_text`, so that the LLM puts the strong moves on the kick and snare. | `rhythm_text`, `hits_json` |
 | **Music Brief** | Reads the JSON of a `music_brief_*` skill: the caption, the tempo, the length and the lyrics for a music model. | `music_prompt`, `bpm`, `duration`, `sfx_json`, `lyrics` |
@@ -100,7 +164,7 @@ Select Shot also tells what a shot of a timeline plan asks of the edit: `fx_json
 
 ## Text and motion design: Motion Graphics
 
-A generated take has no text, and the titles, counters and frames of a source video are lost in a remix. **Motion Graphics** draws them again over the finished edit, or adds motion design to any video, from a JSON list of layers: `text` (animated words), `box` (a filled rectangle) and `brackets` (four corners of a rectangle). Each layer has a `start` and an `end` (seconds, or a percentage of the video: `"40%"`) and an `animation`: `none`, `fade`, `pop`, `slide_up`, `slide_down`, `slide_left`, `slide_right`, `typewriter`, `glitch`, `shake`, `draw` (brackets); `out: "fade"` fades it out.
+Generated footage is intended to stay free of editorial text. **Motion Graphics** adds titles and graphic frames after assembly through the shared HyperFrames renderer, from layers such as `text`, `box`, `brackets`, vectors and effects. `start`/`end` may be seconds or percentages; shot-local layers stay within their own shot. Text animations include `words` (masked word-by-word reveal), `typewriter`, fades and slides; `out: "fade"` handles the exit. Dedicated animated numeric counters are not yet implemented. Visual overlay reading can recover text from a reference, but it is not speech transcription or a guarantee of exact source-graphics reconstruction.
 
 ```json
 [{"type": "text", "content": "WHICH ONE?", "position": "top_left", "size": 0.07, "color": "#111111", "start": "5%", "end": "40%", "animation": "typewriter", "out": "fade"},
@@ -139,8 +203,8 @@ A generated take comes back calmer than the footage it replaces: its flashes, sh
 
 ## Sound, voice and dialogue
 
-- **Music brief and soundtrack**: the skills `music_brief_minimax3`, `music_brief_yue2` and `music_brief_from_plan` write the brief of a music model from a mood, a length and the rhythm of the cuts; **Music Brief** reads their JSON. MiniMax Music 3 fills the length it is asked for (5 s gives 4.99 s, 12 s gives 11.99 s) and follows a tempo loosely.
-- **Sync on the beats**: **Create Timeline** `source = music` cuts on the bars and beats; **Audio Rhythm** describes the kick, snare and hi-hat under each shot so the planner puts the strong moves on them. Music first, then the cuts: this is how the Creative workflows sync. The phase of the beat grid follows the kick (the low band), not the hi-hats and claps on the off-beat. ACE-Step holds the tempo it is given (127.6 BPM measured for 128) but stops early on short durations (silent after about 4 s on 8 s), so the ACE workflows make a long track and let **Music Fit** pick the window.
+- **Music brief and soundtrack** (including historical experimental recipes): the skills `music_brief_minimax3`, `music_brief_yue2` and `music_brief_from_plan` write the brief of a music model from a mood, a length and the rhythm of the cuts; **Music Brief** reads their JSON. MiniMax Music 3 fills the length it is asked for (5 s gives 4.99 s, 12 s gives 11.99 s) and follows a tempo loosely.
+- **Sync on the beats**: **Create Timeline** `source = music` cuts on the bars and beats; **Audio Rhythm** describes the kick, snare and hi-hat under each shot so the planner puts the strong moves on them. Music first, then the cuts: this is how the Creative workflows sync. The phase of the beat grid follows the kick (the low band), not the hi-hats and claps on the off-beat. The maintained workflows generate a YuE2 score and audio, allow duration headroom, then let **Music Fit** select the strongest matching window. Tempo and event timing are measured from the actual waveform; a requested BPM or accent is not a guarantee of sample-accurate output.
 - **Voice and dialogue**: the `voice` input of **Edit Skills** (a voice sample, H3 `ref_audio_0`, `<Audio 1>` in the prompt) and the `dialogue` text (`0-3 s: "Welcome."`, one line per line). A shot gets the lines that start inside it (`core/dialogue.py`), with their times counted from its start; H3 speaks them. A deep sample gives a deep voice, but the timbre follows the sample only in part (measured).
 - **Shot Assemble**: `audio_policy` `source_master` (the soundtrack of the source, 48 kHz stereo AAC), `shot_audio` (the audio of each shot, silence where missing) or `mute`; `music` and `sfx` are mixed over it (cut or padded to the edit, fading out); `replace_source_audio` mutes the source so that the music is the only audio; `voice_shots` uses the audio each shot comes with (the voice).
 - Sound effects: generate them with MMAudio / Foley on the assembled edit and connect them to `sfx`.
@@ -161,7 +225,7 @@ To add a skill, drop a `.md` file in `skills/` (header `name`, `kind`, `descript
 | `clip_judge` | analyzer | PASS or FAIL for a generated take against the picture of the subject and the prompt |
 | `overlay_reader` | analyzer | The overlays of a video (titles, words that appear, counters, frames) as the layers of Motion Graphics |
 | `prompt_enhancer` | other | The few words of the user, the pictures and the frames of the videos become a richer brief |
-| `music_brief_minimax3`, `music_brief_yue2`, `music_brief_from_plan` | music_writer | The brief for MiniMax Music 3, YuE2, or ACE-Step and others (BPM, structure, sound effects) |
+| `music_brief_minimax3`, `music_brief_yue2`, `music_brief_from_plan` | music_writer | The brief for MiniMax Music 3, YuE2, or YuE2 and others (BPM, structure, sound effects) |
 | `profile_*` (7) | profile | The styles: `beauty_premium`, `glow_up`, `music_video`, `narrative_cinematic`, `outfit_change`, `product_advertising`, `viral_aura_farming` |
 | `mode_creative`, `mode_remix_replace` | mode | The settings of the two modes of Edit Mode |
 
@@ -169,7 +233,7 @@ In every skill, the subject of `<Picture 1>` (a person, an animal, a product, an
 
 ## Location plates
 
-With `locations` on, the planner gives every shot a place: a top-level `locations` object (`"L1"`: one sentence of what is fixed there, no person) and a `location` id per shot; the plan keeps the sentence, **Select Shot** outputs it (`location`, empty when the plan gives none). The empty plate of a place is a plain text-to-image run of FLUX.2 klein 4B on "An empty <place>, no people, no text" (720 x 1280, 4 steps, about 1 to 3 s on a GPU). Every shot block has the same nodes and ComfyUI's cache runs the chain once per distinct sentence, so the shots of one place share one plate. The plate reaches H3 as the last reference picture and the `plate` input of **Edit Skills** announces it (`<Picture N>`, used for the place only, never as a subject). Measured: the planner (Gemma 4 E4B) gives 2 places and the same sentence for the repeated place in 5 plans of 5; H3 puts the subject of `<Picture 1>` in the place of the plate. The workflows `Creative Text` and `Creative Music` do this (toggle PLACES).
+With `locations` on, the planner gives each shot a `location` id and describes each distinct place once in `locations`: architecture, materials, lighting AND useful fixed furniture, objects, lamps and mounted artwork, with relevant placement. FLUX.2 klein 4B generates an **unoccupied, set-dressed plate**, not necessarily a bare room (configured branch: 720 x 1280, 4 steps). ComfyUI can reuse the plate for the same description. A visual check rejects actual people or uncertain images; clearly mounted printed artwork is allowed as set dressing. This check is fallible. The plate reaches H3 as an environment reference; the shot writer names relevant set elements and preserves their placement while actor identity comes from its own photo. Movable/action props follow the current shot state rather than resetting to the cached plate. This existing optional PLACES branch is distinct from the abandoned scene-illustration pre-generation experiment.
 
 ## Cut Markers
 
@@ -229,7 +293,7 @@ After a run, **Scene Detect & Split** shows the source video with a timeline of 
 pip install -r requirements.txt
 ```
 
-`requirements.txt`: `scenedetect>=0.7` (PySceneDetect, which brings OpenCV: the energy of a video needs `cv2` too) and `filelock`. NumPy and Pillow come with ComfyUI. FFmpeg and FFprobe must be on `PATH` (or set `MAJOOR_FFMPEG` / `MAJOOR_FFPROBE` to their full paths). If your environment already uses `opencv-python-headless`, install with `pip install scenedetect --no-deps` and keep your OpenCV build. ComfyUI must be recent enough to have *Generate Text*, the MiniMax H3 and MiniMax Music nodes and sub-graphs (the registry minimum in `pyproject.toml` is 0.41.0).
+`requirements.txt`: `scenedetect>=0.7` (PySceneDetect, which brings OpenCV: the energy of a video needs `cv2` too) and `filelock`. NumPy and Pillow come with ComfyUI. FFmpeg and FFprobe must be on `PATH` (or set `MAJOOR_FFMPEG` / `MAJOOR_FFPROBE` to their full paths). If your environment already uses `opencv-python-headless`, install with `pip install scenedetect --no-deps` and keep your OpenCV build. ComfyUI must be recent enough to have *Generate Text*, the MiniMax H3 and YuE2 nodes and sub-graphs (the registry minimum in `pyproject.toml` is 0.41.0).
 
 ### What the workflows need
 
@@ -247,7 +311,7 @@ The nodes above need nothing more. The three workflows also use (each workflow l
 | H3 text encoder | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |
 | H3 video / audio VAE | `minimax_h3_video_vae_int8_convrot.safetensors`, `minimax_h3_audio_vae_fp32.safetensors` | `vae` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |
 | H3 pose ControlNet | `minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors` | `model_patches` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |
-| Music (Remix when the sound is replaced, Creative Text) | `minimax_music3_dit_fp16.safetensors`, `minimax_music3_text_encoder_pruned_int8_convrot.safetensors`, `minimax_music3_dav.safetensors` | `diffusion_models`, `text_encoders`, `vae` | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3) |
+| Music (Remix when sound is replaced, Creative Text) | `yue2_3b_int8_convrot.safetensors` (combined model, text encoder and audio VAE) | `checkpoints` | [Comfy-Org/YuE2](https://huggingface.co/Comfy-Org/YuE2) |
 | Plates (Creative) | `flux-2-klein-4b-fp8.safetensors` (Apache 2.0) | `diffusion_models` | [black-forest-labs/FLUX.2-klein-4b-fp8](https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-fp8) |
 | Plates | `qwen_3_4b.safetensors`, `flux2-vae.safetensors` | `text_encoders`, `vae` | [Comfy-Org/flux2-klein](https://huggingface.co/Comfy-Org/flux2-klein) (`split_files/`) |
 
@@ -272,4 +336,18 @@ Not implemented: cache TTL / purge, `.mov` beyond a container switch, `shot_audi
 
 ## License
 
-MIT (see `LICENSE`).
+Optional finishing: **Motion Design — HyperFrames** runs after assembly. It is enabled by default in the Studio and remains optional. Prepared typography and graphics can follow the final audio; global and per-shot cues are supported. See [setup, usage and third-party licenses](docs/hyperframes.md). No additional Python dependency is required; its Node.js runtime is installed separately.
+
+MIT for the original pack code (see [LICENSE](LICENSE)); model weights, GSAP and all other dependencies keep their own terms. See [LICENSES.md](LICENSES.md).
+
+### Studio runtime versus visual workflow editing
+
+The Studio API graphs use native ComfyUI nodes plus this pack and `comfyui_controlnet_aux`. KJNodes and easy-use remain dependencies of the visual workflow editor graphs (Set/Get and GPU cleanup), not of the exported Studio prompts. The active music generator is YuE2; historical experimental recipes are not maintained Studio entry points. See [the Studio installation scope](docs/studio-installation.md).
+
+### Unified graphics renderer
+
+Typography, legacy motion layers and HyperFrames finishing share one local HyperFrames compositor. BiRefNet is requested only for subject-dependent effects. Existing Motion Graphics nodes are compatibility adapters. See [architecture and mask behavior](docs/unified-renderer.md).
+
+Optional style packs, subject-color accents, sound palettes and internal delivery checks are described in [finishing options](docs/finishing-options.md). They preserve existing layer arrays and do not add a technical panel or a new generation engine.
+
+The video application is branded **HyperKut (HK)**. Legacy Studio directory, workflow filenames and `SECATOR_*` variables remain compatible; new environment variables use `HYPERKUT_*`.

@@ -5,6 +5,7 @@ original (a small gray copy of every frame: the luma, and the global motion betw
 makes of them, and writes what a shot did as the effects of a plan row (a transition into the shot, sub-cuts with a transition at each event, a push-in), which
 Shot Assemble applies to the generated take."""
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
@@ -13,6 +14,7 @@ import cv2
 import numpy as np
 
 from .errors import MajoorError
+from ..adapters.ffmpeg import CREATIONFLAGS, find_binary
 
 SIZE = (160, 90)
 FLASH_RISE = 28.0       # luma above the surroundings, on a scale of 255
@@ -37,17 +39,35 @@ class Event:
     strength: float
 
 
+def summarize_energy(events, cut_frames, duration_seconds) -> dict:
+    if duration_seconds <= 0:
+        raise ValueError('Energy measurement needs a positive duration')
+    return {'schema_version':1,'duration_seconds':float(duration_seconds),
+            'cut_rate':len(set(cut_frames))/duration_seconds,
+            **{name+'_rate':sum(e.kind==name for e in events)/duration_seconds for name in ('flash','shake','punch','whip','push')}}
+
+
+def compare_energy(reference, result) -> dict:
+    if reference is None or result is None:
+        return {'status':'unmeasured','reference':reference,'result':result,'ratios':{}}
+    return {'status':'measured','reference':reference,'result':result,
+            'ratios':{k:result[k]/value if value else None for k,value in reference.items() if k.endswith('_rate') and k in result}}
+
+
 def read_gray(path: Path, fps: Fraction, limit: int | None = None) -> np.ndarray:
     """Every frame of the video as a small gray image (N, 90, 160)."""
-    cmd = ["ffmpeg", "-v", "error", "-i", str(path), "-an", "-vf", f"scale={SIZE[0]}:{SIZE[1]}:flags=area,format=gray", "-f", "rawvideo", "-pix_fmt", "gray"]
+    cmd = [find_binary('ffmpeg'), "-v", "error", "-i", str(path), "-an", "-vf", f"scale={SIZE[0]}:{SIZE[1]}:flags=area,format=gray", "-f", "rawvideo", "-pix_fmt", "gray"]
     if limit:
         cmd += ["-frames:v", str(limit)]
-    out = subprocess.run([*cmd, "-"], capture_output=True)
-    if out.returncode:
-        raise MajoorError(f"ffmpeg could not read the frames of the video: {out.stderr.decode(errors='replace')[:300]}")
-    data = np.frombuffer(out.stdout, dtype=np.uint8)
-    size = SIZE[0] * SIZE[1]
-    return data[: len(data) // size * size].reshape(-1, SIZE[1], SIZE[0])
+    with tempfile.TemporaryFile() as stream:
+        out=subprocess.run([*cmd,'-'],stdout=stream,stderr=subprocess.PIPE,creationflags=CREATIONFLAGS)
+        if out.returncode:
+            raise MajoorError(f'ffmpeg could not read the frames: {out.stderr.decode(errors="replace")[:300]}')
+        size=SIZE[0]*SIZE[1]
+        count=stream.tell()//size
+        if not count:
+            raise MajoorError('The video contains no readable frames')
+        return np.memmap(stream,dtype=np.uint8,mode='r',shape=(count,SIZE[1],SIZE[0]))
 
 
 def global_motion(a: np.ndarray, b: np.ndarray) -> tuple[float, float, float]:

@@ -182,15 +182,26 @@ def compose(skill: Skill, states: dict[str, bool] | None = None, variables: dict
     return text, list(dict.fromkeys(on))
 
 
-def user_message(brief: str = "", rhythm_text: str = "", n_pictures: int = 1, videos: tuple[tuple[int, int, int], ...] = (), voice: bool = False, dialogue: str = "", plate: bool = False) -> str:
+def user_message(brief: str = "", rhythm_text: str = "", n_pictures: int = 1, videos: tuple[tuple[int, int, int], ...] = (), voice: bool = False, dialogue: str = "", plate: bool = False, shot_only: bool = False) -> str:
     """The message that goes with the skill: the brief, the pictures, the videos, the voice, the dialogue, the rhythm. videos: (number, first image, last image) of the frames of each <Video k> among the images of the chat."""
     blocks = []
-    if brief.strip():
+    if shot_only:
+        blocks.append('H3 INPUT MODE: ' + ('Ref2VA' if n_pictures > 0 or videos or voice else 'T2VA'))
+    scoped = shot_only and bool(rhythm_text.strip())
+    if scoped:
+        blocks.append("CURRENT SHOT ONLY\nThe selected shot below is the complete local generation brief. Perform only its visible event, starting state and ending state. Do not reconstruct the whole film. References define identity, not a repeated action or setting. After this event, hold its resulting state for any unused take duration; do not start the next event or replay the action.")
+    if shot_only:
+        local = rhythm_text if scoped else brief
+        if re.search(r'\b(hesitat\w*|listen\w*|reassur\w*|emotion\w*|sad|grief|reaction|triste|hésit\w*|écout\w*)\b',local,re.I):
+            blocks.append('LOCAL PERFORMANCE\nExpress the stated intention through one observable response to the existing scene. Give the gaze a relevant target; let the reaction change the inherited state. Keep it restrained. Add no dialogue, obstacle or additional action that the local brief does not support.')
+        if re.search(r'\b(anamorphic|anamorphique|bokeh|flare|rack focus|profondeur de champ)\b',local,re.I):
+            blocks.append('LOCAL OPTICS\nMake the requested optical character visible through the existing focus subject, depth layers and light sources. Describe camera movement as type, range and pace only where useful. Preserve the requested format and visual style; do not add a lens flare without a supported light source.')
+    if brief.strip() and not scoped:
         blocks.append("BRIEF\n" + brief.strip())
     if n_pictures > 0:
         blocks.append("PICTURES\n" + " ".join(f"<Picture {i}>" for i in range(1, n_pictures + 1)) + " are the images of this chat, in order.")
     if plate:
-        blocks.append(f"PLACE\n<Picture {n_pictures}> is the empty plate of the place of this shot (no person in it): the shot happens there. Use it for the place, never as a subject.")
+        blocks.append(f"PLACE\n<Picture {n_pictures}> is the empty plate of the place of this shot: unoccupied but set-dressed, with its relevant furniture, mounted artwork, practical lights and fixed objects. Preserve their appearance and placement and name the elements useful to this shot in the prompt. It is an environment reference, never the actor identity. Static printed figures remain part of the artwork unless this shot explicitly animates them; movable/action props follow the current shot state.")
     if videos:
         blocks.append("VIDEOS\n" + "\n".join(f"<Video {k}> = images {a} to {b} of this chat ({b - a + 1} frames in time order, from the first to the last frame of the clip)." for k, a, b in videos))
     if voice:

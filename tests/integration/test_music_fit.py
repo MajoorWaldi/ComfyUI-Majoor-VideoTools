@@ -35,6 +35,25 @@ def test_the_window_starts_on_the_drop_and_on_a_downbeat():
     assert abs(out[: int(0.5 * RATE)]).max() > 0.3  # it starts with the kick, not a silence
 
 
+def test_a_calm_brief_does_not_force_the_loud_drop():
+    music=_track(120,40,drop_at=16.2)
+    _,calm=fit_music(music,RATE,6,energy_goal='calm')
+    _,intense=fit_music(music,RATE,6,energy_goal='intense')
+    assert calm['start']+6<16.2
+    assert intense['start']>=16.1
+    assert calm['energy_goal']=='calm'
+
+
+def test_requested_reveal_prefers_a_window_with_an_accent_near_that_time():
+    music=_track(120,40,drop_at=100)
+    start=int(24.2*RATE);n=int(.15*RATE)
+    kick=.9*np.sin(2*np.pi*55*np.arange(n)/RATE)*np.exp(-np.arange(n)/(.04*RATE))
+    music[start:start+n]+=kick[:,None]
+    _,info=fit_music(music,RATE,6,bpm=120,moments=[{'at':2,'strength':1}])
+    assert abs(info['start']+2-24.2)<.15
+    assert info['accent_matches'][0]['error_seconds']<.15
+
+
 def test_a_start_is_snapped_to_a_bar_and_a_short_music_is_looped():
     music = _track(120, 30, drop_at=0.0)
     out, info = fit_music(music, RATE, 5.0, start=7.0)
@@ -54,3 +73,25 @@ def test_the_cut_music_has_its_beats_on_the_cuts_grid():
     found, beats = detect_beats(out.mean(axis=1), RATE)
     assert abs(found - 140) < 2
     assert abs(beats[0] - 0.02) < 0.04 or abs(beats[0] - (0.02 + 60 / 140)) < 0.04  # the downbeat is at the pre-roll
+
+
+def test_kept_music_is_read_back_as_it_was_written(tmp_path):
+    import numpy as np
+
+    from majoor_videotools.core.beats import read_wav, write_wav
+
+    samples = (np.sin(np.linspace(0, 400, 4800)) * 0.5).astype(np.float32)
+    stereo = np.stack([samples, samples * 0.5], axis=1)
+    write_wav(tmp_path / "music.wav", stereo, 24000)
+    back, rate = read_wav(tmp_path / "music.wav")
+    assert rate == 24000 and back.shape == (4800, 2) and np.abs(back - stereo).max() < 1e-3
+
+
+def test_loop_selection_uses_energy_intent_and_keeps_manual_start():
+    music = _track(120, 10, drop_at=4.2)
+    calm, ci = fit_music(music, RATE, 14, bpm=120, energy_goal='calm')
+    intense, ii = fit_music(music, RATE, 14, bpm=120, energy_goal='intense')
+    assert ci['looped'] and ii['looped'] and ii['start'] > ci['start']
+    _, manual = fit_music(music, RATE, 14, bpm=120, energy_goal='intense', start=.2)
+    assert abs(manual['start']-.2) < .1
+    assert calm.shape == intense.shape == (14*RATE, 2)

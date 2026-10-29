@@ -2,8 +2,8 @@
 dots, scanlines), an outline around the subject and points that follow something (a dot, a label, an emoji that track a point or the subject).
 
 A generated take has no text: the titles, counters and frames of the source video are redrawn here, after the assembly, from a list that a person or an LLM writes
-(the skill `overlay_reader` reads them from the frames of the source). The layers are rendered with Pillow, NumPy and OpenCV, frame by frame, and the video is encoded again by FFmpeg
-with its own audio. Nothing else is needed; the subject mask (outline, effects on the subject or the background, anchors on the subject) comes from any segmentation node.
+(the skill `overlay_reader` reads them from the frames of the source). The layer contract and mask/tracking preparation are shared with HyperFrames, which performs production composition.
+Low-level raster helpers remain for compatibility; the former video renderer delegates to HyperFrames. Its local runtime is required; the subject mask (outline, effects on the subject or the background, anchors on the subject) comes from any segmentation node.
 
     {"layers": [
       {"type": "text", "content": "WHICH ONE?", "position": "top_left", "size": 0.07, "color": "#111", "start": "0%", "end": "40%", "animation": "typewriter", "out": "fade"},
@@ -29,14 +29,14 @@ from .fx import TEXT_POSITIONS, _font
 from .media_probe import probe
 from .template import _json_text
 
-TYPES = ("text", "box", "brackets", "emoji", "outline", "effect", "track")
-ANIMATIONS = ("none", "fade", "pop", "slide_up", "slide_down", "slide_left", "slide_right", "typewriter", "glitch", "shake", "draw", "float")
-EFFECTS = ("chromatic", "glitch", "grid", "dots", "scanlines")
+TYPES = ("text", "box", "brackets", "emoji", "outline", "effect", "track", "vector")
+ANIMATIONS = ("none", "fade", "pop", "slide_up", "slide_down", "slide_left", "slide_right", "typewriter", "glitch", "shake", "draw", "float", "words")
+EFFECTS = ("chromatic", "glitch", "grid", "dots", "scanlines", "grain", "vignette", "light_leak", "pan", "roll", "handheld")
 TARGETS = ("frame", "subject", "background")
 OUTLINES = ("solid", "double", "dashed", "neon")
 ANCHORS = ("subject_top", "subject_center", "subject_bottom", "subject_left", "subject_right")
 SHAPES = ("none", "dot", "ring", "cross")
-MAX_LAYERS = 40
+MAX_LAYERS = 120
 
 
 def _number(value, name: str, where: str, lo: float, hi: float) -> float:
@@ -92,6 +92,11 @@ def parse_layers(text: str, length: float) -> list[dict]:
         if not isinstance(row, dict):
             raise MajoorError(f"{where} must be an object")
         kind = str(row.get("type", "text"))
+        if kind in ('line', 'dot', 'ring'):
+            if row.get('shape', kind) != kind:
+                raise MajoorError(f'{where}: conflicting vector type and shape')
+            row = {**row, 'type': 'vector', 'shape': kind}
+            kind = 'vector'
         if kind not in TYPES:
             raise MajoorError(f"{where}: unknown type '{kind}'. Available: {list(TYPES)}")
         start = _time(row.get("start"), "start", where, length, 0.0)
@@ -102,6 +107,11 @@ def parse_layers(text: str, length: float) -> list[dict]:
         layer = {"type": kind, "start": start, "end": end, "animation": animation, "out": "fade" if str(row.get("out", "none")) == "fade" else "none",
                  "in_time": _number(row.get("in_time", 0.25), "in_time", where, 0.05, 3.0), "opacity": _number(row.get("opacity", 1), "opacity", where, 0, 1),
                  "color": _color(row.get("color", "white"), where, "white"), "needs_mask": False}
+        from .motion_scenes import transform
+        if 'motion_from' in row or 'motion_to' in row:
+            layer.update(motion_from=transform(row.get('motion_from', {})), motion_to=transform(row.get('motion_to', {})))
+        layer['ease'] = _choice(row.get('ease','out'), ('out','smooth','linear','back'), 'out')
+        if row.get('scene'): layer['scene']=str(row['scene'])[:80]
         if kind in ("text", "emoji"):
             content = str(row.get("content", "")).strip()[:120 if kind == "text" else 8]
             if not content:
@@ -110,7 +120,11 @@ def parse_layers(text: str, length: float) -> list[dict]:
             if position not in TEXT_POSITIONS and "x" not in row:
                 position = "center"
             layer.update(content=content, size=_number(row.get("size", 0.08), "size", where, 0.02, 0.6), position=position, rotate=_number(row.get("rotate", 0), "rotate", where, -45, 45),
-                         stroke=_number(row.get("stroke", 0), "stroke", where, 0, 0.2))
+                         stroke=_number(row.get("stroke", 0.05), "stroke", where, 0, 0.2))
+            layer["font"] = str(row.get("font", "impact")) if row.get("font", "impact") in ("impact", "clean", "serif", "mono") else "impact"
+            layer["safe"] = bool(row.get("safe", True))
+            layer['accent_last'] = bool(row.get('accent_last', True))
+            layer["repeat"] = max(1, min(int(row.get("repeat", 1)), 12))
             if row.get("background") and _color(row["background"], where, "") != "":
                 layer["background"] = str(row["background"])
             if "x" in row:
@@ -122,6 +136,11 @@ def parse_layers(text: str, length: float) -> list[dict]:
             layer["rect"] = [_number(rect[0], "rect x", where, -1, 1), _number(rect[1], "rect y", where, -1, 1), _number(rect[2], "rect width", where, 0.001, 2), _number(rect[3], "rect height", where, 0.001, 2)]
             layer["thickness"] = _number(row.get("thickness", 0.004), "thickness", where, 0.001, 0.05)
             layer["arm"] = _number(row.get("arm", 0.2), "arm", where, 0.05, 0.5)
+        elif kind == 'vector':
+            layer.update(shape=_choice(row.get('shape','line'),('line','dot','ring'),'line'),
+                         at=_point(row.get('at'),where,[.2,.7]),to=_point(row.get('to'),where,[.8,.7]),
+                         radius=_number(row.get('radius',.009),'radius',where,.001,.2),
+                         thickness=_number(row.get('thickness',.003),'thickness',where,.001,.05))
         elif kind == "outline":
             layer.update(width=_number(row.get("width", 0.006), "width", where, 0.001, 0.05), style=_choice(row.get("style", "solid"), OUTLINES, "solid"), glow=_number(row.get("glow", 0), "glow", where, 0, 1),
                          needs_mask=True)
@@ -332,6 +351,31 @@ def _effect(frame: np.ndarray, layer: dict, state: dict, t: float, index: int, s
     if layer["flicker"] and int(t * layer["flicker"] * 2) % 2:
         return
     amount = layer["amount"] * state["alpha"]
+    if amount <= 0:
+        return
+    if layer['kind'] in ('grain','vignette','light_leak','pan','roll','handheld'):
+        height,width=frame.shape[:2]
+        yy,xx=np.mgrid[-1:1:complex(height),-1:1:complex(width)]
+        original=frame.astype(np.float32)
+        kind=layer['kind']
+        if kind=='grain':
+            noise=np.random.default_rng(index+7919).normal(0,12*amount,(height,width,1))
+            changed=original+noise
+        elif kind=='vignette':
+            changed=original*(1-.55*amount*np.clip((xx*xx+yy*yy)/2,0,1))[...,None]
+        elif kind=='light_leak':
+            glow=np.exp(-((xx-(.75+.25*math.sin(t)))**2+(yy+.3)**2)/.45)
+            changed=original+glow[...,None]*np.array([85,35,12])*amount
+        else:
+            phase=t-layer['start']
+            angle=2.5*amount*math.sin(phase*.8) if kind=='roll' else .45*amount*math.sin(phase*7) if kind=='handheld' else 0
+            matrix=cv2.getRotationMatrix2D((width/2,height/2),angle,1+.1*amount)
+            matrix[0,2]+=width*.025*amount*math.sin(phase*(4.1 if kind=='handheld' else .65))
+            matrix[1,2]+=height*.015*amount*math.sin(phase*5.3) if kind=='handheld' else 0
+            changed=cv2.warpAffine(frame,matrix,(width,height),borderMode=cv2.BORDER_REFLECT_101).astype(np.float32)
+        weight=np.ones((height,width),np.float32) if layer['target']=='frame' else subject if layer['target']=='subject' else 1-subject
+        frame[:]=np.clip(original*(1-weight[...,None])+changed*weight[...,None],0,255).astype(np.uint8)
+        return
     if layer["kind"] in ("chromatic", "glitch"):
         changed = _chromatic(frame, layer, amount) if layer["kind"] == "chromatic" else _glitch(frame, layer, amount, index * 17 + 3)
         weight = np.ones(frame.shape[:2], np.float32) if layer["target"] == "frame" else (subject if layer["target"] == "subject" else 1 - subject)
@@ -436,20 +480,31 @@ def _track(frame: np.ndarray, layer: dict, state: dict, point: np.ndarray, sprit
 
 
 class Masks:
-    """The mask of the subject for every frame: one mask per frame, or fewer / more, picked by time."""
+    """The mask of the subject for every frame: the masks read from the video are spread over its length, the frames between two of them blend the two (the contour glides instead of jumping),
+    and a light blur takes the jitter out of the edge. One mask per frame, fewer or more, it is the same."""
 
     def __init__(self, array: np.ndarray | None):
         self.array = array
-        self.cached: tuple[int, np.ndarray] | None = None
+        self.resized: dict[int, np.ndarray] = {}
+
+    def _mask(self, n: int, width: int, height: int) -> np.ndarray:
+        if n not in self.resized:
+            if len(self.resized) > 4:
+                self.resized.clear()
+            m = self.array[n].astype(np.float32)
+            self.resized[n] = cv2.resize(m, (width, height), interpolation=cv2.INTER_LINEAR) if m.shape != (height, width) else m
+        return self.resized[n]
 
     def at(self, index: int, total: int, width: int, height: int) -> np.ndarray | None:
         if self.array is None:
             return None
-        n = min(int(index * len(self.array) / max(total, 1)), len(self.array) - 1)
-        if self.cached is None or self.cached[0] != n:
-            m = self.array[n].astype(np.float32)
-            self.cached = (n, cv2.resize(m, (width, height), interpolation=cv2.INTER_LINEAR) if m.shape != (height, width) else m)
-        return self.cached[1]
+        position = index * (len(self.array) - 1) / max(total - 1, 1)  # the first and the last mask are the first and the last frame
+        n = min(int(position), len(self.array) - 1)
+        after = min(n + 1, len(self.array) - 1)
+        weight = position - n
+        mask = self._mask(n, width, height) if after == n or weight == 0 else (1.0 - weight) * self._mask(n, width, height) + weight * self._mask(after, width, height)
+        sigma = max(min(width, height) * 0.004, 1.0)
+        return cv2.GaussianBlur(mask, (0, 0), sigma)
 
 
 def draw_layers(frame: np.ndarray, layers: list[dict], t: float, length: float, index: int, sprites: _Sprites, subject: np.ndarray | None = None, tracker: _Tracker | None = None) -> None:
@@ -486,50 +541,19 @@ def draw_layers(frame: np.ndarray, layers: list[dict], t: float, length: float, 
             _paste(frame, sprite, x + int(state["dx"] * width), y + int(state["dy"] * height), state["alpha"])
 
 
-def render_motion(source: Path, layers: list[dict], out: Path, on_progress: Callable[[float], None] | None = None, is_cancelled: Callable[[], bool] | None = None,
-                  masks: np.ndarray | None = None) -> None:
-    """The source with the layers drawn over it, encoded again (H.264) with the audio of the source. The layers come from parse_layers; masks (N, H, W, 0 to 1) is the subject."""
+def render_motion(source: Path, layers: list[dict], out: Path, on_progress=None, is_cancelled=None, masks=None) -> None:
+    """Compatibility entry point; all production composition now uses HyperFrames."""
+    from .hyperframes import render_hyperframes
+    import shutil
     if needs_mask(layers) and masks is None:
-        raise MajoorError("These layers need the mask of the subject (an outline, an effect on the subject or the background, a point on the subject): connect a segmentation to the mask input.")
-    info = probe(source, with_packets=False)
-    width, height = (n // 2 * 2 for n in info.display_size)
-    fps = float(info.fps)
-    length = float(info.duration)
-    sprites, subjects, tracker = _Sprites(width, height), Masks(masks), _Tracker()
-    ffmpeg = find_binary("ffmpeg")
+        raise MajoorError("These layers need the mask of the subject")
+    result, _ = render_hyperframes(source, out.parent / '_hyperframes',
+        '{"preset":"minimal","reactive":false,"intensity":0}',
+        layers_text=json.dumps(layers), masks=masks, progress=on_progress, cancelled=is_cancelled)
     out.parent.mkdir(parents=True, exist_ok=True)
-    tmp = out.with_suffix(".part.mp4")
-    decode = subprocess.Popen([ffmpeg, "-v", "error", "-nostdin", "-i", str(source), "-vf", f"crop={width}:{height}:0:0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
-                              stdout=subprocess.PIPE, shell=False, creationflags=CREATIONFLAGS)
-    audio = ["-map", "1:a:0", "-c:a", "aac", "-b:a", "192k"] if info.has_audio else []
-    encode = subprocess.Popen([ffmpeg, "-v", "error", "-nostdin", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{width}x{height}", "-r", f"{info.fps.numerator}/{info.fps.denominator}", "-i", "-",
-                               "-i", str(source), "-map", "0:v:0", *audio, "-c:v", "libx264", "-crf", "16", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-t", f"{length:.6f}", str(tmp)],
-                              stdin=subprocess.PIPE, shell=False, creationflags=CREATIONFLAGS)
-    size = width * height * 3
-    tracking = any(layer["type"] == "track" for layer in layers)
+    temporary = out.with_suffix('.partial.mp4')
     try:
-        index = 0
-        while True:
-            if is_cancelled and is_cancelled():
-                raise MajoorError("Cancelled")
-            raw = decode.stdout.read(size)
-            if len(raw) < size:
-                break
-            frame = np.frombuffer(raw, np.uint8).reshape(height, width, 3).copy()
-            draw_layers(frame, layers, index / fps, length, index, sprites, subjects.at(index, info.frame_count, width, height), tracker if tracking else None)
-            encode.stdin.write(frame.tobytes())
-            index += 1
-            if on_progress and index % 8 == 0:
-                on_progress(min(index / max(info.frame_count, 1), 1.0))
-        encode.stdin.close()
-        if encode.wait() != 0:
-            raise MajoorError("ffmpeg could not encode the video with the layers")
-        tmp.replace(out)
-    except BaseException:
-        decode.kill()
-        encode.kill()
-        tmp.unlink(missing_ok=True)
-        raise
+        shutil.copy2(result, temporary)
+        temporary.replace(out)
     finally:
-        decode.stdout.close()
-        decode.wait()
+        temporary.unlink(missing_ok=True)

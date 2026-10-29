@@ -1,0 +1,31 @@
+{
+  "1": {
+    "class_type": "MajoorLoadShotList",
+    "inputs": {"project_id": "p_00000000"}
+  },
+  "2": {
+    "class_type": "MajoorLoadProjectMusic",
+    "inputs": {"project_id": "p_00000000"}
+  },
+  "3": {
+    "class_type": "MajoorTimelineEdit",
+    "inputs": {"shot_list": ["1", 0], "music": ["2", 0], "edit_json": ""}
+  },
+  "4": {
+    "class_type": "MajoorShotAssemble",
+    "inputs": {
+      "shot_list": ["3", 0],
+      "music": ["3", 1],
+      "assembly_mode": "original_order",
+      "missing_shot_policy": "error",
+      "duration_policy": "trim_or_error",
+      "fps_policy": "source",
+      "audio_policy": "mute",
+      "output_format": "mp4",
+      "video_codec": "h264",
+      "output_name": "manual_edit",
+      "music_fade": 0.0,
+      "auto_sfx": false
+    }
+  }
+}

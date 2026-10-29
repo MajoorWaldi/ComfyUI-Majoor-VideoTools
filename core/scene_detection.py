@@ -200,7 +200,8 @@ def detect_scenes(
         shot_list = ShotList(
             project_id=project_id,
             source=source,
-            detection=Detection(mode, sensitivity, min_shot_frames, cache_key, tuple(cached["warnings"])),
+            detection=Detection(mode, sensitivity, min_shot_frames, cache_key, tuple(cached["warnings"]),
+                                energy=energy_tools.summarize_energy(events,cached['cuts'],source.duration_seconds) if energy!='off' else None),
             shots=shots,
             schema_version=SCHEMA_VERSION,
         )

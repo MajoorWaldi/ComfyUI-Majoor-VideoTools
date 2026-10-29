@@ -106,6 +106,7 @@ def apply_revision(
     label: str = "",
     activate: bool = True,
     duration_policy: str = "inherit_target",
+    generation_prompt: str = "",
 ) -> ShotList:
     shot = check_lineage(shot_list, metadata)
     store = ProjectStore(store_root, shot_list.project_id)
@@ -146,6 +147,7 @@ def apply_revision(
             duration_policy=duration_policy,
             has_audio=info.has_audio,
             created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            generation_prompt=generation_prompt,
         )
         patched = dataclasses.replace(
             shot,

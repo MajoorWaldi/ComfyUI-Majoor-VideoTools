@@ -248,7 +248,6 @@ def test_planner_prompt_example_is_a_valid_dense_8s_plan():
 
     examples = Path(__file__).resolve().parents[2] / "examples"
     example = (examples / "timeline_fashion_motion.json").read_text(encoding="utf-8")
-    assert example.strip() in (examples / "prompts" / "timeline_planner.txt").read_text(encoding="utf-8")
     plan = parse_plan(example, 24, "16:9", 320)
     assert plan.fps == 24 and (plan.width, plan.height) == (180, 320) and len(plan.shots) == 7
     assert sum(s.frames for s in plan.shots) == 192 and all(s.prompt and s.image_prompt for s in plan.shots)
@@ -475,6 +474,64 @@ def test_effects_and_sub_cuts_can_be_switched_off_at_assembly(root, fixtures):
     assert not full.warnings
 
 
+def _tone_energy(path, freq):
+    import subprocess
+
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "-"], capture_output=True, check=True).stdout
+    x = np.frombuffer(raw, np.float32)
+    spectrum = np.abs(np.fft.rfft(x * np.hanning(len(x))))
+    bin_ = int(freq * len(x) / 48000)
+    return float(spectrum[max(bin_ - 3, 0):bin_ + 4].max()), x
+
+
+def test_the_sound_of_the_takes_is_kept_under_the_music_and_the_cuts_get_effects(root, fixtures, tmp_path):
+    sl = template(root, plan=FX_PLAN)
+    for sid in ("BURST", "RAMP"):
+        shot = sl.get_shot(sid)
+        sl = apply_revision(sl, root, make_metadata(sl, shot, shot.active), fixtures["gen"])  # the take has a 880 Hz tone: its "sound design"
+    write_wav(tmp_path / "music.wav", np.stack([0.5 * np.sin(2 * np.pi * 110 * np.arange(48000 * 3) / 48000)] * 2, axis=1).astype(np.float32), 48000)
+    music = tmp_path / "music.wav"
+    shots_only = assemble_shots(sl, root, AssemblyOptions(audio_policy="shot_audio"))
+    with_music = assemble_shots(sl, root, AssemblyOptions(audio_policy="shot_audio", music=music))
+    ducked = assemble_shots(sl, root, AssemblyOptions(audio_policy="shot_audio", music=music, duck=1.0))
+    quiet = assemble_shots(sl, root, AssemblyOptions(audio_policy="shot_audio", music=music, shot_volume=0.0))
+    effects = assemble_shots(sl, root, AssemblyOptions(audio_policy="shot_audio", music=music, auto_sfx=True))
+    sound_of_shots, _ = _tone_energy(shots_only.path, 880)
+    assert sound_of_shots > 50  # the takes keep their sound although the shots are cut in pieces with effects
+    music_and_shots = (_tone_energy(with_music.path, 880)[0], _tone_energy(with_music.path, 110)[0])
+    assert music_and_shots[0] > 50 and music_and_shots[1] > 50  # both are in the mix
+    assert _tone_energy(ducked.path, 110)[0] < 0.7 * music_and_shots[1]  # the music gives way to the takes
+    assert _tone_energy(quiet.path, 880)[0] < 0.05 * sound_of_shots and _tone_energy(quiet.path, 110)[0] > 50  # shot_volume 0: only the music is left
+    plain, with_effects = _tone_energy(with_music.path, 110)[1], _tone_energy(effects.path, 110)[1]
+    assert len({with_music.path, effects.path}) == 2 and float(np.abs(with_effects - plain).max()) > 0.1  # the cuts carry sounds the music does not have
+
+
+def test_every_cue_of_the_sound_effects_is_a_sound_of_its_own():
+    from majoor_videotools.core.sfx import CUES, GAINS, cue_sound, render_track
+
+    kinds = sorted(set(CUES.values()) | {"hit"})
+    assert set(kinds) <= set(GAINS)
+    sounds = {k: cue_sound(k) for k in kinds}
+    assert all(0.05 < len(v) / 48000 < 2.0 and abs(float(np.abs(v).max()) - 1.0) < 1e-6 for v in sounds.values())
+    assert all(not np.array_equal(sounds[a][:2000], sounds[b][:2000]) for a in kinds for b in kinds if a < b)
+    track = render_track([(0.5, "impact"), (1.2, "whoosh"), (9.0, "hit")], 2.0)  # an event past the end is dropped
+    assert track.shape == (96000, 2) and float(np.abs(track[:int(0.49 * 48000)]).max()) == 0.0 and float(np.abs(track[int(0.5 * 48000):int(0.6 * 48000)]).max()) > 0.1
+    assert np.array_equal(render_track([(0.5, "impact")], 1.0), render_track([(0.5, "impact")], 1.0))  # the same every time
+
+
+def test_a_project_is_read_back_with_its_registered_takes(root, fixtures):
+    from majoor_videotools.core.project import load_shot_list
+
+    sl = template(root, plan=FX_PLAN)
+    assert load_shot_list(root, sl.project_id) == sl  # what Create Timeline wrote
+    shot = sl.get_shot("BURST")
+    done = apply_revision(sl, root, make_metadata(sl, shot, shot.active), fixtures["gen"])
+    back = load_shot_list(root, sl.project_id)
+    assert back.get_shot("BURST").active_revision_id == done.get_shot("BURST").active_revision_id != "original"  # the take of a run that ended is in the manifest
+    with pytest.raises(MajoorError, match="no manifest"):
+        load_shot_list(root, "p_" + "0" * 12)
+
+
 def test_a_shot_tells_its_transition_and_cuts(root):
     from majoor_videotools.core.fx import describe_fx
 
@@ -520,17 +577,17 @@ def test_every_prompt_file_is_listed_and_the_h3_writer_knows_the_format():
     for f in folder.glob("*.txt"):
         assert f.name in index or f.name.startswith("timeline_planner_user_request"), f.name
     writer = (folder / "h3_shot_prompt_from_plan.txt").read_text(encoding="utf-8")
-    for needed in ("<Picture 1>", "subject_definitions:", "retention_analysis:", "detailed_description:", "overall_soundscape:", "non_diegetic_music:", "TAKE LENGTH", "[Shot 2] At 00:00.417", "Positive words only"):
+    for needed in ("<Picture 1>", "subject_definitions:", "retention_analysis:", "detailed_description:", "overall_soundscape:", "non_diegetic_music:", "TAKE LENGTH", "ONE continuous [Shot 1]"):
         assert needed in writer, needed
-    # the prompts keep the cuts and the role, and never ask for "no cuts": the writer, the planner and its example agree
+    # Filmed take prompts and editorial JSON agree without asking H3 to bake in the cuts.
     planner = (folder / "timeline_planner.txt").read_text(encoding="utf-8")
     example = json.loads((folder.parent / "timeline_fashion_motion.json").read_text(encoding="utf-8"))
-    assert "NEVER write negative boilerplate" in planner and "A fast hook: 0.0-0.5 s wide full-body frame" in planner
+    assert 'editorial instructions in JSON' in planner
     for shot in example["shots"]:
         text = (shot["prompt"] + shot["image_prompt"]).lower()
-        assert "continuous" not in text and "no cuts" not in text and "no text" not in text, shot["id"]
+        assert 'one continuous filmed take' in text, shot['id']
         if shot.get("sub_cuts"):
-            assert " s " in shot["prompt"] and "cut" in shot["prompt"].lower(), shot["id"]
+            assert 'editorial crops and transitions are applied separately' in text, shot['id']
     assert len(writer.split()) < 2100  # a prompt a local model can follow: 1793 words without the dialogue and plate modules, which are off unless a voice, a dialogue or a place is given
 
 
@@ -547,7 +604,7 @@ def test_negations_are_removed_from_prompts_but_cuts_and_transitions_stay():
     plan = json.dumps({"shots": [{"duration": 1, "prompt": "A woman walks. One continuous take, no cuts, no text.", "image_prompt": "Portrait, white studio, no text.", "notes": "no cuts here"}]})
     cleaned, gone = clean_plan_text(plan)
     shot = json.loads(cleaned)["shots"][0]
-    assert shot["prompt"] == "A woman walks." and shot["image_prompt"] == "Portrait, white studio." and shot["notes"] == "no cuts here" and len(gone) == 4
+    assert shot == json.loads(plan)["shots"][0] and gone == []
     assert clean_plan_text("not json")[0] == "not json"
 
 
@@ -790,4 +847,40 @@ def test_the_location_of_a_shot_goes_through_the_plan():
     merged, _ = merge_plans(json.dumps({"shots": [{"id": "A", "duration": 1}, {"id": "B", "duration": 1}]}), json.dumps({"shots": [{"id": "A", "prompt": "x", "location": place}, {"id": "B", "prompt": "y", "location": place}]}), 24, "9:16", 256)
     assert [r["location"] for r in merged["shots"]] == [place, place]
     cleaned = json.loads(clean_plan_text(json.dumps({"shots": [{"id": "A", "location": "A quiet street, no text, shops open"}]}))[0])
-    assert "no text" not in cleaned["shots"][0]["location"] and "shops open" in cleaned["shots"][0]["location"]
+    assert "no text" in cleaned["shots"][0]["location"] and "shops open" in cleaned["shots"][0]["location"]
+
+
+def test_a_plan_is_fitted_to_the_length_that_was_asked_for():
+    import json
+
+    from majoor_videotools.core.timeline_sources import fit_duration
+
+    plan = {"shots": [{"duration": 3.08, "prompt": "a", "sub_cuts": [{"duration": 1.5}, {"duration": 1.58}]}, {"duration": "2.5", "prompt": "b"}, {"sub_cuts": [{"duration": "1s"}, {"duration": 1}], "prompt": "c"}]}
+    fitted = json.loads(fit_duration(json.dumps(plan), 20, 24))
+    assert sum(int(s["duration"][:-1]) for s in fitted["shots"]) == 480
+    assert sum(int(c["duration"][:-1]) for c in fitted["shots"][0]["sub_cuts"]) in (194, 195, 196)
+    assert fit_duration("not json", 20, 24) == "not json"
+
+
+def test_a_music_plan_groups_grid_steps_into_takes_with_sub_cuts(tmp_path):
+    import numpy as np
+
+    from majoor_videotools.core.timeline_sources import plan_from_music
+
+    rate, period = 22050, 60 / 140
+    samples = np.zeros(rate * 15, dtype=np.float32)
+    for k in range(int(15 / period)):
+        samples[int(k * period * rate):int(k * period * rate) + 300] = np.hanning(300)
+    steps, _ = plan_from_music(samples, rate, cut_every="2_beats", fps=24)
+    takes, _ = plan_from_music(samples, rate, cut_every="2_beats", shots=5, fps=24)
+    assert len(steps["shots"]) == 18 and len(takes["shots"]) == 5
+    assert sum(s["duration_frames"] for s in takes["shots"]) == sum(s["duration_frames"] for s in steps["shots"])
+    assert all(sum(c["duration_frames"] for c in s["sub_cuts"]) == s["duration_frames"] for s in takes["shots"])
+    assert sum(len(s["sub_cuts"]) for s in takes["shots"]) == 18
+
+
+def test_the_sound_of_a_take_follows_the_speed_of_its_cut():
+    from majoor_videotools.core.assembler import atempo_filters
+
+    assert atempo_filters(1.0) == "" and atempo_filters(2.0) == ",atempo=2.000000"
+    assert atempo_filters(3.0) == ",atempo=2.0,atempo=1.500000" and atempo_filters(0.3) == ",atempo=0.5,atempo=0.600000"

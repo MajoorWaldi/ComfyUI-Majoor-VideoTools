@@ -51,6 +51,8 @@ class Revision:
     duration_policy: str = "inherit_target"
     has_audio: bool = False
     created_at: str = ""
+    source_start_seconds: float = 0.0  # non-destructive slip inside a generated take
+    generation_prompt: str = ""
 
 
 @dataclass(frozen=True)
@@ -92,6 +94,8 @@ class Detection:
     min_shot_frames: int
     cache_key: str
     warnings: tuple[str, ...] = ()
+    beat_times: tuple[float, ...] = ()
+    energy: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -138,7 +142,7 @@ class ShotList:
             result = cls(
                 project_id=data["project_id"],
                 source=Source(**data["source"]),
-                detection=Detection(**{**det, "warnings": tuple(det.get("warnings", ()))}),
+                detection=Detection(**{**det, "warnings": tuple(det.get("warnings", ())), 'beat_times':tuple(det.get('beat_times',()))}),
                 shots=shots,
                 project_revision=data["project_revision"],
                 schema_version=data["schema_version"],

@@ -1,0 +1,12 @@
+[
+  {"id": "perfume-drop", "brief": "A premium 15-second perfume campaign: a droplet on wet black stone, a rim-lit silhouette, cap and glass details cut on the beat, the word NEW DROP once, a final hero frame.", "duration": 15, "style": "product_advertising", "cut_density": "high", "text_allowed": "NEW DROP"},
+  {"id": "slow-pov", "brief": "First person: I look at the camera as the moment changes me. Two scenes in the same place, close-ups of the face and hands, a quiet twist in the last shot.", "duration": 20, "style": "micro_emotion_pov", "cut_density": "low", "text_allowed": ""},
+  {"id": "hype-city", "brief": "Fast hype edit: a night city, drifting cars and a lone figure in motion, close-ups cut on the beat, a burst of flashes at the drop.", "duration": 15, "style": "hype_beat_drop", "cut_density": "high", "text_allowed": ""},
+  {"id": "dream-street", "brief": "A slowed dreamy edit of a quiet street at dusk and a figure walking, long drifting holds, a faded VHS look, a few soft words like lyrics.", "duration": 20, "style": "slowed_dream", "cut_density": "low", "text_allowed": "stay a little longer"},
+  {"id": "outfit-change", "brief": "The same person changes outfit on the beat, four looks, the same pose before and after each change, full-body shots.", "duration": 10, "style": "outfit_change", "cut_density": "high", "text_allowed": ""},
+  {"id": "glow-up", "brief": "A glow-up: plain and tired in a small kitchen, one turning point, then confident and polished in the same kitchen, a hero ending.", "duration": 15, "style": "glow_up", "cut_density": "medium", "text_allowed": ""},
+  {"id": "beauty-macro", "brief": "A skincare serum bottle: texture of the liquid, the glass, the dropper, a calm reveal, soft light.", "duration": 10, "style": "beauty_premium", "cut_density": "low", "text_allowed": ""},
+  {"id": "cinematic-rain", "brief": "A short event: a courier runs through the rain, drops a parcel at a door, the door opens, a hand takes it.", "duration": 15, "style": "narrative_cinematic", "cut_density": "medium", "text_allowed": ""},
+  {"id": "music-video", "brief": "A music video for a late-night electronic track: a performer in a neon corridor, push-ins on the hits, colour that pulses.", "duration": 20, "style": "music_video", "cut_density": "high", "text_allowed": ""},
+  {"id": "aura", "brief": "Aura farming: a stoic skater in golden-hour fog, one signature gesture that comes back with variations, a long confident hold at the end.", "duration": 10, "style": "viral_aura_farming", "cut_density": "auto", "text_allowed": ""}
+]

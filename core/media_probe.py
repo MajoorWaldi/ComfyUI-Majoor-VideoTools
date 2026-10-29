@@ -59,7 +59,7 @@ def probe(path: Path, with_packets: bool = True) -> MediaInfo:
     pts: list[int] = []
     if with_packets:
         out = run_capture(
-            ["-v", "error", "-select_streams", f"v:{video['index']}", "-show_entries", "packet=pts", "-of", "csv=p=0", str(path)],
+            ["-v", "error", "-select_streams", str(video['index']), "-show_entries", "packet=pts", "-of", "csv=p=0", str(path)],
             "ffprobe",
         ).decode()
         for line in out.splitlines():

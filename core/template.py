@@ -14,7 +14,7 @@ import numpy as np
 from PIL import Image, ImageColor, ImageDraw
 
 from ..adapters.ffmpeg import run_ffmpeg
-from .beats import detect_beats, read_wav_mono
+from .beats import accent_candidates, accent_strength, align_grid_to_onsets, detect_beats, read_wav_mono, strong_accents
 from .errors import MajoorError
 from .card_text import draw_card_text
 from .fx import SUB_MIN_FRAMES, describe_shot, parse_fx, split_frames
@@ -22,6 +22,8 @@ from .fingerprints import file_fingerprint, json_fingerprint
 from .media_probe import probe
 from .models import SCHEMA_VERSION, Detection, ShotList
 from .paths import ProjectStore
+from .render_source import parse_render_source
+from .story import story_fields, story_warnings
 from .scene_detection import _with_thumbnail, build_shots, build_source, persist_manifest
 
 ASPECTS = {"16:9": (16, 9), "9:16": (9, 16), "1:1": (1, 1)}
@@ -29,10 +31,10 @@ PROFILES = ("none", "minimax_h3")
 SNAP_MODES = ("off", "half_beat", "beat", "bar")
 H3_MIN_FRAMES = 124
 H3_STEP = 17  # valid lengths are 17k + 5
-MIN_SHOT_FRAMES = 6
+MIN_SHOT_FRAMES = 5
 MAX_SHOTS = 150  # the placeholder video is one ffmpeg command with an input per shot: Windows refuses a command line much longer than that
 MAX_SECONDS = 3600
-TEMPLATE_VERSION = "3"
+TEMPLATE_VERSION = "5"
 _ID = re.compile(r"[A-Za-z0-9_-]{1,40}")
 # rectangles as fractions of the frame: x, y, width, height
 LAYOUTS = {
@@ -60,6 +62,9 @@ class PlanShot:
     layers: tuple[Layer, ...] = ()
     fx: dict = field(default_factory=dict)  # post effects applied by Shot Assemble (see core/fx.py)
     location: str = ""  # the place of the shot, written the same word for word in every shot that happens there: its empty plate is generated once
+    render_source: dict = field(default_factory=dict)
+    story: dict = field(default_factory=dict)  # optional continuity handoff; legacy plans stay valid
+    motion: list = field(default_factory=list)  # shot-local HyperFrames layers
 
 
 @dataclass(frozen=True)
@@ -223,23 +228,40 @@ def parse_plan(text: str, fps: float, aspect_ratio: str, resolution: int) -> Pla
                 _rgb(color, sid)
         except MajoorError:
             color = ""  # the color only codes the timeline by role: 'none' or 'transparent' from an LLM is no reason to stop
-        shots.append(PlanShot(sid, frames, str(row.get("prompt", row.get("video_prompt", ""))).strip(), str(row.get("image_prompt", "")).strip(), str(row.get("notes", "")).strip(), color, _layers(row, sid), fx, places.get(str(row.get("location", "")).strip(), str(row.get("location", "")).strip())))
+        motion = row.get('motion') or []
+        if not isinstance(motion, list) or len(motion) > 20 or any(not isinstance(layer, dict) for layer in motion):
+            raise MajoorError(f'{sid}: motion must contain at most 20 layer objects')
+        if motion:
+            from .motion_timing import shot_layers
+            from .motion import parse_layers
+            seconds=float(frames/rate)
+            resolved,_=shot_layers(json.dumps(motion), '[]', seconds, float(rate))
+            parse_layers(json.dumps(resolved),seconds)
+        shots.append(PlanShot(sid, frames, str(row.get("prompt", row.get("video_prompt", ""))).strip(), str(row.get("image_prompt", "")).strip(), str(row.get("notes", "")).strip(), color, _layers(row, sid), fx, places.get(str(row.get("location", "")).strip(), str(row.get("location", "")).strip()),parse_render_source(row.get('render_source')), story_fields(row.get('story')), motion))
     if len(shots) > MAX_SHOTS:
         raise MajoorError(f"{len(shots)} shots: a timeline holds at most {MAX_SHOTS}. Use fewer, longer shots and put the quick cuts in sub_cuts (or cut the music every bar instead of every beat).")
+    if sum(len(shot.motion) for shot in shots)>120:
+        raise MajoorError('The plan may contain at most 120 motion layers')
     if sum(s.frames for s in shots) > MAX_SECONDS * rate:
         raise MajoorError(f"The edit is longer than {MAX_SECONDS // 60} minutes.")
     return Plan(str(data.get("title", "")).strip(), rate, width, height, tuple(shots))
 
 
-def snap_boundaries(durations: list[int], grid: list[int], warnings: list[str], ids: list[str], label: str = "beat", min_frames: int = MIN_SHOT_FRAMES) -> list[int]:
-    """Move each internal cut to the nearest grid frame while keeping every shot at least min_frames long."""
+def snap_boundaries(durations: list[int], grid: list[int], warnings: list[str], ids: list[str], label: str = "beat", min_frames: int = MIN_SHOT_FRAMES, strength: dict[int, float] | None = None) -> list[int]:
+    """Move each internal cut to the nearest grid frame while keeping every shot at least min_frames long. With `strength` (the attack under each grid frame, see accent_strength) a cut
+    goes to the strongest attack within a step and a half of the grid, and to the nearest grid frame when no attack there is strong."""
     bounds = np.cumsum(durations).tolist()
     total = bounds[-1]
     snapped = []
     previous = 0
+    reach = min(max(int(float(np.median(np.diff(sorted(set(grid))))) * 1.5), 1), 12) if strength and len(set(grid)) > 1 else 0
     for i, cut in enumerate(bounds[:-1]):
         target = min(grid, key=lambda g: abs(g - cut), default=cut)
         upper = bounds[i + 1] - min_frames if i + 1 < len(bounds) - 1 else total - min_frames
+        if reach:
+            near = [g for g, v in strength.items() if abs(g - cut) <= reach and v >= 0.4 and previous + min_frames <= g <= upper]
+            if near:
+                target = max(near, key=lambda g: strength[g] - 0.5 * abs(g - cut) / reach)
         if previous + min_frames <= target <= upper:
             if target != cut:
                 warnings.append(f"Cut after {ids[i]} moved {target - cut:+d} frames to the {label}")
@@ -308,16 +330,29 @@ def _render_source(store: ProjectStore, plan: Plan, durations: list[int], audio:
     tmp.replace(out)
 
 
-def _shot_fx(fx: dict, start: int, frames: int, grid: list[int]) -> dict:
+def _shot_fx(fx: dict, start: int, frames: int, grid: list[int], strength: dict[int, float] | None = None) -> dict:
     """The effects stored in the manifest: sub-cuts get their final length in frames (the weights fit the shot, then snap to the grid)."""
     subs = fx.get("sub_cuts")
     if not subs:
         return fx
     lengths = split_frames(frames, [c["weight"] for c in subs], SUB_MIN_FRAMES)
     subs = subs[: len(lengths)]
+    # Requested micro-cuts may use finer musical subdivisions than half-beats.
+    # Long cuts keep the original grid; never add cuts to a calm hold here.
+    points = sorted(set(grid))
+    divisions = 1
+    if len(points) > 1:
+        step = float(np.median(np.diff(points)))
+        while step / divisions > min(lengths) and step / (divisions * 2) >= SUB_MIN_FRAMES:
+            divisions *= 2
+        if divisions > 1:
+            grid = sorted(set(points) | {round(a + (b - a) * i / divisions) for a, b in zip(points, points[1:]) for i in range(1, divisions)})
     local = [g - start for g in grid if 0 < g - start < frames]
+    if divisions > 1 and local:
+        # Before the first detected pulse there is no grid evidence to move a burst.
+        local = sorted(set(local) | {int(c) for c in np.cumsum(lengths)[:-1] if c < local[0]})
     if local and len(lengths) > 1:
-        lengths = snap_boundaries(lengths, local, [], [f"cut {i}" for i in range(len(lengths))], "half beat", SUB_MIN_FRAMES)
+        lengths = snap_boundaries(lengths, local, [], [f"cut {i}" for i in range(len(lengths))], "half beat", SUB_MIN_FRAMES, {g - start: v for g, v in (strength or {}).items()})
     return {**fx, "sub_cuts": [{k: v for k, v in c.items() if k != "weight"} | {"frames": n} for c, n in zip(subs, lengths)]}
 
 
@@ -344,7 +379,7 @@ def _card_texts(plan: Plan, durations: list[int], grid: list[int]) -> list[str]:
     texts, start = [], 0
     for spec, frames in zip(plan.shots, durations):
         fx = _shot_fx(spec.fx, start, frames, grid) if spec.fx else {}
-        texts.append(describe_shot(spec.shot_id, start / rate, frames / rate, frames, {"notes": spec.notes, "fx": fx}, rate)[1])
+        texts.append(describe_shot(spec.shot_id, start / rate, frames / rate, frames, {"notes": spec.notes, "fx": fx, "story": spec.story}, rate)[1])
         start += frames
     return texts
 
@@ -362,6 +397,8 @@ def create_template(
     bpm: float = 0.0,
     thumbnails: bool = True,
     card_text: bool = True,
+    reference_beats: tuple[float, ...] = (),
+    timing_warnings: tuple[str, ...] = (),
 ) -> ShotList:
     if profile not in PROFILES:
         raise MajoorError(f"generation_profile '{profile}' is not supported. Available: {list(PROFILES)}")
@@ -370,14 +407,24 @@ def create_template(
     plan = parse_plan(plan_text, fps, aspect_ratio, resolution)
     audio_fp = file_fingerprint(audio_wav) if audio_wav else ""
     options = {"profile": profile, "snap": cut_snap if audio_wav else "off", "bpm": round(bpm, 3), "card_text": card_text}
-    key = json_fingerprint([TEMPLATE_VERSION, dataclasses.asdict(plan) | {"fps": str(plan.fps)}, audio_fp, options])
+    if reference_beats or timing_warnings:
+        options.update(reference_beats=reference_beats, timing_warnings=timing_warnings)
+    fingerprint_plan = dataclasses.asdict(plan) | {"fps": str(plan.fps)}
+    for row in fingerprint_plan["shots"]:
+        if not row["story"]:
+            row.pop("story")  # preserve project/cache identities for legacy plans
+        if not row['motion']:
+            row.pop('motion')
+    key = json_fingerprint([TEMPLATE_VERSION, fingerprint_plan, audio_fp, options])
     store = ProjectStore(store_root, "p_" + key[:12])
 
     durations = [s.frames for s in plan.shots]
-    warnings: list[str] = []
+    warnings: list[str] = list(timing_warnings)
     detected_bpm = 0.0
     snapping = audio_wav is not None and cut_snap != "off" and len(durations) > 1
     sub_grid: list[int] = []
+    accents: dict[int, float] = {}
+    half = list(reference_beats)
     if audio_wav is not None and cut_snap != "off" and len(durations) > 1:
         samples, rate = read_wav_mono(audio_wav)
         detected_bpm, beats = detect_beats(samples, rate, bpm)
@@ -385,9 +432,16 @@ def create_template(
         on_grid = {"bar": beats[::4], "beat": beats, "half_beat": half}[cut_snap]
         grid = [round(float(t) * float(plan.fps)) for t in on_grid]
         sub_grid = [round(float(t) * float(plan.fps)) for t in half]  # sub-cuts always snap to half beats
-        durations = snap_boundaries(durations, grid, warnings, [s.shot_id for s in plan.shots], cut_snap)
-        warnings.insert(0, f"Tempo {detected_bpm:.1f} BPM ({'given' if bpm > 0 else 'detected'}), cuts snapped to the {cut_snap}")
+        grid = align_grid_to_onsets(grid, samples, rate, float(plan.fps))
+        sub_grid = align_grid_to_onsets(sub_grid, samples, rate, float(plan.fps))
+        times, strengths = strong_accents(samples, rate)
+        accents = accent_strength(set(grid) | set(sub_grid), times, strengths, float(plan.fps))
+        attacks = accent_candidates(times, strengths, float(plan.fps))
+        accents = {**accents, **{f: v for f, v in attacks.items() if f not in accents or accents[f] < v}}  # sub-cuts may go to an attack off the grid
+        durations = snap_boundaries(durations, grid, warnings, [s.shot_id for s in plan.shots], cut_snap, strength={**{g: accents.get(g, 0.0) for g in grid}, **(attacks if cut_snap == "half_beat" else {})})
+        warnings.insert(0, f"Tempo {detected_bpm:.1f} BPM ({'given' if bpm > 0 else 'detected'}), cuts snapped to the {cut_snap}" if detected_bpm > 0 else 'No reliable musical pulse; no regular beat grid imposed')
 
+    warnings.extend(story_warnings(plan.shots))
     _check_sources(plan.shots, warnings)
     with store.lock():
         source_path = store.dir / "sources" / "source.mp4"
@@ -411,18 +465,23 @@ def create_template(
         edges = np.cumsum(durations).tolist()[:-1]
         shots = []
         for shot, spec, frames in zip(build_shots(source, info, edges), plan.shots, durations):
-            data = {"prompt": spec.prompt, "image_prompt": spec.image_prompt, "notes": spec.notes, "generation_frames": generation_frames(frames, profile)}
+            source_spec=spec.render_source or {'kind':'generated'}
+            data = {"prompt": spec.prompt, "image_prompt": spec.image_prompt, "notes": spec.notes, "generation_frames": generation_frames(frames, profile) if source_spec['kind']=='generated' else 0,'render_source':source_spec}
+            if spec.story:
+                data["story"] = dict(spec.story)
+            if spec.motion:
+                data['motion'] = spec.motion
             if spec.location:
                 data["location"] = spec.location
             if spec.fx:
-                data["fx"] = _shot_fx(spec.fx, shot.start_frame, frames, sub_grid if snapping else [])
+                data["fx"] = _shot_fx(spec.fx, shot.start_frame, frames, sub_grid if snapping else [], accents if snapping else None)
             shots.append(dataclasses.replace(shot, shot_id=spec.shot_id, source_media_ref=source.uri, plan=data))
         if thumbnails:
             shots = [_with_thumbnail(store, source_path, source, info, s, False) for s in shots]
         shot_list = ShotList(
             project_id=store.dir.name,
             source=source,
-            detection=Detection("template", 0.0, MIN_SHOT_FRAMES, key[:16], tuple(warnings)),
+            detection=Detection("template", 0.0, MIN_SHOT_FRAMES, key[:16], tuple(warnings), tuple(float(t) for t in half)),
             shots=tuple(shots),
             schema_version=SCHEMA_VERSION,
         )

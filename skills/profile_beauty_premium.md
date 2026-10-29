@@ -1,15 +1,18 @@
 ---
 name: Beauty / Premium
 kind: profile
-description: Slow and smooth: long holds, macro and close-ups, luminous soft light, a calm reveal.
+description: A different property of the subject in each shot (texture, shape, finish, movement): slow, controlled, precise.
 length: 8 to 12 s
 cut_density: low
 transition_intensity: subtle
 creative_freedom: balanced
 reference_fidelity: strict
-music: soft contemporary instrumental, 70 to 100 BPM, piano or airy pads, light percussion, warm and refined, no drop
+music: fallback only, the music the user gives or asks for wins: soft and refined, 70 to 100 BPM
 narrative_coherence: medium
 ---
-Rhythm: slow and smooth, long holds, gentle push-ins and dissolves, a calm reveal
-Camera: macro and close-ups, soft orbits, shallow depth of field, slow controlled moves
-Art direction: luminous and clean, high-key soft light, visible skin and material texture, restrained palette
+Intent: show a different property of the subject in each shot.
+Progression: a calm reveal where each shot adds one new piece of information, ending on the full view.
+Camera: macro and close views, slow controlled moves; change the move and the angle from shot to shot instead of an orbit everywhere.
+Rhythm: long holds; cut only to a new property.
+Effects: hard cuts and, at most, a soft blur; no flashes.
+Art direction: follow the subject and the brief for light, palette and materials; soft light and high-key are options, not requirements.

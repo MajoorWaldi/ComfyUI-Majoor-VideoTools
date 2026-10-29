@@ -12,6 +12,11 @@ from majoor_videotools.core.motion import parse_layers, render_motion
 @pytest.fixture(scope="module")
 def video(tmp_path_factory):
     """4 s of a mid-gray picture at 24 fps with a 440 Hz tone."""
+    from majoor_videotools.core.hyperframes import runtime_paths
+    try:
+        runtime_paths()
+    except RuntimeError:
+        pytest.skip('Optional local HyperFrames runtime is required for compositor integration tests')
     path = tmp_path_factory.mktemp("motion") / "gray.mp4"
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "color=c=0x808080:s=320x240:r=24:d=4", "-f", "lavfi", "-i", "sine=f=440:d=4", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(path)], check=True)
     return path
@@ -84,3 +89,19 @@ def test_track_follows_a_moving_point_and_emoji_renders(video, tmp_path):
     out = tmp_path / "tr.mp4"
     render_motion(video, layers, out)
     assert probe(out, with_packets=False).frame_count == 96
+
+
+def test_the_contour_glides_between_two_masks_and_the_edge_is_smooth():
+    from majoor_videotools.core.motion import Masks
+
+    masks = np.zeros((2, 100, 100), np.float32)
+    masks[0, 20:60, 10:40] = 1  # the subject on the left...
+    masks[1, 20:60, 60:90] = 1  # ...then on the right
+    m = Masks(masks)
+    first, early, middle, last = (m.at(i, 11, 100, 100) for i in (0, 2, 5, 10))
+    assert first[40, 25] > 0.9 and first[40, 75] < 0.1 and last[40, 75] > 0.9 and last[40, 25] < 0.1  # the first and the last mask are the first and the last frame
+    assert early[40, 25] > 0.7 and early[40, 75] < 0.3  # the weight of the second mask grows with the frame
+    assert middle[40, 25] > 0.3 and middle[40, 75] > 0.3  # in between, both shapes are there: the contour glides between them
+    edge = first[40, :]
+    assert ((edge > 0.05) & (edge < 0.95)).sum() >= 2  # a row across the edge: values between 0 and 1, not a step
+    assert Masks(None).at(0, 10, 10, 10) is None

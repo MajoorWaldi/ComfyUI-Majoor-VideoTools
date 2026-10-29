@@ -7,9 +7,11 @@ cut_density: medium
 transition_intensity: moderate
 creative_freedom: balanced
 reference_fidelity: strict
-music: clean modern pop or electronic, 100 to 120 BPM, a bright synth, claps, a positive and simple hook, instrumental
-narrative_coherence: medium
+music: derive genre, groove, sound palette and energy arc from the explicit brief and product identity; no default genre, instrument or tempo
+narrative_coherence: high
 ---
-Rhythm: a hook, the product beats (shape, texture, use), a payoff with room for an end card
-Camera: hero product shots, macro on materials, clean orbits and push-ins, the product readable in every shot
-Art direction: bright, premium and brand-safe, controlled reflections, the product's shape, colors and logo exactly as in the picture
+Intent: one promise and one strong visual proof of it; the product readable in every shot.
+Rhythm: establish desire or curiosity, reveal a distinct property or supported use, resolve with a payoff. Each beat must reveal new information; three similar packshots are not a narrative. Do not force a usage demonstration or end card when unrequested.
+Camera: choose complementary framing for the information of each beat (context, tactile detail, supported action, hero); preserve screen direction and action states. Do not default every shot to a centered bottle and slow backward move.
+Art direction: follow the requested mood, materials, palette and lighting; keep product geometry, cap, colors and label appearance consistent. Preserve identity without copying the reference background or framing. Match adjoining action states; varied framing must remain motivated.
+Effects: hard cuts and the transitions the setting allows; a flash or a punch-in only on the reveal of the proof.

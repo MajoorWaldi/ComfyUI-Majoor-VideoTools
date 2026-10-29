@@ -1,8 +1,4 @@
-"""Generation prompts keep the role, the cuts and the transitions of a shot, but never negate them.
-
-"One continuous take, no cuts, no text." contradicts the sub-cuts of a shot, and a generator reading "no text" or "no cuts" can behave worse
-than one that reads nothing. A language model writes it by habit, so it is removed from the prompts of a plan whatever the model wrote.
-Only the negations go: every positive description of cuts, transitions or framing stays."""
+"""Preserve explicit generation constraints in plans. Legacy strip_negations is opt-in."""
 import json
 import re
 
@@ -58,6 +54,7 @@ def clean_plan_text(plan_text: str) -> tuple[str, list[str]]:
             continue
         for key in ("prompt", "image_prompt", "video_prompt", "location"):
             if isinstance(shot.get(key), str):
-                shot[key], gone = strip_negations(shot[key])
-                removed += gone
+                # Finishing is now separate from generated footage. Preserve exclusions
+                # and continuous-action constraints, even when editorial crops follow.
+                shot[key] = shot[key].strip()
     return json.dumps(data), removed

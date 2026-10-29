@@ -48,6 +48,7 @@ class MajoorSelectShot(io.ComfyNode):
                 io.String.Output(display_name="rhythm_text"),
                 io.String.Output(display_name="notes"),
                 io.String.Output(display_name="location", tooltip="The place of the shot as the plan writes it (empty when the plan gives none): the text of its empty plate."),
+                io.Float.Output(display_name="start_seconds", tooltip="Where the shot starts in the edit, in seconds."),
             ],
         )
 
@@ -70,4 +71,4 @@ class MajoorSelectShot(io.ComfyNode):
             f"{shot.shot_id} · {revision.revision_id} ({revision.status}) · "
             f"{format_timecode(start)}–{format_timecode(start + shot.target_duration_seconds)} · {shot.target_duration_seconds:.2f}s"
         )
-        return io.NodeOutput(VideoFromFile(str(path)), images, make_metadata(shot_list, shot, revision), plan.get("prompt", ""), plan.get("image_prompt", ""), plan.get("generation_frames", 0), generation_seconds, json.dumps(fx_info), fx_text, fx_info["notes"], plan.get("location", ""), ui={"text": (summary,), "majoor_shots": [shots_payload(shot_list, clip=store.rel(path), selected=shot.shot_id)]})
+        return io.NodeOutput(VideoFromFile(str(path)), images, make_metadata(shot_list, shot, revision), plan.get("prompt", ""), plan.get("image_prompt", ""), plan.get("generation_frames", 0), generation_seconds, json.dumps(fx_info), fx_text, fx_info["notes"], plan.get("location", ""), start, ui={"text": (summary,), "majoor_shots": [shots_payload(shot_list, clip=store.rel(path), selected=shot.shot_id)]})

@@ -2,16 +2,18 @@
 
 Both return the same JSON plan that Timeline accepts from a text (see core/template.py), so every later step is shared."""
 import json
+import math
+from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
 
 from .beats import detect_beats
 from .errors import MajoorError
-from .fx import SUB_MIN_FRAMES
+from .fx import SUB_MIN_FRAMES,split_frames
 from .media_probe import probe
 from .scene_detection import merge_short_shots
-from .template import MIN_SHOT_FRAMES, _json_text, parse_plan
+from .template import MIN_SHOT_FRAMES, _find_shots, _json_text, parse_duration, parse_plan
 
 CUT_EVERY = ("half_beat", "beat", "2_beats", "bar", "2_bars", "4_bars")
 VIDEO_MODES = ("adaptive", "content", "threshold_fade")
@@ -43,6 +45,13 @@ def plan_from_music(samples: np.ndarray, rate: int, *, cut_every: str = "bar", d
     length = duration if duration > 0 else len(samples) / rate
     if length <= 0:
         raise MajoorError("The music is empty")
+    if found <= 0:
+        total = max(round(length * fps), 1)
+        count = min(max(shots, 1), total)
+        lengths = [total // count + (i < total % count) for i in range(count)]
+        return {'fps': fps, 'shots': [{'duration_frames': n, 'prompt': '', 'notes': 'No reliable musical pulse; narrative timing'} for n in lengths]}, {
+            'bpm': None, 'beat_times': [], 'beats_per_bar': beats_per_bar, 'length': length, 'timing_source': 'none',
+            'warnings': ['No reliable pulse; no measured beat grid was imposed']}
     period = 60.0 / found
     first = float(beats[0]) if len(beats) else 0.0
     first += downbeat * period
@@ -54,18 +63,26 @@ def plan_from_music(samples: np.ndarray, rate: int, *, cut_every: str = "bar", d
         if MIN_SHOT_FRAMES <= f <= total - MIN_SHOT_FRAMES and (not cuts or f - cuts[-1] >= MIN_SHOT_FRAMES):
             cuts.append(f)
     warnings = []
-    if shots > 0:
-        if shots - 1 > len(cuts):
-            warnings.append(f"Only {len(cuts) + 1} shots fit on the {cut_every} grid ({shots} asked)")
-        cuts = _pick(cuts, shots - 1) if shots > 1 else []
+    if shots > 0 and shots - 1 > len(cuts):
+        warnings.append(f"Only {len(cuts) + 1} shots fit on the {cut_every} grid ({shots} asked)")
     bounds = [0, *cuts, total]
     beat_frames = period * fps
+    pieces = [(a, b) for a, b in zip(bounds, bounds[1:])]
+    if shots > 0:  # fewer takes than grid steps: neighbouring steps become the sub-cuts of one shot, so a cut does not cost a generation
+        count = min(shots, len(pieces))
+        sizes = [len(pieces) // count + (1 if i < len(pieces) % count else 0) for i in range(count)]
+        groups = [pieces[sum(sizes[:i]):sum(sizes[:i + 1])] for i in range(count)]
+    else:
+        groups = [[p] for p in pieces]
     rows = []
-    for a, b in zip(bounds, bounds[1:]):
-        index = round((a - first * fps) / beat_frames)  # beats since the first (down)beat
+    for group in groups:
+        index = round((group[0][0] - first * fps) / beat_frames)  # beats since the first (down)beat
         where = f"bar {index // beats_per_bar + 1} beat {index % beats_per_bar + 1}" if index >= 0 else "before the first beat"
-        rows.append({"duration_frames": b - a, "prompt": "", "notes": where})
-    info = {"bpm": round(float(found), 2), "beats_per_bar": beats_per_bar, "length": length, "warnings": warnings}
+        row = {"duration_frames": group[-1][1] - group[0][0], "prompt": "", "notes": where}
+        if len(group) > 1:
+            row["sub_cuts"] = [{"duration_frames": b - a} for a, b in group]
+        rows.append(row)
+    info = {"bpm": round(float(found), 2), "beat_times": [float(t) for t in beats], "beats_per_bar": beats_per_bar, "length": length, "warnings": warnings}
     return {"fps": fps, "shots": rows}, info
 
 
@@ -171,11 +188,128 @@ def with_size(text: str, width: int, height: int) -> str:
     return json.dumps({**data, "width": width, "height": height}) if isinstance(data, dict) else text
 
 
+def fit_duration(text: str, seconds: float, fps: float) -> str:
+    """The plan with every shot (and its sub-cuts) stretched or shrunk by the same factor so that the shots add up to `seconds`: an LLM seldom adds up to the length that was asked for. A text that is not JSON is given back: parse_plan reports it."""
+    try:
+        data = _find_shots(json.loads(_json_text(text)))
+    except json.JSONDecodeError:
+        return text
+    rate = Fraction(str(fps)).limit_denominator(1001)
+    shots = [s for s in data.get("shots", []) if isinstance(s, dict)] if isinstance(data, dict) else []
+    try:
+        lengths = [parse_duration(s["duration"], rate) if "duration" in s else sum(parse_duration(c["duration"], rate) for c in s.get("sub_cuts", [])) for s in shots]
+    except (KeyError, ValueError, TypeError):
+        return text
+    if not shots or sum(lengths) <= 0:
+        return text
+    factor = seconds * float(rate) / sum(lengths)
+    target=round(seconds*float(rate))
+    if target<len(shots):
+        raise MajoorError('The requested duration cannot give every shot at least one frame')
+    fitted=split_frames(target,lengths)
+    for shot, frames, count in zip(shots, lengths, fitted):
+        shot["duration"] = f"{count}f"
+        for cut in shot.get("sub_cuts", []):
+            if isinstance(cut, dict) and "duration" in cut:
+                cut["duration"] = f"{max(round(parse_duration(cut['duration'], rate) * factor), 1)}f"
+    return json.dumps(data)
+
+
+BURST_WORDS = ("detail", "macro", "close", "texture", "cap", "edge", "refraction")
+
+
+def protected_action(shot):
+    if shot.get("dialogue") or (isinstance(shot.get("story"), dict) and shot["story"].get("dialogue")):
+        return True
+    if shot.get('protect_action') is True or (isinstance(shot.get('story'), dict) and shot['story'].get('protect_action') is True):
+        return True
+    words = ' '.join(str(shot.get(k, '')) for k in ('prompt', 'notes', 'story')).casefold()
+    return any(term in words for term in (
+        'continuous', 'uninterrupted', 'unbroken', 'no cuts', 'do not interrupt',
+        'remove the cap', 'removes the cap', 'cap removal', 'atomizer', 'spray',
+        'action continue', 'sans coupe', 'sans interruption', 'retire le bouchon', 'pulvÃ©r'))
+
+
+def edit_segment_frames(shots, fps=24):
+    """Actual edited segments, including independently generated short inserts."""
+    rate=Fraction(str(fps))
+    def frames(row):
+        return int(row['duration_frames']) if 'duration_frames' in row else parse_duration(row.get('duration'),rate)
+    return [frames(cut) for shot in shots for cut in (shot.get('sub_cuts') or [shot])]
+
+
+def is_dense_edit(shots, fps=24):
+    try:
+        frames=edit_segment_frames(shots,fps)
+    except (KeyError,ValueError,TypeError):
+        return False
+    return bool(frames) and len(frames)>=max(8,math.ceil(sum(frames)/fps*1.2)) and sum(n<=fps for n in frames)>=len(frames)/2
+
+
+def ensure_burst(text: str, density: str) -> str:
+    """Add bounded editorial accents to eligible takes; preserve existing cuts and protected actions.
+    High density considers the whole edit, not merely the presence of one sub-cut.
+    It never invents a new generated viewpoint, mirrors a label or adds generations.
+    """
+    if density not in ("medium", "high"):
+        return text
+    try:
+        data = _find_shots(json.loads(_json_text(text)))
+    except json.JSONDecodeError:
+        return text
+    shots = [s for s in data.get("shots", []) if isinstance(s, dict)] if isinstance(data, dict) else []
+    if len(shots) < 3 or (density=='medium' and any(s.get('sub_cuts') for s in shots)) or (density=='high' and is_dense_edit(shots)):
+        return text
+    seconds = []
+    for shot in shots:
+        try:
+            seconds.append(float(shot['duration_frames'])/24 if 'duration_frames' in shot else float(parse_duration(shot["duration"], Fraction(24))) / 24.0)
+        except (KeyError, ValueError, TypeError):
+            return text
+    inner = [i for i in range(1, len(shots) - 1) if seconds[i] >= 1.2 and not shots[i].get('sub_cuts') and not protected_action(shots[i])]
+    if not inner:
+        return text
+    ranked=sorted(inner,key=lambda i:(any(w in f"{shots[i].get('prompt','')} {shots[i].get('notes','')}".lower() for w in BURST_WORDS),seconds[i]),reverse=True)
+    for pick in ranked[:3 if density=='high' else 1]:
+        total=seconds[pick]
+        if density == "high":
+            cuts = [{"duration": 0.17}, {"duration": 0.17, "zoom": 1.7, "focus": [0.5, 0.3]}, {"duration": 0.17, "zoom": 2.4, "focus": [0.6, 0.5]}, {"duration": 0.17, "zoom": 1.5, "focus": [0.5, 0.5]}]
+        else:
+            cuts = [{"duration": 0.45}, {"duration": 0.45, "zoom": 1.8, "focus": [0.5, 0.35]}]
+        rest = round(total - sum(c["duration"] for c in cuts), 3)
+        shots[pick]["sub_cuts"] = [*cuts, {"duration": rest, "zoom": 1.3}]
+        if 'duration_frames' not in shots[pick]:shots[pick]["duration"] = round(total, 3)
+        if density=='medium' or is_dense_edit(shots):break
+    return json.dumps(data)
+
+
+def ensure_text(text: str, allowed: str) -> str:
+    """The plan of an LLM with the words that the user asked for: when `allowed` is set and no shot has a text, the last shot gets it, in the middle of the safe area and fading in. A plan that has a text is left as it is."""
+    allowed = allowed.strip()
+    if not allowed:
+        return text
+    try:
+        data = _find_shots(json.loads(_json_text(text)))
+    except json.JSONDecodeError:
+        return text
+    shots = [s for s in data.get("shots", []) if isinstance(s, dict)] if isinstance(data, dict) else []
+    if not shots or any(s.get("text") for s in shots):
+        return text
+    shots[-1]["text"] = {"content": allowed[:120], "position": "center", "size": 0.1, "animation": "fade"}
+    return json.dumps(data)
+
+
 def plan_to_dict(plan, aspect_ratio: str | None = None) -> dict:
     """A parsed Plan back to the JSON form Timeline reads (frames everywhere, effects as parsed)."""
     shots = []
     for s in plan.shots:
         row: dict = {"id": s.shot_id, "duration_frames": s.frames, "prompt": s.prompt, "image_prompt": s.image_prompt, "notes": s.notes}
+        if s.story:
+            row["story"] = dict(s.story)
+        if s.motion:
+            row['motion'] = s.motion
+        if s.render_source and s.render_source['kind']!='generated':
+            row['render_source']=dict(s.render_source)
         if s.color:
             row["color"] = s.color
         if s.location:
@@ -239,6 +373,12 @@ def merge_plans(skeleton_text: str, plan_text_: str, fps: float, aspect_ratio: s
             rows.append(row)
             continue
         row["prompt"], row["image_prompt"] = src.prompt, src.image_prompt
+        if src.story or base.story:
+            row["story"] = dict(src.story or base.story)
+        if src.motion or base.motion:
+            row['motion'] = src.motion or base.motion
+        if src.render_source and src.render_source['kind']!='generated':
+            row['render_source']=dict(src.render_source)
         row["notes"] = " | ".join(x for x in (src.notes, base.notes) if x)
         if src.color:
             row["color"] = src.color

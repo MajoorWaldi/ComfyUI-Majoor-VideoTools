@@ -19,6 +19,7 @@ class MajoorApplyShotMetadata(io.ComfyNode):
                 MajoorShotMetadata.Input("metadata"),
                 io.Video.Input("video"),
                 io.String.Input("revision_label", default="", optional=True),
+                io.String.Input("generation_prompt", default="", optional=True, force_input=True, tooltip="Exact prompt used for this take, retained separately from the editable shot plan."),
                 io.Boolean.Input("activate_new_take", default=True),
                 io.Combo.Input("duration_policy", options=list(DURATION_POLICIES), default="inherit_target", tooltip="inherit_target keeps the original shot duration; keep_generated lets Shot Assemble use the generated duration."),
             ],
@@ -26,8 +27,8 @@ class MajoorApplyShotMetadata(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, shot_list, metadata, video, activate_new_take, duration_policy, revision_label="") -> io.NodeOutput:
+    def execute(cls, shot_list, metadata, video, activate_new_take, duration_policy, revision_label="", generation_prompt="") -> io.NodeOutput:
         with video_file(video) as path:
-            updated = apply_revision(shot_list, projects_root(), metadata, path, revision_label, activate_new_take, duration_policy)
+            updated = apply_revision(shot_list, projects_root(), metadata, path, revision_label, activate_new_take, duration_policy, generation_prompt)
         shot = updated.get_shot(metadata.shot_id)
         return io.NodeOutput(updated, ui={"text": (f"{shot.shot_id} → {shot.active_revision_id} (revision {updated.project_revision})",), "majoor_shots": [shots_payload(updated)]})

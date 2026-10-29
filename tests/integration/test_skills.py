@@ -41,7 +41,7 @@ def test_unknown_skill_and_bad_names():
 
 
 def test_the_shipped_skills_load():
-    assert set(sk.prompt_skills()) == {"dynamic_edit_skill", "timeline_planner", "h3_shot_prompt_from_plan", "music_brief_from_plan", "music_brief_minimax3", "music_brief_yue2", "prompt_enhancer", "remix_shot_prompt", "shot_reader", "clip_judge", "overlay_reader"}
+    assert set(sk.prompt_skills()) == {"dynamic_edit_skill", "timeline_planner", "h3_shot_prompt_from_plan", "music_brief_from_plan", "music_brief_minimax3", "music_brief_yue2", "prompt_enhancer", "remix_shot_prompt", "shot_reader", "clip_judge", "overlay_reader", "plate_check"}
     assert {i for i in sk.list_skills() if i not in sk.prompt_skills()} == {i for i in sk.list_skills() if i.startswith(("profile_", "mode_"))}  # profiles and modes are data, not prompts
     assert sk.list_skills("h3_writer") == ["h3_shot_prompt_from_plan", "remix_shot_prompt"]
     assert sk.list_skills("music_writer") == ["music_brief_from_plan", "music_brief_minimax3", "music_brief_yue2"]
@@ -115,9 +115,9 @@ def test_the_prompt_enhancer_keeps_the_brief_reads_the_pictures_and_the_videos()
     skill = sk.load_skill("prompt_enhancer")
     assert skill.kind == "other" and "prompt_enhancer" in sk.prompt_skills()
     text, _ = sk.compose(skill, extra="A reference video (<Video 1>) gives the rhythm.")
-    for needed in ("Keep the intent", "Read the pictures", "<Video 1>", "EXTRA INSTRUCTIONS FROM THE USER", "OUTPUT", "Never describe a face in detail"):
+    for needed in ("INPUT AND PRIORITIES", "IDENTITY AND MEDIA ROLES", "<Video 1>", "EXTRA INSTRUCTIONS FROM THE USER", "OUTPUT", "FINAL SUBJECT CHECK"):
         assert needed in text, needed
-    assert "Shot 1" in text and "Do not write" in text  # the shots are the planner's: the enhancer is told not to write them
+    assert "shot list" in text and "no heading" in text  # the shots are the planner's: the enhancer writes a brief only
 
 
 def test_the_transitions_that_the_skills_teach_are_the_ones_the_engine_renders():
@@ -151,8 +151,8 @@ def test_a_shot_gets_the_lines_that_start_inside_it():
 
     dialogue = '0-3 s: "Welcome."\n10-13 s: "Same man. Different era."\n00:13-00:15: Watch this.'
     assert lines_of_shot("Shot 1 of 6 · 00:11.47–00:12.33 · 0.87 s", dialogue) == ""  # the second line started before this shot
-    assert lines_of_shot("Shot · 00:09.00–00:10.50", dialogue) == '1.00-1.50 s: "Same man. Different era."'  # times counted from the start of the shot, cut at its end
-    assert lines_of_shot("Shot · 00:00.00–00:02.00", dialogue) == '0.00-2.00 s: "Welcome."'
+    assert lines_of_shot("Shot · 00:09.00–00:10.50", dialogue) == '1.00-4.00 s: "Same man. Different era."'
+    assert lines_of_shot("Shot · 00:00.00–00:02.00", dialogue) == '0.00-3.00 s: "Welcome."'
     assert lines_of_shot("a header without times", dialogue) == dialogue  # no times: every line
     assert lines_of_shot("Shot · 00:00.00–00:02.00", "Welcome everybody") == "Welcome everybody"  # no line has times: kept as it is
 

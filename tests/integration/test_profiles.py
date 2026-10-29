@@ -8,7 +8,7 @@ NL = chr(10)
 
 
 def test_the_shipped_profiles_are_skill_files():
-    assert set(list_profiles()) == {"viral_aura_farming", "beauty_premium", "narrative_cinematic", "product_advertising", "music_video", "glow_up", "outfit_change"}
+    assert set(list_profiles()) == {"micro_emotion_pov", "slowed_dream", "hype_beat_drop", "viral_aura_farming", "beauty_premium", "narrative_cinematic", "product_advertising", "music_video", "glow_up", "outfit_change"}
     for name in list_profiles():
         skill = sk.load_skill("profile_" + name)
         assert skill.kind == "profile" and skill.meta["length"] and all(skill.meta[d] in DIALS[d] for d in DIALS), name
@@ -54,10 +54,21 @@ def test_a_music_gets_the_music_direction_of_the_profile_and_the_density_of_the_
     from majoor_videotools.core.profiles import music_text
 
     text = music_text("viral_aura_farming")
-    assert "phonk or trap" in text and "dense cutting" in text and "camera" not in text.lower()
+    assert "bass-forward" in text and "fallback only" in text and "dense" in text and "camera" not in text.lower()
     assert "a steady pace" in music_text("viral_aura_farming", cut_density="medium")
     assert music_text("none") == ""
     for pid in list_profiles():
         assert "Music: " in music_text(pid), pid
     with pytest.raises(MajoorError, match="Unknown profile"):
         music_text("western")
+
+
+def test_the_dials_the_user_chose_are_written_without_a_profile_and_win_over_the_profile_text():
+    from majoor_videotools.core.profiles import profile_text
+
+    assert profile_text("none") == "" and profile_text("none", cut_density="auto") == ""
+    settings = profile_text("none", cut_density="low", transition_intensity="subtle")
+    assert settings.startswith("EDITING SETTINGS") and "Cut density: low" in settings and "no flash, whip, strobe" in settings
+    mixed = profile_text("hype_beat_drop", transition_intensity="subtle")
+    assert "Transition intensity: subtle" in mixed and "win over the profile text above" in mixed and "transition intensity" in mixed.split("win over")[0]
+    assert "win over the profile text" not in profile_text("hype_beat_drop")

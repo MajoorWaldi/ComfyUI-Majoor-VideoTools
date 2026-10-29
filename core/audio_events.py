@@ -23,16 +23,26 @@ def band_hits(samples: np.ndarray, rate: int, sensitivity: float = 0.5) -> dict[
         return {name: [] for name in BANDS}
     window = np.hanning(SIZE).astype(np.float32)
     starts = np.arange(0, len(samples) - SIZE, hop)
-    frames = np.stack([samples[s : s + SIZE] * window for s in starts])
-    magnitude = np.log1p(30.0 * np.abs(np.fft.rfft(frames, axis=1)))
     freqs = np.fft.rfftfreq(SIZE, 1.0 / rate)
+    spectra = np.lib.stride_tricks.sliding_window_view(samples,SIZE)[::hop][:len(starts)]
+    envelopes = {name:np.zeros(len(starts),dtype=np.float32) for name in BANDS}
+    columns = {name:(freqs>=low)&(freqs<min(high,rate/2)) for name,(low,high,_) in BANDS.items()}
+    previous = None
+    for offset in range(0,len(starts),512):
+        magnitude=np.log1p(30*np.abs(np.fft.rfft(spectra[offset:offset+512]*window,axis=1)))
+        for name,cols in columns.items():
+            if not cols.any():continue
+            if previous is not None:
+                envelopes[name][offset]=np.maximum(magnitude[0,cols]-previous[cols],0).sum()
+            envelopes[name][offset+1:offset+len(magnitude)]=np.maximum(magnitude[1:,cols]-magnitude[:-1,cols],0).sum(axis=1)
+        previous=magnitude[-1]
     out: dict[str, list[tuple[float, float]]] = {}
     for name, (low, high, gap) in BANDS.items():
         cols = (freqs >= low) & (freqs < min(high, rate / 2))
         if not cols.any():
             out[name] = []
             continue
-        flux = np.concatenate([[0.0], np.maximum(magnitude[1:, cols] - magnitude[:-1, cols], 0.0).sum(axis=1)])
+        flux = envelopes[name]
         peak = flux.max()
         if peak <= 0:
             out[name] = []

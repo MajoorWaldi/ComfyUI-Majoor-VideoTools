@@ -121,6 +121,25 @@ def test_apply_rejects_foreign_metadata(fixtures, root, detected):
         apply_revision(detected, root, meta, fixtures["gen"])
 
 
+def test_generation_prompts_are_per_take_and_do_not_change_the_shot_plan(fixtures, root, detected):
+    first = patch(detected, root, "SHOT_002", fixtures["gen"], generation_prompt="First H3 prompt")
+    second = patch(first, root, "SHOT_002", fixtures["gen_short"], generation_prompt="Retry H3 prompt with judge correction")
+    shot = second.get_shot("SHOT_002")
+    assert shot.plan == detected.get_shot("SHOT_002").plan
+    assert shot.revision("take_001").generation_prompt == "First H3 prompt"
+    assert shot.active.generation_prompt == "Retry H3 prompt with judge correction"
+    restored = ShotList.from_dict(ProjectStore(root, detected.project_id).read_json("manifest.json"))
+    assert restored == second
+    # Deduplicated media and reactivation retain the original provenance.
+    reactivated = patch(restored, root, "SHOT_002", fixtures["gen"], generation_prompt="Not the original prompt")
+    assert reactivated.get_shot("SHOT_002").active.generation_prompt == "First H3 prompt"
+    legacy = detected.to_dict()
+    for row in legacy["shots"]:
+        for revision in row["revisions"]:
+            revision.pop("generation_prompt")
+    assert all(not s.active.generation_prompt for s in ShotList.from_dict(legacy).shots)
+
+
 def test_t10_roundtrip_original(fixtures, root, detected):
     res = assemble_shots(detected, root, AssemblyOptions())
     info = probe(res.path)

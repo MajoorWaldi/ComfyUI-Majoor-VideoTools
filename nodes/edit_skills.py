@@ -73,13 +73,15 @@ class MajoorEditSkills(io.ComfyNode):
                 io.Boolean.Input("locations", default=False, optional=True, tooltip="The planner skill asks for a `location` in every shot: the place, one sentence, the same word for word for the shots that happen in it (the empty plate of each place is generated once)."),
                 io.Int.Input("width", default=0, min=0, max=4096, optional=True, tooltip="With height: the size of the video in pixels. The prompt then names the closest ratio, instead of aspect_ratio. Connect Resolution Selector."),
                 io.Int.Input("height", default=0, min=0, max=4096, optional=True, tooltip="See width."),
+                io.Float.Input('shot_start',default=-1.0,min=-1.0,max=3600.0,optional=True,tooltip='Numeric start of this shot for dialogue; -1 reads the rhythm text.'),
+                io.Float.Input('shot_duration',default=0.0,min=0.0,max=3600.0,optional=True,tooltip='Numeric target duration of this shot for dialogue.'),
             ],
             outputs=[io.String.Output(display_name="system_prompt"), io.String.Output(display_name="user_message"), io.String.Output(display_name="info"),
                      io.Image.Output(display_name="images", tooltip="The pictures, then the frames of <Video 1> and <Video 2>, in the order the user message announces: connect it to the LLM instead of the pictures alone. Empty when no image is connected.")],
         )
 
     @classmethod
-    def execute(cls, skill, overlays_splits, text_overlays, reference_mode, genre, duration, fps, aspect_ratio, n_pictures, text_allowed, brief, extra_instructions, profile, cut_density, transition_intensity, creative_freedom, reference_fidelity, narrative_coherence, rhythm_text="", images=None, video_1=None, video_2=None, voice=None, dialogue="", plate=None, locations=False, width=0, height=0) -> io.NodeOutput:
+    def execute(cls, skill, overlays_splits, text_overlays, reference_mode, genre, duration, fps, aspect_ratio, n_pictures, text_allowed, brief, extra_instructions, profile, cut_density, transition_intensity, creative_freedom, reference_fidelity, narrative_coherence, rhythm_text="", images=None, video_1=None, video_2=None, voice=None, dialogue="", plate=None, locations=False, width=0, height=0, shot_start=-1.0, shot_duration=0.0) -> io.NodeOutput:
         n_pictures = (images.shape[0] if images is not None else n_pictures) + (plate is not None)
         groups, videos, count = ([images] if images is not None else []), [], (images.shape[0] if images is not None else 0)
         if plate is not None:  # the empty plate of the place: the last picture
@@ -92,12 +94,12 @@ class MajoorEditSkills(io.ComfyNode):
                 count += frames.shape[0]
         if width and height:
             aspect_ratio = min(RATIOS, key=lambda r: abs(math.log(width / height / (int(r.split(':')[0]) / int(r.split(':')[1])))))
-        spoken = lines_of_shot(rhythm_text, dialogue)  # the lines that this shot says
+        spoken = lines_of_shot(rhythm_text,dialogue,shot_start if shot_start>=0 and shot_duration>0 else None,shot_start+shot_duration if shot_start>=0 and shot_duration>0 else None)
         loaded, text, on = _build(skill, overlays_splits, text_overlays, reference_mode, genre, duration, fps, aspect_ratio, n_pictures, text_allowed, extra_instructions, profile,
                                    dict(cut_density=cut_density, transition_intensity=transition_intensity, creative_freedom=creative_freedom, reference_fidelity=reference_fidelity, narrative_coherence=narrative_coherence),
                                    dialogue=voice is not None or bool(spoken), locations=locations, plate=plate is not None)
         info = f"{loaded.name} ({loaded.kind}): {len(text.split())} words; parts on: {', '.join(on) or 'none'}"
-        return io.NodeOutput(text, user_message(brief, rhythm_text, n_pictures, tuple(videos), voice is not None, spoken, plate is not None), info, _stack(groups) if groups else None)
+        return io.NodeOutput(text, user_message(brief, rhythm_text, n_pictures, tuple(videos), voice is not None, spoken, plate is not None, shot_only=skill == 'h3_shot_prompt_from_plan'), info, _stack(groups) if groups else None)
 
 
 def register_routes() -> None:
