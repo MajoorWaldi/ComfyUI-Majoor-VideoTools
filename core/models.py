@@ -27,6 +27,7 @@ class Source:
     rotation: int = 0
     first_pts: int = 0
     codec: str = ""
+    template: bool = False  # the source is a generated placeholder video, not footage
 
     @property
     def fps(self) -> Fraction:
@@ -50,6 +51,8 @@ class Revision:
     duration_policy: str = "inherit_target"
     has_audio: bool = False
     created_at: str = ""
+    source_start_seconds: float = 0.0  # non-destructive slip inside a generated take
+    generation_prompt: str = ""
 
 
 @dataclass(frozen=True)
@@ -65,6 +68,7 @@ class Shot:
     active_revision_id: str
     revisions: tuple[Revision, ...]
     thumbnail_ref: str | None = None
+    plan: dict | None = None  # prompt, image_prompt, notes and generation_frames of a timeline template
 
     def revision(self, revision_id: str) -> Revision:
         for rev in self.revisions:
@@ -90,6 +94,8 @@ class Detection:
     min_shot_frames: int
     cache_key: str
     warnings: tuple[str, ...] = ()
+    beat_times: tuple[float, ...] = ()
+    energy: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -136,7 +142,7 @@ class ShotList:
             result = cls(
                 project_id=data["project_id"],
                 source=Source(**data["source"]),
-                detection=Detection(**{**det, "warnings": tuple(det.get("warnings", ()))}),
+                detection=Detection(**{**det, "warnings": tuple(det.get("warnings", ())), 'beat_times':tuple(det.get('beat_times',()))}),
                 shots=shots,
                 project_revision=data["project_revision"],
                 schema_version=data["schema_version"],

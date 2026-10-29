@@ -1,0 +1,6 @@
+[
+  {"id":"continuity-outfits","brief":"One woman changes between exactly three supplied outfits using hand wipes. Keep face and room stable. Each outfit begins at the source cut, never morph garments.","duration":9,"style":"none","cut_density":"auto","text_allowed":""},
+  {"id":"persistent-product","brief":"One bottle on one table: show the attached cap, remove it once, spray once, finish with cap beside the bottle. Never reset the cap or repeat the spray.","duration":12,"style":"none","cut_density":"medium","text_allowed":"NEW DROP"},
+  {"id":"quiet-continuity","brief":"A sailor finishes tying a rope and looks toward the sea. Quiet, two related gestures, no literal problem-solution arc, no added text or flashy bursts.","duration":12,"style":"none","cut_density":"low","text_allowed":""},
+  {"id":"protected-step","brief":"Sneaker launch: leather macro, one uninterrupted step and landing, then a readable product hold. Fast 3-6-frame detail inserts only outside the essential landing.","duration":8,"style":"none","cut_density":"high","text_allowed":"STEP IN"}
+]

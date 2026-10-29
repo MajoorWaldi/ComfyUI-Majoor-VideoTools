@@ -1,0 +1,1 @@
+Vendored from https://github.com/multimodal-art-projection/YuE/tree/main/skills/yue2-music/instrumental/scripts on 2026-10-25. Standard-library-only instrumental note transfer. Changes: package-relative imports only. See LICENSE. Original upstream filenames and logic retained.

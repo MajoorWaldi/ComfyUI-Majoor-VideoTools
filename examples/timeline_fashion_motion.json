@@ -1,0 +1,236 @@
+{
+  "title": "Fashion motion edit - 8 s",
+  "character": "a young woman with long straight platinum-blonde hair, black wraparound sunglasses, a pale pink ruffled asymmetric camisole, light blue ruched parachute cargo pants and a small pink handbag",
+  "fps": 24,
+  "aspect_ratio": "9:16",
+  "shots": [
+    {
+      "id": "SHOT_001",
+      "duration": 1.0,
+      "color": "black",
+      "prompt": "The person from <Picture 1>, a young woman with long straight platinum-blonde hair, black wraparound sunglasses, a pale pink ruffled asymmetric camisole, light blue ruched parachute cargo pants and a small pink handbag stands full-body, facing camera, on a seamless white studio floor. She shifts her weight and lifts her chin, hair swaying. Locked-off wide camera, soft high-key light, white background. One continuous filmed take; editorial crops and transitions are applied separately.",
+      "image_prompt": "Full-body fashion photo of a young woman with long straight platinum-blonde hair, black wraparound sunglasses, pale pink ruffled asymmetric camisole, light blue ruched parachute cargo pants, small pink handbag, seamless white studio, high-key light, vertical 9:16.",
+      "notes": "Hook: full body, then two punch-ins to the face from the same take. The last cut whips into the next shot.",
+      "text": {
+        "content": "new drop",
+        "position": "top_left",
+        "size": 0.05,
+        "color": "black"
+      },
+      "sub_cuts": [
+        {
+          "duration": 0.5
+        },
+        {
+          "duration": 0.25,
+          "zoom": 1.9,
+          "focus": [
+            0.5,
+            0.18
+          ]
+        },
+        {
+          "duration": 0.25,
+          "zoom": 2.8,
+          "focus": [
+            0.5,
+            0.15
+          ],
+          "transition": "whip"
+        }
+      ]
+    },
+    {
+      "id": "SHOT_002",
+      "duration": 1.0,
+      "color": "navy",
+      "prompt": "Close-up of the person from <Picture 1>, a young woman with long straight platinum-blonde hair and black wraparound sunglasses, pale pink ruffled camisole at the frame edge, white studio background. She tilts her head slowly to the left, then touches the frame of her sunglasses with two fingers. Soft high-key light, shallow depth of field, locked-off camera. One continuous filmed take; editorial crops and transitions are applied separately.",
+      "image_prompt": "Close-up portrait of a young woman with long platinum-blonde hair and black wraparound sunglasses, pale pink camisole, white studio background, high-key light, vertical 9:16.",
+      "notes": "Burst of four 0.25 s cuts on one take: zoom and flip make them look like different angles.",
+      "transition": "flash",
+      "sub_cuts": [
+        {
+          "duration": 0.25
+        },
+        {
+          "duration": 0.25,
+          "zoom": 1.6,
+          "flip": true,
+          "focus": [
+            0.4,
+            0.4
+          ]
+        },
+        {
+          "duration": 0.25,
+          "zoom": 2.4,
+          "focus": [
+            0.5,
+            0.45
+          ]
+        },
+        {
+          "duration": 0.25,
+          "zoom": 1.3,
+          "look": "contrast"
+        }
+      ]
+    },
+    {
+      "id": "SHOT_003",
+      "duration": 1.5,
+      "color": "teal",
+      "prompt": "The person from <Picture 1>, a young woman with long straight platinum-blonde hair, black wraparound sunglasses, pale pink ruffled camisole and light blue ruched cargo pants lies back on a black leather sofa against a white studio wall, one arm raised behind her head, looking at camera. She slowly slides one leg up and settles. Locked-off medium camera, soft high-key light. One continuous filmed take; editorial crops and transitions are applied separately.",
+      "image_prompt": "A young woman with long platinum-blonde hair and black wraparound sunglasses, pale pink camisole, light blue cargo pants, lying back on a black leather sofa, white studio, vertical 9:16.",
+      "notes": "Calm shot after the burst: three longer cuts, a slow push-in on the last one.",
+      "sub_cuts": [
+        {
+          "duration": 0.5
+        },
+        {
+          "duration": 0.5,
+          "zoom": 1.7,
+          "focus": [
+            0.35,
+            0.3
+          ]
+        },
+        {
+          "duration": 0.5,
+          "zoom": [
+            1.0,
+            1.5
+          ],
+          "focus": [
+            0.5,
+            0.3
+          ],
+          "speed_ramp": [
+            1.0,
+            0.6
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SHOT_004",
+      "duration": 1.0,
+      "color": "orange",
+      "prompt": "The person from <Picture 1>, a young woman with long straight platinum-blonde hair, pale pink ruffled camisole, light blue ruched parachute cargo pants and a small pink handbag, seen from behind, walks slowly away from camera across a seamless white studio floor, hair swaying. Locked-off wide camera, soft high-key light. One continuous filmed take; editorial crops and transitions are applied separately.",
+      "image_prompt": "Back view of a young woman with long platinum-blonde hair, pale pink camisole, light blue ruched cargo pants, small pink handbag, white studio, vertical 9:16.",
+      "notes": "Back view, two cuts, the second one mirrored.",
+      "transition": "whip",
+      "sub_cuts": [
+        {
+          "duration": 0.5
+        },
+        {
+          "duration": 0.5,
+          "flip": true,
+          "zoom": 1.4,
+          "focus": [
+            0.5,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SHOT_005",
+      "duration": 1.0,
+      "color": "crimson",
+      "prompt": "Low-angle shot of the person from <Picture 1>, a young woman with long straight platinum-blonde hair, black wraparound sunglasses and a pale pink ruffled camisole crouching toward the camera, hands on her knees, light blue ruched cargo pants, white studio background. She leans in fast and stops. Locked-off camera, strong high-key light. One continuous filmed take; editorial crops and transitions are applied separately.",
+      "image_prompt": "Low-angle photo of a young woman with long platinum-blonde hair, black wraparound sunglasses, pale pink camisole, crouching toward camera, white studio, vertical 9:16.",
+      "notes": "The loudest moment: four 0.25 s cuts with speed and look changes.",
+      "transition": "punch",
+      "sub_cuts": [
+        {
+          "duration": 0.25,
+          "speed": 1.5
+        },
+        {
+          "duration": 0.25,
+          "zoom": 2.0,
+          "focus": [
+            0.5,
+            0.3
+          ],
+          "speed": 2.0
+        },
+        {
+          "duration": 0.25,
+          "look": "mono",
+          "zoom": 1.5
+        },
+        {
+          "duration": 0.25,
+          "look": "negative",
+          "zoom": 2.6,
+          "focus": [
+            0.5,
+            0.35
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SHOT_006",
+      "duration": 1.0,
+      "color": "gold",
+      "prompt": "Medium close-up of the person from <Picture 1>, a young woman with long straight platinum-blonde hair and black wraparound sunglasses, pale pink ruffled camisole, turning her head over her shoulder toward the camera, hair whipping across her face, white studio background. Locked-off camera, soft high-key light. One continuous filmed take; editorial crops and transitions are applied separately.",
+      "image_prompt": "Medium close-up of a young woman with long platinum-blonde hair and black wraparound sunglasses looking over her shoulder, pale pink camisole, white studio, vertical 9:16.",
+      "notes": "Fast turn, three cuts, then the calm final hold.",
+      "transition": {
+        "type": "whip",
+        "frames": 5
+      },
+      "sub_cuts": [
+        {
+          "duration": 0.25,
+          "speed": 2.0
+        },
+        {
+          "duration": 0.25,
+          "zoom": 2.2,
+          "focus": [
+            0.45,
+            0.3
+          ],
+          "flip": true
+        },
+        {
+          "duration": 0.5,
+          "zoom": [
+            1.0,
+            1.8
+          ],
+          "focus": [
+            0.6,
+            0.35
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SHOT_007",
+      "duration": 1.5,
+      "color": "white",
+      "prompt": "Final hero frame: the person from <Picture 1>, a young woman with long straight platinum-blonde hair, black wraparound sunglasses, pale pink ruffled camisole, light blue ruched parachute cargo pants and a small pink handbag stands centred on a seamless white studio floor, holding still and looking at camera. A slight breeze moves her hair. Locked-off wide camera, soft high-key light, clean white space. One continuous filmed take; editorial crops and transitions are applied separately.",
+      "image_prompt": "Symmetrical full-body fashion photo of a young woman with long platinum-blonde hair, black wraparound sunglasses, pale pink camisole, light blue cargo pants, small pink handbag, white studio, vertical 9:16.",
+      "notes": "Payoff and hold with the title text.",
+      "transition": "flash",
+      "zoom": [
+        1.0,
+        1.12
+      ],
+      "text": {
+        "content": "new drop",
+        "position": "bottom",
+        "size": 0.09,
+        "color": "white",
+        "background": "black",
+        "repeat": 2
+      }
+    }
+  ]
+}

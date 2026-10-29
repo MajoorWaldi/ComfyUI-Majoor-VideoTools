@@ -8,11 +8,14 @@
 
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { regenerateShot } from "./majoor_regen.js";
 
 const DETECT = "MajoorSceneDetectSplit";
+const TIMELINE = "MajoorCreateTimeline";
+const PLAYERS = new Set([DETECT, TIMELINE]); // nodes that show the source video with its cuts
 const SELECT = "MajoorSelectShot";
 const ASSEMBLE = "MajoorShotAssemble";
-const WITH_PAYLOAD = new Set([DETECT, SELECT, "MajoorApplyShotMetadata"]);
+const WITH_PAYLOAD = new Set([DETECT, TIMELINE, SELECT, "MajoorApplyShotMetadata"]);
 const PROP = "majoor_ui";
 
 const STYLE = `
@@ -237,7 +240,7 @@ function setupSelect(node) {
     video.style.display = shot ? "" : "none";
     if (shot) {
       preview(shot);
-      info.textContent = `${shot.id} · ${fmt(shot.start)}–${fmt(shot.start + shot.duration)} · ${shot.duration.toFixed(2)}s · ${shot.frames} frames · active: ${shot.active}`;
+      info.textContent = `${shot.id} · ${fmt(shot.start)}–${fmt(shot.start + shot.duration)} · ${shot.duration.toFixed(2)}s · ${shot.frames} frames · active: ${shot.active}${shot.rhythm ? `\n${shot.rhythm}` : ""}${shot.prompt ? `\n${shot.prompt}` : ""}`;
     } else if (payload) {
       info.textContent = wanted ? `Unknown shot '${wanted}'. Pick one above.` : "Pick a shot above.";
     }
@@ -305,9 +308,31 @@ function setupSelect(node) {
 function setupAssemble(node) {
   const root = el("div", "mjr-root");
   const bar = el("div", "mjr-bar");
+  const regen = el("button", null, "Click a shot to regenerate it");
+  regen.type = "button";
+  regen.disabled = true;
+  regen.style.cssText = "height: 22px; background: var(--comfy-input-bg, #222); color: inherit; border: 1px solid var(--border-color, #444); border-radius: 4px; cursor: pointer; font: inherit;";
   const info = el("div", "mjr-info", "Run the graph to see the final shot order.");
-  root.append(bar, info);
-  mountWidget(node, "assembly_timeline", root, () => 30 + 6 + info.textContent.split("\n").length * 16 + 8);
+  root.append(bar, regen, info);
+  mountWidget(node, "assembly_timeline", root, () => 30 + 28 + 6 + info.textContent.split("\n").length * 16 + 8);
+
+  let chosen = "";
+  let summary = "";
+  const show = (text) => {
+    info.textContent = [summary, text].filter(Boolean).join("\n");
+    growTo(node, node.computeSize()[1]);
+  };
+  regen.addEventListener("click", async () => {
+    if (!chosen) return;
+    regen.disabled = true;
+    try {
+      show(await regenerateShot(chosen));
+    } catch (e) {
+      show(`⚠ ${e?.message ?? e}`);
+    } finally {
+      regen.disabled = !chosen;
+    }
+  });
 
   node._mjrRenderAssembly = (a) => {
     const total = a.shots.reduce((sum, s) => sum + s.duration, 0);
@@ -319,13 +344,28 @@ function setupAssemble(node) {
       seg.style.left = `${(at / total) * 100}%`;
       seg.style.width = `${(s.duration / total) * 100}%`;
       seg.title = `${s.id} · ${s.take} · ${fmt(at)}–${fmt(at + s.duration)}`;
+      seg.classList.toggle("mjr-on", s.id === chosen);
+      seg.addEventListener("click", () => {
+        chosen = s.id;
+        bar.querySelectorAll(".mjr-seg").forEach((x) => x.classList.toggle("mjr-on", x === seg));
+        regen.textContent = `Regenerate ${s.id}`;
+        regen.disabled = false;
+      });
       bar.appendChild(seg);
       at += s.duration;
     }
     const changed = a.shots.filter((s) => s.take !== "original").length;
-    info.textContent = [`${a.shots.length} shots · ${changed} replaced · ${fmt(total)}`, ...a.warnings.map((w) => `⚠ ${w}`)].join("\n");
-    growTo(node, node.computeSize()[1]);
+    summary = [`${a.shots.length} shots · ${changed} replaced · ${fmt(total)}`, ...a.warnings.map((w) => `⚠ ${w}`)].join("\n");
+    show("");
   };
+}
+
+export function syncOutputs(node) {
+  if (!String(node.comfyClass ?? "").startsWith("Majoor")) return;
+  const data = node.constructor?.nodeData;
+  (data?.output_name ?? []).forEach((name, i) => {
+    if (!node.outputs?.some((o) => o.name === name)) node.addOutput?.(name, data.output[i]);
+  });
 }
 
 function refreshAll() {
@@ -336,7 +376,7 @@ app.registerExtension({
   name: "Majoor.VideoTools",
 
   nodeCreated(node) {
-    if (node.comfyClass === DETECT) {
+    if (PLAYERS.has(node.comfyClass)) {
       addStyle();
       setupDetect(node);
     } else if (node.comfyClass === SELECT) {
@@ -349,16 +389,18 @@ app.registerExtension({
   },
 
   // Saved workflows carry the last payload in node.properties, so the widgets come back without a re-run.
+  // a Majoor node saved before it had an output (the file lists fewer outputs than the node has now) gets the missing ones, at the end
   loadedGraphNode(node) {
+    syncOutputs(node);
     const p = saved(node);
-    if (p && node.comfyClass === DETECT) node._mjrRender?.(p);
+    if (p && PLAYERS.has(node.comfyClass)) node._mjrRender?.(p);
     if (node.properties?.majoor_assembly && node.comfyClass === ASSEMBLE) node._mjrRenderAssembly?.(node.properties.majoor_assembly);
   },
 
   afterConfigureGraph() {
     setTimeout(() => {
       for (const n of app.graph?._nodes ?? []) {
-        if (n.comfyClass === DETECT && saved(n)) n._mjrRender?.(saved(n));
+        if (PLAYERS.has(n.comfyClass) && saved(n)) n._mjrRender?.(saved(n));
       }
       refreshAll();
     }, 0);
@@ -381,7 +423,7 @@ app.registerExtension({
       const node = app.graph?.getNodeById(detail.display_node ?? detail.node);
       if (!node || !WITH_PAYLOAD.has(node.comfyClass)) return;
       store(node, payload);
-      if (node.comfyClass === DETECT) node._mjrRender?.(payload);
+      if (PLAYERS.has(node.comfyClass)) node._mjrRender?.(payload);
       refreshAll();
     });
   },

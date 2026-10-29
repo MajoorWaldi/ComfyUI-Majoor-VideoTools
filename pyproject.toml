@@ -1,7 +1,7 @@
 [project]
 name = "majoor-videotools"
 version = "0.1.0"
-description = "Detect shots, select one, replace it non-destructively and reassemble the video."
+description = "Cut a video into identified shots, regenerate any shot with any workflow, rebuild the video without touching the source; with ready workflows for automatic edits (remix, creative text, creative music) on local models."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"

@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from ..adapters.ffmpeg import run_capture
+from .frame_select import every_n_frames
 from .media_probe import MediaInfo
 from .models import Shot, Source
 from .timeline import frame_time
@@ -32,8 +33,10 @@ def extract_frame(path: Path, t: Fraction, frame_duration: Fraction, display_siz
     return np.frombuffer(raw, dtype=np.uint8).reshape(h, w, 3).copy()
 
 
-def sample_indices(mode: str, count: int, frame_count: int) -> list[int]:
+def sample_indices(mode: str, count: int, frame_count: int, every: int = 1, to_end: bool = True) -> list[int]:
     last = frame_count - 1
+    if mode == "every_n":
+        return every_n_frames(frame_count, every, count, to_end)
     if mode == "first":
         return [0]
     if mode == "last":
@@ -48,19 +51,19 @@ def sample_indices(mode: str, count: int, frame_count: int) -> list[int]:
     return sorted({round(i * last / (count - 1)) for i in range(count)})
 
 
-def sample_original_shot(path: Path, source: Source, shot: Shot, mode: str, count: int, max_side: int) -> np.ndarray:
+def sample_original_shot(path: Path, source: Source, shot: Shot, mode: str, count: int, max_side: int, every: int = 1, to_end: bool = True) -> np.ndarray:
     fd = 1 / source.fps
     frames = [
         extract_frame(path, frame_time(source, shot, k), fd, (source.width, source.height), max_side)
-        for k in sample_indices(mode, count, shot.frame_count)
+        for k in sample_indices(mode, count, shot.frame_count, every, to_end)
     ]
     return np.stack(frames)
 
 
-def sample_whole_media(path: Path, info: MediaInfo, mode: str, count: int, max_side: int) -> np.ndarray:
+def sample_whole_media(path: Path, info: MediaInfo, mode: str, count: int, max_side: int, every: int = 1, to_end: bool = True) -> np.ndarray:
     fd = 1 / info.fps
     n = max(1, round(info.duration * info.fps))
-    frames = [extract_frame(path, k * fd, fd, info.display_size, max_side) for k in sample_indices(mode, count, n)]
+    frames = [extract_frame(path, k * fd, fd, info.display_size, max_side) for k in sample_indices(mode, count, n, every, to_end)]
     return np.stack(frames)
 
 

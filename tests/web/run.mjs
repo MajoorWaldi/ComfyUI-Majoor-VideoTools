@@ -10,7 +10,7 @@ fs.mkdirSync(path.join(root, "ext/web"), { recursive: true });
 fs.writeFileSync(path.join(root, "package.json"), '{"type":"module"}');
 fs.writeFileSync(path.join(root, "scripts/app.js"), `export const app = { exts: [], graph: { _nodes: [], getNodeById(id) { return this._nodes.find(n => n.id == id); }, setDirtyCanvas() {} }, registerExtension(e) { this.exts.push(e); } };`);
 fs.writeFileSync(path.join(root, "scripts/api.js"), `const listeners = {}; export const api = { apiURL: (r) => "/api" + r, addEventListener(n, f) { (listeners[n] ||= []).push(f); }, emit(n, detail) { (listeners[n] || []).forEach(f => f({ detail })); } };`);
-for (const f of ["majoor_videotools.js", "majoor_media.js"]) fs.copyFileSync(new URL(`../../web/${f}`, import.meta.url), path.join(root, "ext/web", f));
+for (const f of ["majoor_videotools.js", "majoor_media.js", "majoor_regen.js"]) fs.copyFileSync(new URL(`../../web/${f}`, import.meta.url), path.join(root, "ext/web", f));
 const load = (p) => import(pathToFileURL(path.join(root, p)).href);
 
 function mk(tag) {
