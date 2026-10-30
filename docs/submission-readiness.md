@@ -11,7 +11,7 @@ For the node pack and its separate HyperKut Studio beta:
 
 The Studio is a local single-user application. An opt-in authenticated jury mode exists, but public TLS deployment, per-user authorization and complete storage/compute quotas remain unqualified. Finishing is experimental and disabled by default.
 
-[Installation](studio-installation.md) · [Roadmap](../ROADMAP.md) · [License scope](../LICENSES.md) · [Official contest requirements](https://comfy.org/open-source-higgsfield)
+[Installation](studio-installation.md) · [Compatibility matrix](compatibility-matrix.md) · [Roadmap](../ROADMAP.md) · [License scope](../LICENSES.md) · [Official contest requirements](https://comfy.org/open-source-higgsfield)
 
 
 ## Audit correction qualification
