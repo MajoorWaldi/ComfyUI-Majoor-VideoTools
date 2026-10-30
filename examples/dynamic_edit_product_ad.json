@@ -10,9 +10,9 @@
       "refs": [
         1
       ],
-      "prompt": "A fast hook on the product. The jar from <Picture 1>, a frosted white glass jar with a gold lid, stands on a polished white pedestal against a soft pearl-grey studio background, front of the label facing the camera, a thin glint of light running over the gold lid. [Shot 1 (0.0-0.5 s)] Wide product shot, the jar centred, the light glint starting at the left. [Shot 2 (0.5-0.75 s)] Tighter on the lid, the glint crossing it. [Shot 3 (0.75-1.0 s)] Extreme close-up on the gold rim catching the light, ending on a fast whip pan into the next image. Slow locked-off camera, soft high-key light.",
+      "prompt": "The jar from <Picture 1>, a frosted white glass jar with a gold lid, stands on a polished white pedestal against a soft pearl-grey studio background, front of the label facing camera. A thin glint moves from the left across the gold lid and settles on the rim. Locked-off camera, soft high-key light.",
       "image_prompt": "Product shot of a frosted white glass jar with a gold lid on a white pedestal, pearl-grey studio, soft light, vertical 9:16.",
-      "notes": "Hook: the product, wide to extreme close-up; the last cut whips into the model.",
+      "notes": "Hook: three editorial crops follow the glint from the product to its gold rim.",
       "sub_cuts": [
         {
           "duration": 0.5
@@ -43,9 +43,9 @@
       "refs": [
         2
       ],
-      "prompt": "A quick burst on the model. The woman from <Picture 2>, with a sleek dark bob and a white silk top, faces the camera in a bright studio with a pale backdrop, her skin luminous, and slowly turns her head from left to right. The shot opens with a burst of bright light, then four quick cuts: [Shot 1 (0.0-0.25 s)] close-up, her eyes on the lens. [Shot 2 (0.25-0.5 s)] the same close-up seen from the opposite side, her head turning. [Shot 3 (0.5-0.75 s)] extreme close-up on her cheek and eye. [Shot 4 (0.75-1.0 s)] a slightly wider frame, a small smile. Locked-off camera, soft high-key light.",
+      "prompt": "The woman from <Picture 2>, with a sleek dark bob and a white silk top, faces the camera in a bright studio with a pale backdrop. She slowly turns her head from left to right once, then settles into a relaxed forward gaze. Locked-off camera, soft high-key light.",
       "image_prompt": "Close-up portrait of a woman with a dark bob and luminous skin, white silk top, bright pale studio, vertical 9:16.",
-      "notes": "Burst: four cuts on the model, with a glow.",
+      "notes": "Burst: four editorial crops of one head turn.",
       "transition": "flash",
       "overlay": [
         {
@@ -86,7 +86,7 @@
         1,
         2
       ],
-      "prompt": "A calm comparison, the model on the left and the product on the right of the same bright studio. The woman from <Picture 2> raises her chin and touches her cheek with two fingers, slowly, while the jar from <Picture 1> stays still beside her. [Shot 1 (0.0-0.75 s)] medium shot, her hand rising to her cheek. [Shot 2 (0.75-1.5 s)] close-up, her fingers resting on her skin, a soft smile. Steady camera, soft high-key light, a slow gentle push-in.",
+      "prompt": "A calm comparison composition in the same bright studio: the woman from <Picture 2> is on the left and the jar from <Picture 1> stays still on the right. She slowly raises her chin and touches her cheek with two fingers, then holds the finished gesture. Steady camera, soft high-key light.",
       "image_prompt": "Medium shot of a woman touching her cheek, bright pale studio, vertical 9:16.",
       "notes": "Comparison: the model on the left, the glowing close-up of SHOT_004 on the right.",
       "split": {

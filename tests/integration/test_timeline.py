@@ -746,7 +746,8 @@ def test_the_dynamic_edit_skill_example_is_a_valid_plan_with_composed_shots(root
         text = (shot.prompt + shot.image_prompt).lower()
         assert "continuous" not in text and "no cuts" not in text and "no text" not in text and "<picture" in shot.prompt.lower(), shot.shot_id
         if shot.fx.get("sub_cuts"):
-            assert sum(c["weight"] for c in shot.fx["sub_cuts"]) == shot.frames and "[shot 1" in shot.prompt.lower(), shot.shot_id
+            assert sum(c["weight"] for c in shot.fx["sub_cuts"]) == shot.frames
+            assert "[shot " not in shot.prompt.lower(), shot.shot_id
     sl = template(root, plan=example)
     assert not [w for w in sl.detection.warnings if "plan" in w]  # nothing refers to a shot that does not exist
     three = sl.get_shot("SHOT_003")

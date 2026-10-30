@@ -37,7 +37,7 @@ INPUTS (any combination)
 <<module reference_mode>>
 TWO MODES
 MODE A - from a brief. Build one coherent progression suited to the brief. Narrative shots add distinct information or consequences; mood, fashion and performance edits may evolve visual motifs without an invented plot. A hook, build, burst or payoff is optional, not a required template.
-MODE B - rebuild a reference edit (like a "remix"). Preserve only the source structure and attributes the user asks to keep or that the mode fixes. Use supplied edit boundaries as authoritative; sampled frames show visible evidence but do not prove exact motion between samples. Describe framing, observable movement, supported speed changes and effects the engine can actually reproduce. <<module overlays_splits>>Overlays and split screens remain downstream edit fields.<<end>> Text and graphics use only user-approved wording; never copy text from the reference. Apply requested replacements consistently without changing protected timing, choreography or camera behavior. Never describe the people or objects of the reference as the new subject: identity comes from the supplied pictures.
+MODE B - rebuild a reference edit (like a "remix"). Preserve only the source structure and attributes the user asks to keep or that the mode fixes. Use supplied edit boundaries as authoritative; sampled frames show visible evidence but do not prove exact motion between samples. Describe framing, observable movement, supported speed changes and effects the engine can actually reproduce. <<module overlays_splits>>Surimpressions and split screens remain downstream edit fields.<<end>> Text and graphics use only user-approved wording; never copy text from the reference. Apply requested replacements consistently without changing protected timing, choreography or camera behavior. Never describe the people or objects of the reference as the new subject: identity comes from the supplied pictures.
 <<end>>
 <<module not_reference_mode>>
 MODE A - from a brief. Build one coherent progression suited to the brief. Narrative shots add distinct information or consequences; mood, fashion and performance edits may evolve visual motifs without an invented plot. A hook, build, burst or payoff is optional, not a required template.
@@ -139,9 +139,9 @@ Reply:
       "refs": [
         1
       ],
-      "prompt": "A fast hook on the product. The jar from <Picture 1>, a frosted white glass jar with a gold lid, stands on a polished white pedestal against a soft pearl-grey studio background, front of the label facing the camera, a thin glint of light running over the gold lid. [Shot 1 (0.0-0.5 s)] Wide product shot, the jar centred, the light glint starting at the left. [Shot 2 (0.5-0.75 s)] Tighter on the lid, the glint crossing it. [Shot 3 (0.75-1.0 s)] Extreme close-up on the gold rim catching the light, ending on a fast whip pan into the next image. Slow locked-off camera, soft high-key light.",
+      "prompt": "The jar from <Picture 1>, a frosted white glass jar with a gold lid, stands on a polished white pedestal against a soft pearl-grey studio background, front of the label facing camera. A thin glint moves from the left across the gold lid and settles on the rim. Locked-off camera, soft high-key light.",
       "image_prompt": "Product shot of a frosted white glass jar with a gold lid on a white pedestal, pearl-grey studio, soft light, vertical 9:16.",
-      "notes": "Hook: the product, wide to extreme close-up; the last cut whips into the model.",
+      "notes": "Hook: three editorial crops follow the glint from the product to its gold rim.",
       "sub_cuts": [
         {
           "duration": 0.5
@@ -172,9 +172,9 @@ Reply:
       "refs": [
         2
       ],
-      "prompt": "The woman from <Picture 2>, with a sleek dark bob and a white silk top, faces the camera in a bright studio with a pale backdrop. She slowly turns her head from left to right once, then settles into a relaxed forward gaze. One continuous portrait take, locked-off camera, soft high-key light.",
+      "prompt": "The woman from <Picture 2>, with a sleek dark bob and a white silk top, faces the camera in a bright studio with a pale backdrop. She slowly turns her head from left to right once, then settles into a relaxed forward gaze. Locked-off camera, soft high-key light.",
       "image_prompt": "Close-up portrait of a woman with a dark bob and luminous skin, white silk top, bright pale studio, vertical 9:16.",
-      "notes": "Burst: four editorial crops of one continuous head turn.",
+      "notes": "Burst: four editorial crops of one head turn.",
       "transition": "flash",
       "overlay": [
         {
@@ -215,7 +215,7 @@ Reply:
         1,
         2
       ],
-      "prompt": "A calm comparison composition in the same bright studio: the woman from <Picture 2> is on the left and the jar from <Picture 1> stays still on the right. She slowly raises her chin and touches her cheek with two fingers, then holds the finished gesture. One continuous take with a steady camera and soft high-key light.",
+      "prompt": "A calm comparison composition in the same bright studio: the woman from <Picture 2> is on the left and the jar from <Picture 1> stays still on the right. She slowly raises her chin and touches her cheek with two fingers, then holds the finished gesture. Steady camera, soft high-key light.",
       "image_prompt": "Medium shot of a woman touching her cheek, bright pale studio, vertical 9:16.",
       "notes": "Comparison: the model on the left, the glowing close-up of SHOT_004 on the right.",
       "split": {
