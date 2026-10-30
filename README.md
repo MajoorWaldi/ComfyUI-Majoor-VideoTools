@@ -40,6 +40,8 @@ Open a workflow in ComfyUI and read its GUIDE, DEPENDENCIES and WIRING notes. Vi
 
 Connect the shot list to **Timeline Edit**, then to **Shot Assemble**. Optional audio passes through the editor. A retained shot list lets you edit without rerunning generation. The Studio's Manual montage uses the same editor, with a scoped Studio appearance.
 
+Shot Assemble keeps `social` H.264 as default. Explicit `prores_422_hq`, `dnxhr_hqx` and `prores_4444` profiles require MOV and validated SDR color input; unsupported high-depth effects fail explicitly. See [delivery contracts and remaining graph work](docs/editorial-engine-rfc.md). Local tests and a procedural benchmark are recorded in the [qualification matrix](docs/qualification-matrix.md); they are not model/narrative or release approval.
+
 [Timeline Edit guide](docs/timeline-edit.md) · [Node reference](web/docs/MajoorTimelineEdit.md) · [API wiring example](examples/timeline_edit.api.json)
 
 ## Experimental finishing
@@ -64,3 +66,10 @@ Run `python -m pytest tests` with the environment providing the pack dependencie
 Windows is the documented Studio integration path. Source-switch previews may pause; review exported media. VFR/rotation, high-resolution outputs, browser/platform coverage and complete clean-install GPU reproduction need further qualification. No fixed hardware minimum or inference-speed promise is made.
 
 [Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md) · [Release checklist](docs/submission-readiness.md)
+
+
+## Engineering contracts
+
+[Audio policies](docs/audio-policy-contract.md) · [Export transactions and caches](docs/export-transactions.md) · [Qualification matrix](docs/qualification-matrix.md) · [Local security boundary](docs/local-security-boundary.md)
+
+Current audit corrections are prepared in source; runtime acceptance remains pending. See [the tracked checklist](docs/AUDIT_CORRECTIFS_CODEX_2026-10-30.md). New master-render and canonical-graph work is [design-stage](docs/editorial-engine-rfc.md), not an available production feature.

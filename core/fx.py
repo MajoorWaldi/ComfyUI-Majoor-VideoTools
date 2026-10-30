@@ -5,14 +5,20 @@ generated take, each with its own speed / zoom / focus / flip / look / transitio
 shot's plan; the ffmpeg filters are built here from that dict."""
 import hashlib
 import json
+import math
 import os
 import re
+import tempfile
 from fractions import Fraction
 from pathlib import Path
 
+from filelock import FileLock
+
+from PIL import __version__ as PILLOW_VERSION
 from PIL import Image, ImageColor, ImageDraw, ImageFilter, ImageFont
 
 from .errors import MajoorError
+from .fingerprints import file_fingerprint
 
 LOOKS = ("none", "mono", "contrast", "negative")
 # default length in frames of each transition into a shot (at the start of the shot)
@@ -50,8 +56,10 @@ def _number(value, name: str, where: str, lo: float, hi: float, strict: bool = F
         raise MajoorError(f"{where}: {name} must be a number")
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         raise MajoorError(f"{where}: {name} must be a number") from None
+    if not math.isfinite(number):
+        raise MajoorError(f"{where}: {name} must be a finite number")
     if not lo <= number <= hi:
         if strict:
             raise MajoorError(f"{where}: {name} must be between {lo:g} and {hi:g}")
@@ -243,8 +251,8 @@ def parse_fx(row: dict, sid: str, fps: Fraction, parse_duration) -> dict:
             raise MajoorError(f"{where} must be an object")
         raw = next((cut[k] for k in ("duration", "duration_seconds", "seconds") if k in cut), None)
         try:
-            weight = int(cut["duration_frames"]) if "duration_frames" in cut else parse_duration(raw, fps)
-        except (ValueError, ZeroDivisionError, TypeError):
+            weight = int(_number(cut["duration_frames"], "duration_frames", where, 1, float("inf"), strict=True)) if "duration_frames" in cut else parse_duration(raw, fps)
+        except (ValueError, ZeroDivisionError, TypeError, OverflowError):
             raise MajoorError(f"{where}: cannot read the duration (use seconds, '6f' or a timecode)") from None
         if weight < 1:
             raise MajoorError(f"{where}: duration must be at least one frame")
@@ -254,6 +262,27 @@ def parse_fx(row: dict, sid: str, fps: Fraction, parse_duration) -> dict:
         subs.append(sub)
     fx["sub_cuts"] = subs
     return fx
+
+
+def validate_stored_fx(fx: dict, sid: str, fps: Fraction) -> None:
+    """Validate numeric fields again for manifests received without plan parsing."""
+    if not isinstance(fx, dict):
+        raise MajoorError(f"{sid}: effects must be an object")
+    _common(fx, sid, fps)
+    if fx.get("text"):
+        _text(fx["text"], sid)
+    cuts = fx.get("sub_cuts") or []
+    if not isinstance(cuts, list) or len(cuts) > MAX_SUB_CUTS:
+        raise MajoorError(f"{sid}: invalid stored sub_cuts")
+    for index, cut in enumerate(cuts, 1):
+        where = f"{sid} sub_cut {index}"
+        if not isinstance(cut, dict):
+            raise MajoorError(f"{where}: must be an object")
+        _common(cut, where, fps)
+        if cut.get("start") is not None:
+            _number(cut["start"], "start", where, 0, 600, strict=True)
+        if "frames" in cut:
+            _number(cut["frames"], "frames", where, 1, float("inf"), strict=True)
 
 
 def _fmt(value) -> str:
@@ -455,17 +484,18 @@ def _anchor(position: str) -> tuple[str, str]:
     return (f"(main_w-overlay_w)*{ax:g}+main_w*{0.04 * (1 - 2 * ax):g}", f"(main_h-overlay_h)*{ay:g}+main_h*{0.04 * (1 - 2 * ay):g}")
 
 
-def overlay_filters(base: str, layer: str, out: str, spec: dict, tag: str) -> list[str]:
+def overlay_filters(base: str, layer: str, out: str, spec: dict, tag: str, pixel_format: str = "yuv420p") -> list[str]:
     """Blend a layer over the picture (a surimpression), or, with scale < 1, place a smaller transparent copy of it (picture in picture)."""
     mode, opacity, scale = BLENDS[spec["blend"]], spec["opacity"], spec["scale"]
     if scale >= 0.999:
-        return [f"[{base}][{layer}]blend=all_mode={mode}:all_opacity={opacity:g},format=yuv420p[{out}]"]
+        return [f"[{base}][{layer}]blend=all_mode={mode}:all_opacity={opacity:g},format={pixel_format}[{out}]"]
     x, y = _anchor(spec["position"])
-    return [f"[{layer}]scale=trunc(iw*{scale:g}/2)*2:trunc(ih*{scale:g}/2)*2,format=yuva420p,colorchannelmixer=aa={opacity:g}[{tag}s]",
-            f"[{base}][{tag}s]overlay=x='{x}':y='{y}':format=auto,format=yuv420p[{out}]"]
+    alpha_format = "yuva420p" if pixel_format == "yuv420p" else "gbrap16le"
+    return [f"[{layer}]scale=trunc(iw*{scale:g}/2)*2:trunc(ih*{scale:g}/2)*2,format={alpha_format},colorchannelmixer=aa={opacity:g}[{tag}s]",
+            f"[{base}][{tag}s]overlay=x='{x}':y='{y}':format=auto,format={pixel_format}[{out}]"]
 
 
-def split_filters(panels: list[str], layout: str, out: str, width: int, height: int, tag: str) -> list[str]:
+def split_filters(panels: list[str], layout: str, out: str, width: int, height: int, tag: str, pixel_format: str = "yuv420p") -> list[str]:
     """Panels side by side: each full-frame picture is covered-and-cropped to its cell, the cells are stacked back to the size of the frame."""
     half_w, half_h = (width // 2) // 2 * 2, (height // 2) // 2 * 2
     third_w, third_h = (width // 3) // 2 * 2, (height // 3) // 2 * 2
@@ -474,7 +504,7 @@ def split_filters(panels: list[str], layout: str, out: str, width: int, height: 
     cells = "".join(f"[{tag}c{k}]" for k in range(len(panels)))
     stack = {"left_right": "hstack=inputs=2", "top_bottom": "vstack=inputs=2", "columns_3": "hstack=inputs=3", "rows_3": "vstack=inputs=3",
              "grid_4": "xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0"}[layout]
-    lines.append(f"{cells}{stack},scale={width}:{height}:flags=bicubic,setsar=1,format=yuv420p[{out}]")
+    lines.append(f"{cells}{stack},scale={width}:{height}:flags=bicubic,setsar=1,format={pixel_format}[{out}]")
     return lines
 
 
@@ -519,56 +549,74 @@ def _luminance(rgb: tuple[int, int, int]) -> float:
 
 def render_text(spec: dict, width: int, height: int, store_dir: Path) -> Path:
     """A transparent PNG of the text overlay, cached by content. The text is cut into lines and made smaller until it fits the safe box of the frame (safe_box), with an outline and a soft shadow."""
-    key = hashlib.sha1(json.dumps([spec, width, height, 2], sort_keys=True).encode()).hexdigest()[:16]
+    font_probe = _font(16, spec.get("font", "impact"))
+    font_path = getattr(font_probe, "path", None)
+    font_identity = file_fingerprint(Path(font_path)) if isinstance(font_path, (str, Path)) and Path(font_path).is_file() else str(font_path)
+    key = hashlib.sha1(json.dumps([spec, width, height, 3, PILLOW_VERSION, os.environ.get("MAJOOR_FONT", ""), font_identity], sort_keys=True).encode()).hexdigest()[:16]
     out = store_dir / f"{key}.png"
-    if out.exists():
+    store_dir.mkdir(parents=True, exist_ok=True)
+    with FileLock(str(out) + '.lock', timeout=120):
+        if out.exists():
+            try:
+                with Image.open(out) as cached:
+                    if cached.size != (width, height):
+                        raise ValueError("Cached text dimensions changed")
+                    cached.verify()
+                return out
+            except (OSError, ValueError, SyntaxError):
+                pass
+        ax, ay = TEXT_POSITIONS[spec["position"]]
+        x0, y0, x1, y1 = safe_box(width, height, ax)
+        box_w, box_h = x1 - x0, y1 - y0
+        style = spec.get("font", "impact")
+        text = spec["content"].upper() if spec.get("upper", True) else spec["content"]
+        rows = spec["repeat"]
+        color = ImageColor.getrgb(spec["color"])[:3]
+        stroke_rgb = (0, 0, 0) if _luminance(color) > 0.55 else (255, 255, 255)
+        use_stroke = spec.get("stroke", True)
+        probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+        px = max(int(height * spec["size"]), 8)
+        while True:
+            font = _font(px, style)
+            outline = max(round(px * 0.07), 2) if use_stroke else 0
+            pad = int(px * 0.25) if spec.get("background") else 0
+            lines = _wrap(text, font, box_w - 2 * (pad + outline), probe)
+            boxes = [probe.textbbox((0, 0), line, font=font, stroke_width=outline) for line in lines]
+            line_h = max((b[3] - b[1] for b in boxes), default=px) + int(px * 0.12)
+            bw = max((b[2] - b[0] for b in boxes), default=0) + 2 * pad
+            bh = rows * len(lines) * line_h + 2 * pad
+            if (bw <= box_w and bh <= box_h) or px <= 12:
+                break
+            px = max(int(px * 0.9), 12)
+        block = Image.new("RGBA", (max(bw, 1), max(bh, 1)), (0, 0, 0, 0))
+        shadow = Image.new("RGBA", block.size, (0, 0, 0, 0))
+        draw, shadow_draw = ImageDraw.Draw(block), ImageDraw.Draw(shadow)
+        if spec.get("background"):
+            draw.rectangle([0, 0, block.width - 1, block.height - 1], fill=ImageColor.getrgb(spec["background"])[:3] + (255,))
+        offset = max(int(px * 0.05), 1)
+        for r in range(rows):
+            for n, (line, b) in enumerate(zip(lines, boxes)):
+                lw = b[2] - b[0]
+                x = pad + {0.0: 0, 0.5: (bw - 2 * pad - lw) // 2, 1.0: bw - 2 * pad - lw}[ax if ax in (0.0, 1.0) else 0.5] - b[0]
+                y = pad + (r * len(lines) + n) * line_h - b[1]
+                shadow_draw.text((x + offset, y + offset), line, font=font, fill=(0, 0, 0, 170), stroke_width=outline, stroke_fill=(0, 0, 0, 170))
+                draw.text((x, y), line, font=font, fill=color + (255,), stroke_width=outline, stroke_fill=stroke_rgb + (255,))
+        block = Image.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(max(px * 0.04, 1))), block) if not spec.get("background") else block
+        if spec["rotate"]:
+            block = block.rotate(spec["rotate"], expand=True, resample=Image.BICUBIC)
+        x = min(max(round(x0 + ax * (box_w - block.width)), 0), max(width - block.width, 0))
+        y = min(max(round(y0 + ay * (box_h - block.height)), 0), max(height - block.height, 0))
+        canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        canvas.alpha_composite(block.crop((0, 0, min(block.width, width), min(block.height, height))), (x, y))
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fd, temporary = tempfile.mkstemp(dir=out.parent, suffix=".png")
+        os.close(fd)
+        try:
+            canvas.save(temporary, format="PNG")
+            os.replace(temporary, out)
+        finally:
+            Path(temporary).unlink(missing_ok=True)
         return out
-    ax, ay = TEXT_POSITIONS[spec["position"]]
-    x0, y0, x1, y1 = safe_box(width, height, ax)
-    box_w, box_h = x1 - x0, y1 - y0
-    style = spec.get("font", "impact")
-    text = spec["content"].upper() if spec.get("upper", True) else spec["content"]
-    rows = spec["repeat"]
-    color = ImageColor.getrgb(spec["color"])[:3]
-    stroke_rgb = (0, 0, 0) if _luminance(color) > 0.55 else (255, 255, 255)
-    use_stroke = spec.get("stroke", True)
-    probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
-    px = max(int(height * spec["size"]), 8)
-    while True:
-        font = _font(px, style)
-        outline = max(round(px * 0.07), 2) if use_stroke else 0
-        pad = int(px * 0.25) if spec.get("background") else 0
-        lines = _wrap(text, font, box_w - 2 * (pad + outline), probe)
-        boxes = [probe.textbbox((0, 0), line, font=font, stroke_width=outline) for line in lines]
-        line_h = max((b[3] - b[1] for b in boxes), default=px) + int(px * 0.12)
-        bw = max((b[2] - b[0] for b in boxes), default=0) + 2 * pad
-        bh = rows * len(lines) * line_h + 2 * pad
-        if (bw <= box_w and bh <= box_h) or px <= 12:
-            break
-        px = max(int(px * 0.9), 12)
-    block = Image.new("RGBA", (max(bw, 1), max(bh, 1)), (0, 0, 0, 0))
-    shadow = Image.new("RGBA", block.size, (0, 0, 0, 0))
-    draw, shadow_draw = ImageDraw.Draw(block), ImageDraw.Draw(shadow)
-    if spec.get("background"):
-        draw.rectangle([0, 0, block.width - 1, block.height - 1], fill=ImageColor.getrgb(spec["background"])[:3] + (255,))
-    offset = max(int(px * 0.05), 1)
-    for r in range(rows):
-        for n, (line, b) in enumerate(zip(lines, boxes)):
-            lw = b[2] - b[0]
-            x = pad + {0.0: 0, 0.5: (bw - 2 * pad - lw) // 2, 1.0: bw - 2 * pad - lw}[ax if ax in (0.0, 1.0) else 0.5] - b[0]
-            y = pad + (r * len(lines) + n) * line_h - b[1]
-            shadow_draw.text((x + offset, y + offset), line, font=font, fill=(0, 0, 0, 170), stroke_width=outline, stroke_fill=(0, 0, 0, 170))
-            draw.text((x, y), line, font=font, fill=color + (255,), stroke_width=outline, stroke_fill=stroke_rgb + (255,))
-    block = Image.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(max(px * 0.04, 1))), block) if not spec.get("background") else block
-    if spec["rotate"]:
-        block = block.rotate(spec["rotate"], expand=True, resample=Image.BICUBIC)
-    x = min(max(round(x0 + ax * (box_w - block.width)), 0), max(width - block.width, 0))
-    y = min(max(round(y0 + ay * (box_h - block.height)), 0), max(height - block.height, 0))
-    canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    canvas.alpha_composite(block.crop((0, 0, min(block.width, width), min(block.height, height))), (x, y))
-    out.parent.mkdir(parents=True, exist_ok=True)
-    canvas.save(out)
-    return out
 
 
 ENTER_SECONDS, LEAVE_SECONDS = 0.35, 0.18  # an exit is about half an entrance

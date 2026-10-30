@@ -58,3 +58,31 @@ def test_subcuts_and_self_composites_shift_together(tmp_path):
 def test_invalid_source_offsets_are_rejected(start):
     with pytest.raises(AssemblyError):
         _source_offset(Revision('take_001','video.mp4',5,'ready',source_start_seconds=start),Fraction(5))
+
+
+@pytest.mark.parametrize("fps", [Fraction(24), Fraction(25), Fraction(30000, 1001)])
+def test_subcuts_cannot_read_after_slipped_take_end(tmp_path, fps):
+    sl = create_template(json.dumps({"shots": [{"duration": 3, "prompt": "Detail"}]}), tmp_path / "projects", fps=24, aspect_ratio="1:1", resolution=128, thumbnails=False)
+    store = ProjectStore(tmp_path / "projects", sl.project_id)
+    frames = round(3 * fps)
+    fx = {"sub_cuts": [{"frames": round(fps)}, {"frames": round(fps)}, {"frames": round(fps)}],
+          "overlay": [{"source": "self", "offset": 3, "opacity": .5, "blend": "screen", "scale": 1, "position": "center"}]}
+    segments = _fx_segments(sl.shots[0], "take_001", tmp_path / "video.mp4", Fraction(5), fx, frames, fps, 128, 128, store, source_offset=2)
+    for segment in segments:
+        duration = float(segment.seconds)
+        assert float(segment.seek[1]) + duration <= 5 + 1e-6
+        for layer in segment.layers:
+            assert float(layer.seek[1]) + duration <= 5 + 1e-6
+    assert sum(segment.frames for segment in segments) == frames
+
+
+def test_subcut_overrun_requires_explicit_padding(tmp_path):
+    sl = create_template(json.dumps({"shots": [{"duration": 4, "prompt": "Detail"}]}), tmp_path / "projects", fps=24, aspect_ratio="1:1", resolution=128, thumbnails=False)
+    store = ProjectStore(tmp_path / "projects", sl.project_id)
+    args = (sl.shots[0], "take_001", tmp_path / "video.mp4", Fraction(5), {"speed": 1}, 96, Fraction(24), 128, 128, store)
+    with pytest.raises(AssemblyError, match="only 3"):
+        _fx_segments(*args, source_offset=2)
+    warnings = []
+    result = _fx_segments(*args, source_offset=2, allow_padding=True, warnings=warnings)
+    assert result[0].seek == ["-ss", "2.000000"]
+    assert any("padded" in warning for warning in warnings)

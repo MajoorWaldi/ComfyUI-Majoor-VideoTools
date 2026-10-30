@@ -52,3 +52,6 @@ Keep this project's LICENSE, upstream notices and the existing vendored-helper L
 Video, music, likenesses, voices, fonts and user samples require their own rights. The synthesized Tone palette contains no downloaded third-party sound recordings and does not grant rights to unrelated media. No output is automatically made MIT by this repository's LICENSE.
 
 Competition-specific publication and authorization questions are tracked in [Studio readiness](docs/submission-readiness.md). Clearing documentation does not establish permission, publish either repository or submit an entry.
+
+
+Primary H3, YuE2 and GSAP texts were re-read on 2026-10-30. See the [dated verification and remaining gates](docs/license-verification-2026-10-30.md). This does not establish a missing personal authorization or a deployment right.

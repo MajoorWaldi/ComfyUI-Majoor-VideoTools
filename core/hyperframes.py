@@ -21,6 +21,7 @@ from .beats import strong_accents
 from .delivery_review import review_delivery
 from .errors import FFmpegError, MajoorError
 from .fingerprints import file_fingerprint, json_fingerprint
+from .export_transaction import atomic_json
 from .fx import TEXT_POSITIONS, safe_box
 from .hyperframes_layers import prepare_layers
 from .layout_review import subject_overlap
@@ -340,8 +341,21 @@ def render_hyperframes(source: Path, output_root: Path, direction_text='', cues_
         if cancelled and cancelled():
             raise InterruptedError('HyperFrames render cancelled')
         if result.is_file():
-            report = json.loads((project / 'report.json').read_text(encoding='utf-8'))
-            return result, {**report, 'original': str(source), 'reused': True}
+            try:
+                metadata = project / 'report.json'
+                if metadata.stat().st_size > 8_000_000:
+                    raise ValueError('Oversized HyperFrames cache report')
+                report = json.loads(metadata.read_text(encoding='utf-8'))
+                actual = probe(result, with_packets=False)
+                valid_cache = (isinstance(report, dict) and report.get('build_id') == VERSION
+                    and report.get('media_fingerprint') == file_fingerprint(result)
+                    and abs(float(actual.duration) - duration) <= 1 / fps + .01
+                    and actual.display_size == info.display_size and actual.has_audio == info.has_audio)
+                if valid_cache:
+                    return result, {**report, 'original': str(source), 'reused': True}
+            except (OSError, ValueError, TypeError, MajoorError):
+                pass  # An incomplete/stale cache is rebuilt under the same render lock.
+
         configured = json.loads(layers_text or '[]')
         configured = configured.get('layers', []) if isinstance(configured, dict) else configured
         sync_requested = any(isinstance(row, dict) and row.get('sync') == 'onset' for row in configured)
@@ -369,15 +383,16 @@ def render_hyperframes(source: Path, output_root: Path, direction_text='', cues_
                 raise RuntimeError('HyperFrames output failed duration, dimensions or audio validation')
             report = {'reused': False, 'layers': layers, 'mask_used': needs_mask(layers), 'renderer': 'hyperframes', 'preset': direction['preset'], 'direction': direction, 'cues': cues, 'audio_reactive': bool(audio['audio'] and direction['reactive']), 'hits': len(audio['hits']), 'project': str(project), 'original': str(source), 'limits': 'Bounded presets; plain brief selects a preset and #RRGGBB accent. Use JSON for precise control. No automatic tracking or semantic prompt generation.'}
             report.update(score_source='assembly_measured_music' if shared_score else 'final_mix_fallback', score_events=shared_score['events'] if shared_score else [], alignment=alignment, previews=previews, recovered_shutdown=recovered_shutdown, readability=layout_review)
-            delivered_audio = measure_loudness(staged)
+            delivered_audio = measure_loudness(staged, cancelled)
             report['delivered_audio'] = {'measurement': delivered_audio, 'assessment': assess_loudness(delivered_audio),
                                          'scope': 'decoded final remux; assessment is advisory for unnormalized input'}
             try:
                 report['delivery_review'] = review_delivery(staged, source)
             except Exception as error:
                 report['delivery_review'] = {'status': 'not_evaluated', 'reason': str(error)[:200]}
-            (project / 'report.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
+            report.update(build_id=VERSION, media_fingerprint=file_fingerprint(staged))
             staged.replace(result)
+            atomic_json(project / 'report.json', report)
         finally:
             silent.unlink(missing_ok=True)
             staged.unlink(missing_ok=True)

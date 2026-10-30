@@ -77,10 +77,10 @@
 **Impact :** deux workers avec stockage partagé peuvent effacer/écrire le même fichier intermédiaire ou modifier les logs ; échec, résultat incomplet ou course de cache.
 
 **Correction :**
-- [ ] Poser un verrou **par clé canonique d'export** autour de cache-check → encode → probe/QA → normalisation → commit final → sidecars ; verrou accessible à tous les processes/instances du même stockage.
-- [ ] Générer les fichiers de travail uniques (UUID/PID) **dans le même dossier/volume** pour garantir un rename atomique ; ne plus supprimer le .partial d'un autre worker.
-- [ ] Vérifier le rendu existant après acquisition du lock ; rendre la reprise idempotente et le nettoyage limité aux fichiers détenus par le worker courant.
-- [ ] Éviter l'écriture concurrente du même filter script / optional-audio.json / score / delivery JSON.
+- [x] Poser un verrou **par clé canonique d'export** autour de cache-check → encode → probe/QA → normalisation → commit final → sidecars ; verrou accessible à tous les processes/instances du même stockage.
+- [x] Générer les fichiers de travail uniques (UUID/PID) **dans le même dossier/volume** pour garantir un rename atomique ; ne plus supprimer le .partial d'un autre worker.
+- [x] Vérifier le rendu existant après acquisition du lock ; rendre la reprise idempotente et le nettoyage limité aux fichiers détenus par le worker courant.
+- [x] Éviter l'écriture concurrente du même filter script / optional-audio.json / score / delivery JSON.
 - [ ] Définir et tester timeout, annulation et comportement du lock sur Windows/SMB.
 
 **Tests :**
@@ -97,11 +97,11 @@
 **Impact :** clips, thumbs, dialogues, music preview ou export invisibles lorsque le projet n'est plus dans le dossier historique.
 
 **Correction :**
-- [ ] Introduire une seule couche de media locator : (storage_root, project_id, relative_path) → URI de média valide pour l'API ComfyUI, avec contrôle strict de l'ancrage au répertoire output.
+- [x] Introduire une seule couche de media locator : (storage_root, project_id, relative_path) → URI de média valide pour l'API ComfyUI, avec contrôle strict de l'ancrage au répertoire output.
 - [ ] Construire les payloads depuis la localisation réelle, pas depuis la constante historique ; contrôler la visibilité et la confidentialité des workspaces.
 - [ ] Migrer shots_payload, editor_payload, Shot Assemble preview, lecteurs JS et tout autre producteur de /view.
-- [ ] Prévoir explicitement l'accès local, multi-worker sur stockage partagé et cas **remote artifact transfer non pris en charge** plutôt que fournir une fausse URL.
-- [ ] Aucun chemin absolu du serveur ne doit être divulgué dans les URLs de navigateur.
+- [x] Prévoir explicitement l'accès local, multi-worker sur stockage partagé et cas **remote artifact transfer non pris en charge** plutôt que fournir une fausse URL.
+- [x] Aucun chemin absolu du serveur ne doit être divulgué dans les URLs de navigateur.
 
 **Tests :**
 - [ ] Projet historique output/MajoorVideoTools/p_<id> et projet isolé output/_hyperkut_workspaces/<id>/projects/p_<id>.
@@ -116,11 +116,11 @@
 **Impact :** une timeline C–A–B peut afficher les images C–A–B et produire le son A–B–C lorsque source_master est choisi. Correct pour une musique verrouillée ; faux pour du son synchrone.
 
 **Correction :**
-- [ ] Définir les contrats explicites Music Locked, Audio Follows Picture et Independent Dialogue (et leurs combinaisons), avec mapping clair des réglages existants.
+- [x] Définir les contrats explicites Music Locked, Audio Follows Picture et Independent Dialogue (et leurs combinaisons), avec mapping clair des réglages existants.
 - [ ] Implémenter ou documenter distinctement le véritable audio « follow source windows » : clip id, media ref, in/out, slip, duplications, trims, silence par défaut, canaux.
 - [ ] Clarifier la priorité voice_shots / replace_source_audio / audio_policy / preserve_dialogue / audio input ; avertissement non ambigu dans UI.
 - [ ] Respecter durée, fades, phase musicale, ducking et loudness sans tronquer silencieusement une phrase.
-- [ ] Ne pas changer silencieusement l'ancienne sémantique de source_master ; migration/config explicite si nouvelle politique.
+- [x] Ne pas changer silencieusement l'ancienne sémantique de source_master ; migration/config explicite si nouvelle politique.
 
 **Tests :**
 - [ ] Source vidéo rouge/bleue avec audio 440/880 Hz ; ordre C–A–B, duplication, slip et trim → fréquence associée à chaque segment quand Follow Picture.
@@ -137,9 +137,9 @@
 
 **Correction :**
 - [ ] Utiliser un modèle de fenêtres **[available_start, available_end)** en temps rationnel / frames, unique pour timeline, previews et assembleur.
-- [ ] Calculer remaining_duration = file_duration - source_start avant toute découpe et tout speed mapping.
-- [ ] Appliquer les limites également aux layers self, overlay, split et aux speed ramps.
-- [ ] Définir la politique de dépassement : erreur explicite, ou padding uniquement s'il est demandé et documenté.
+- [x] Calculer remaining_duration = file_duration - source_start avant toute découpe et tout speed mapping.
+- [x] Appliquer les limites également aux layers self, overlay, split et aux speed ramps.
+- [x] Définir la politique de dépassement : erreur explicite, ou padding uniquement s'il est demandé et documenté.
 - [ ] Éviter les accumulations de floats pour des séquences fractionnelles 24000/1001 ou 30000/1001.
 
 **Tests :**
@@ -173,10 +173,10 @@
 **Preuve :** tests/integration/test_workflows.py:test_every_variable_of_a_math_expression_is_wired contient des octets backspace (0x08) autour de [a-z] au lieu du délimiteur regex \b.
 
 **Correction :**
-- [ ] Remplacer les caractères de contrôle par la vraie regex brute r"\b[a-z]\b".
+- [x] Remplacer les caractères de contrôle par la vraie regex brute r"\b[a-z]\b".
 - [ ] Tester le fonctionnement sur une expression connue, et pas seulement sur les JSON existants.
 - [ ] Ajouter un mutation test : retirer un câble d'une variable utilisée doit faire échouer le test.
-- [ ] Auditer les autres caractères de contrôle accidentels dans les tests et textes source.
+- [x] Auditer les autres caractères de contrôle accidentels dans les tests et textes source.
 
 **Acceptation :** test rouge lors d'une suppression volontaire de lien, vert sur workflow intact.
 
@@ -186,10 +186,10 @@
 **Preuve :** core/fx.py:_number convertit en float et compare aux bornes, mais ne teste pas explicitement math.isfinite.
 
 **Correction :**
-- [ ] Rejeter NaN, +inf, -inf, bool et types incompatibles avant la logique de clamp.
-- [ ] Préserver le clamp existant pour nombres finis hors bornes lorsque c'est le contrat voulu.
+- [x] Rejeter NaN, +inf, -inf, bool et types incompatibles avant la logique de clamp.
+- [x] Préserver le clamp existant pour nombres finis hors bornes lorsque c'est le contrat voulu.
 - [ ] Vérifier speed, zoom, focus, start, transition, text, opacity et positions transitives.
-- [ ] Émettre un message indiquant champ, shot et cause au lieu d'envoyer NaN à FFmpeg.
+- [x] Émettre un message indiquant champ, shot et cause au lieu d'envoyer NaN à FFmpeg.
 
 **Tests :** paramétrer toutes les entrées numériques pertinentes en NaN/inf, valeurs normales et bornes.
 
@@ -199,10 +199,10 @@
 **Preuve :** nodes/create_timeline.py:audio_file crée/supprime un WAV temporaire ; core/assembler.py:delivery_timeline utilise str(opts.music) comme audio_source.
 
 **Correction :**
-- [ ] Remplacer la provenance volatile par des champs durables (asset id, sha256, durée, sample rate, provenance/rights, éventuel chemin persistant projet).
+- [x] Remplacer la provenance volatile par des champs durables (asset id, sha256, durée, sample rate, provenance/rights, éventuel chemin persistant projet).
 - [ ] Conserver les assets requis à la reprise ou établir une politique explicite de nettoyage/refetch.
-- [ ] Ne pas stocker un chemin temporaire supprimé comme identité définitive du média.
-- [ ] Versionner le schéma des sidecars et migrer proprement les anciens rapports.
+- [x] Ne pas stocker un chemin temporaire supprimé comme identité définitive du média.
+- [x] Versionner le schéma des sidecars et migrer proprement les anciens rapports.
 
 **Tests :** après la fin du context manager et après relance de ComfyUI, les métadonnées identifient toujours le même asset.
 
@@ -213,10 +213,10 @@
 
 **Correction :**
 - [ ] Calculer une signature des frontières/PTS/paramètres et comparer explicitement le nouvel état au manifest.
-- [ ] Si identique : retourner le manifest courant avec ses takes, sans effacer les révisions.
+- [x] Si identique : retourner le manifest courant avec ses takes, sans effacer les révisions.
 - [ ] Si différent : créer une nouvelle révision/identité de collection ou lancer une migration explicite des takes, jamais une réconciliation implicite risquant de mal assigner SHOT_003.
 - [ ] Rendre force_refresh idempotent et décrire son action sur les caches et thumbnails.
-- [ ] Ajouter diagnostic clair si le même project_id référence des découpages incompatibles.
+- [x] Ajouter diagnostic clair si le même project_id référence des découpages incompatibles.
 
 **Tests :** simulateur de nouvelles boundaries sous même source/détecteur, manifests persistés et reload.
 
@@ -390,3 +390,64 @@ Un ticket est terminé seulement si :
 - README.md, ROADMAP.md, CHANGELOG.md, LICENSES.md, docs/submission-readiness.md
 
 **Fin du document : aucun item n'a été coché artificiellement.**
+
+
+## Suivi initial de préparation — 2026-10-30 (historique)
+
+Ce tableau décrit la passe initiale, avant la demande de tout développer et valider. Les mentions NOT RUN/RFC ci-dessous sont historiques ; les résultats ultérieurs figurent dans la section suivante et la matrice. La checklist globale G0–G17 reste ouverte tant que ses critères d'acceptation ne sont pas établis.
+
+| Ticket | Réalisé dans cette passe | Validation / reste |
+|---|---|---|
+| G0 | H3/YuE2/GSAP relus sur sources officielles ; déclaration d'autorisation H3 du propriétaire enregistrée | Document d'autorisation et payload final non examinés ; gate non clôturée |
+| G1 | Verrou par export, fichiers UUID, recheck cache, SFX/PNG atomiques sous locks, annulation avant commit et pendant normalisation | Tests deux processus/annulation préparés ; NOT RUN ; SMB/interruption/différentes clés à qualifier |
+| G2 | Locator unique output-relative ; shots/editor/final export migrés ; références et échappements contrôlés | Tests chemins préparés ; NOT RUN ; visibilité navigateur et autorisation multi-user non qualifiées |
+| G3 | Mapping audio, priorités, limites des ramps/dialogues documentés ; tooltip clarifié sans changer les valeurs sérialisées | Qualification audio décodée/reorder/dup/slip à exécuter ; aucun nouvel algorithme de phrase inventé |
+| G4 | Durée restante après slip ; bornes main/self/autre take ; refus hors capacité sauf padding demandé avec warning ; cumul des durées en Fraction | Tests 24/25/29.97, self-overlay et dépassement préparés ; NOT RUN ; qualification composite/ramps complète restante |
+| G5 | Collecteur explicite environnement/workflows/checkpoints préparé ; matrice d'installation et modèles séparée | Collecteur NOT RUN ; clone neuf, pins complets et 3 parcours GPU non exécutés |
+| G6 | Regex réparée, garde caractères de contrôle ; mutation sur expression connue et workflows réels ajoutée | Inspection statique des trois JSON sans variable manquante ; pytest NOT RUN |
+| G7 | Non-finis/bool/overflow rejetés avant clamp ; paramètres d'assemblage et FX persistés revalidés | Régressions paramétrées ajoutées ; NOT RUN |
+| G8 | Musique persistée par SHA-256 ; delivery v2 et lecteur v1/v2 ; provenance relative et droits non inventés | Test suppression WAV préparé ; NOT RUN ; reprise/portabilité complète du paquet à qualifier |
+| G9 | Découpage inchangé recharge le manifest courant/takes ; changement incompatible refusé avant écrasement | Régressions préparées ; NOT RUN ; pas de migration automatique des anciens takes |
+| G10 | Cumul temporel des sous-coupes en Fraction ; fixtures CFR/fractional/rotation préparées | NOT RUN ; VFR/PTS/audio-first/multipistes/colorimétrie restent à qualifier |
+| G11 | Mention preview brute/export autoritatif visible ; lifecycle existant relu | Tests navigateur/seek/buffering/autoplay/listeners NOT RUN ; pas de promesse de parité pixels avec FX |
+| G12 | Cache assembly dépend des fichiers réels et du build ; score/delivery atomiques, SFX/PNG verrouillés ; cache HF re-probé avec empreinte/build ; score obsolète retiré | Régressions spécifiques et crash/reprise globale NOT RUN ; rétention/espace disque restent explicites |
+| G13 | Contrat/RFC social versus master VFX rédigé ; perte de précision yuv420p identifiée | Design, pas de nouveau profil activé avant tests 10-bit/chroma/couleur/alpha |
+| G14 | RFC de graphe versionné : occurrences, temps rationnels, bus, provenance, migration et rollback | RFC seulement ; compilateur unique/preview consumer pas implémentés avant qualification des contrats existants |
+| G15 | Protocole benchmark autorisé et grille humaine/narrative définis | R&D ; médias/mesures/review humaine non exécutés ; aucune équivalence Katana prétendue |
+| G16 | Routes et frontières locales recensées ; confinement locator et refus des références hors output durcis | Pas d'hébergement public ouvert ; auth/quota/isolation multi-user et tests de refus globaux non qualifiés |
+| G17 | README/ROADMAP/CHANGELOG et readiness actualisés ; état beta/expérimental et NOT RUN explicites | Release go/no-go dépend des preuves encore ouvertes |
+
+### Livrables liés
+
+- [Contrat audio](audio-policy-contract.md)
+- [Exports, caches, reprise et provenance](export-transactions.md)
+- [Matrice de qualification et commandes préparées](qualification-matrix.md)
+- [RFC moteur éditorial, profils master et benchmark](editorial-engine-rfc.md)
+- [Frontière sécurité locale](local-security-boundary.md)
+- [Licences relues et déclaration du propriétaire](license-verification-2026-10-30.md)
+
+### Résultats de la passe initiale (historique)
+
+- PASS statique : syntaxe Python compatible 3.10, absence de caractères de contrôle accidentels dans les sources ciblées, câblage mathématique des trois workflows et contrôles whitespace (rapport final enregistré séparément).
+- NOT RUN : pytest, Node/browser tests, FFmpeg, ComfyUI, H3/YuE2, installation neuve, concurrence SMB et E2E.
+- Aucun item global n'est marqué terminé sur la seule base de tests écrits.
+
+## Développement et qualification locale exécutés — 2026-10-30
+
+Cette passe remplace l'état « tests préparés seulement » sans clôturer artificiellement les 18 tickets.
+
+- PASS moteur : **616 tests, 2 skips**, après correction d'un décalage audio réel de +250 ms ; les skips ne sont pas des passes. Le test supplémentaire du benchmark et les 5 tests de graphe passent ensuite (**6/6**).
+- PASS Studio distinct : **425 tests, 7 skips** ; **10 tests d'accès** repassés après placement de l'admission avant tous les middlewares de routes. Frontend : **129 tests / 24 fichiers**, build TypeScript/Vite réussi. Web du pack : **8 fichiers de tests**.
+- PASS réel : script nœuds **79 OK / 0 échec**, Timeline Edit, soumission `/prompt` sur ComfyUI CPU hors ligne isolé, montage 72 frames avec/sans musique, persistance et réutilisation cache.
+- PASS Chromium : sources/prises/musique, miniatures, audio persistant et exports servis en HTTP 206 ; décodage média/images en racines classique et isolée. Lecture/seek/buffer, rejet autoplay explicite, undo/redo et libération média après fermeture/réouvertures testés. Pas de parité pixels/FX ni parcours complet comparaison/Studio revendiqué.
+- PASS G1 local : mêmes clés sérialisées, deux véritables encodages simultanés sur clés distinctes, annulation pendant FFmpeg puis reprise dans un autre processus, timeout/annulation de lock. SMB et kill OS brutal non exécutés.
+- G8/G12 : audio durable indexé dans `sources/audio`, protection des sources/takes/exports/références, rétention régénérable par âge/budget/espace avec leases. Transport snapshot testé mais encore expérimental et Git-ignoré dans le dépôt Studio distinct : non livré par un commit normal.
+- G13 : profils ProRes HQ, DNxHR HQX et ProRes 4444 alpha implémentés ; mires décodées haute profondeur/alpha/tags passent. Chaînes legacy 8-bit refusées ; qualification exhaustive effets/couleur restante.
+- G14 : compilateur d'intention rationnel partagé et adaptateurs legacy/manual/preview testés. Expansion finale FX/durée encore dans assembler ; frontend non unifié sur un graphe résolu. **Développement restant, pas seulement validation.**
+- G15 : benchmark procédural autorisé de **6 s / 144 frames**, coupes 36/72/108 exactes, fréquences des prises 880/440/660/880 Hz et musique 220 Hz continue. Pas de benchmark narratif H3 ni revue humaine.
+- G16 : admission local/jury fail-closed et budget uploads ajoutés dans Studio. Pas de TLS public testé, ACL multiutilisateur ni quota global sorties/GPU.
+- G5 : inventaire environnement/workflows et clone local neuf + patch courant, dépendances Python 3.11 neuves : **115 tests ciblés passent**. Ce n'est pas une installation ComfyUI/H3/Studio intégrale certifiée.
+
+G0 reste ouvert, avec une preuve nouvelle : un extrait d'e-mail fourni par l'utilisateur confirme une autorisation spécifique d'utiliser H3 et H3 Works, sous condition du respect des engagements de sa demande initiale. Il faut examiner cette demande pour vérifier la portée France/jury/hébergement ; le message n'a pas été authentifié indépendamment. L'exclusion territoriale de la licence communautaire ne suffit donc plus à décrire ce cas individuel, sans pour autant établir une dérogation générale pour les utilisateurs du pack. Aucun partage SMB ou créneau GPU/revue humaine fourni. Révisions des poids et droits du payload final non vérifiés.
+
+**G17 : NO-GO publication.** Aucun modèle téléchargé/exécuté, aucune ouverture publique, aucun commit/push/release. Les changements préexistants des deux dépôts ont été conservés. [Matrice actuelle, commandes et limites](qualification-matrix.md), [contrats master/graphe](editorial-engine-rfc.md) et [frontière d'accès](local-security-boundary.md) détaillent le reste.

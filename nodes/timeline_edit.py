@@ -7,12 +7,13 @@ from pathlib import Path
 import numpy as np
 from comfy_api.latest import io
 
-from ..adapters.comfy_video import MajoorShotList, OUTPUT_SUBFOLDER, projects_root
+from ..adapters.comfy_video import MajoorShotList, project_media_base, projects_root
 from ..core.beats import write_wav
 from ..core.errors import ManifestError
 from ..core.paths import ProjectStore
 from ..core.timeline_edit import compile_edit, dialogue_bounds, initial_document, parse_document, take_bounds
 from ..core.dialogue_track import audio_preview
+from ..core.editorial_graph import compile_project, preview_adapter
 
 
 def music_preview(store: ProjectStore, music) -> dict | None:
@@ -58,6 +59,7 @@ def editor_payload(shot_list, store: ProjectStore, music) -> dict:
         for revision in shot.revisions:
             if shot_list.source.template and revision.media_range is not None:
                 continue
+            project_media_base(shot_list, revision.media_ref)
             offset, frames = take_bounds(shot_list, shot, revision)
             if not store.resolve(revision.media_ref).is_file():
                 raise FileNotFoundError(f"{shot.shot_id}/{revision.revision_id}: {revision.media_ref} is missing")
@@ -70,7 +72,7 @@ def editor_payload(shot_list, store: ProjectStore, music) -> dict:
                           "offset": float(offset), "frames": frames, "prompt": revision.generation_prompt,
                           "audio": audio})
         library.append({"id": shot.shot_id, "takes": takes})
-    return {"base": f"{OUTPUT_SUBFOLDER}/{shot_list.project_id}", "library": library,
+    return {"base": project_media_base(shot_list), "library": library,
             "initial": initial_document(shot_list), "music": music_preview(store, music)}
 
 
@@ -95,4 +97,5 @@ class MajoorTimelineEdit(io.ComfyNode):
         result = compile_edit(shot_list, document)
         payload = editor_payload(shot_list, ProjectStore(projects_root(shot_list), shot_list.project_id), music)
         payload["document"] = document
+        payload["editorial_graph"] = preview_adapter(compile_project(shot_list, document))
         return io.NodeOutput(result, music, ui={"majoor_timeline": [payload]})

@@ -42,6 +42,7 @@ function mount(node) {
       const doc = text.trim() ? JSON.parse(text) : payload.document;
       validateEdit(doc, payload);
       const close = openTimelineEditor(payload, doc, {
+        labels: { preview: "Raw-take preview — export is authoritative for timing and audio." },
         urlFor(file) {
           const index = file.lastIndexOf("/");
           const params = new URLSearchParams({ filename: file.slice(index + 1), type: "output",

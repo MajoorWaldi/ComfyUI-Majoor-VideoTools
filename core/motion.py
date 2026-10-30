@@ -560,7 +560,8 @@ def render_motion(source: Path, layers: list[dict], out: Path, on_progress=None,
         if on_progress:
             on_progress(1.0)
     out.parent.mkdir(parents=True, exist_ok=True)
-    temporary = out.with_suffix('.partial.mp4')
+    import uuid
+    temporary = out.with_name(out.stem + '.' + uuid.uuid4().hex + '.partial.mp4')
     try:
         shutil.copy2(result, temporary)
         temporary.replace(out)

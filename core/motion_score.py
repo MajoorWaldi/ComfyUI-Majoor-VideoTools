@@ -18,7 +18,9 @@ def build_score(rows, timeline, duration, fps, hits=()):
 
 
 def write_score(store, video: Path, score):
-    if score is not None:
+    if score is None:
+        store.resolve(store.rel(video) + '.score.json').unlink(missing_ok=True)
+    else:
         store.write_json(store.rel(video) + '.score.json', {**score, 'video_fingerprint': file_fingerprint(video)})
 
 
@@ -33,5 +35,5 @@ def read_score(video: Path, rows, duration, fps):
                 or abs(data['duration'] - duration) > 1 / fps or abs(data['fps'] - fps) > .001):
             return None
         return data
-    except (KeyError, TypeError, ValueError):
+    except (OSError, KeyError, TypeError, ValueError):
         return None

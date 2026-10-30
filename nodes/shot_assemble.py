@@ -4,7 +4,7 @@ import comfy.model_management
 import comfy.utils
 from comfy_api.latest import VideoFromFile, io
 
-from ..adapters.comfy_video import OUTPUT_SUBFOLDER, MajoorShotList, projects_root
+from ..adapters.comfy_video import project_media_base, MajoorShotList, projects_root
 from ..core.assembler import (
     AUDIO_POLICIES, CODECS, DURATION_POLICIES, FORMATS, FPS_POLICIES, MISSING_POLICIES, ORDER_MODES, AssemblyOptions, assemble_shots,
 )
@@ -14,6 +14,7 @@ from ..core.errors import MajoorError
 from ..core.music_cuts import MODES, musical_take_cuts
 from ..core.dialogue_track import KEY as DIALOGUE_KEY
 from ..core.timeline_sources import CUT_EVERY
+from ..core.delivery_profiles import PROFILES, COLOR_POLICIES
 from .create_timeline import audio_file
 
 
@@ -34,7 +35,7 @@ class MajoorShotAssemble(io.ComfyNode):
                 io.Combo.Input("duration_policy", options=list(DURATION_POLICIES), default="trim_or_pad_last_frame"),
                 io.Combo.Input("fps_policy", options=list(FPS_POLICIES), default="source"),
                 io.Float.Input("output_fps", default=24.0, min=1.0, max=240.0, step=0.001, optional=True, tooltip="Used only when fps_policy is fixed."),
-                io.Combo.Input("audio_policy", options=list(AUDIO_POLICIES), default="source_master"),
+                io.Combo.Input("audio_policy", options=list(AUDIO_POLICIES), default="source_master", tooltip="source_master: continuous original soundtrack, even after reorder. shot_audio: audio follows each selected take and trim (speed ramps are silent). mute: no take/source audio. Independent dialogue replaces these buses; supplied music remains locked at zero."),
                 io.Combo.Input("output_format", options=list(FORMATS), default="mp4"),
                 io.Combo.Input("video_codec", options=list(CODECS), default="h264"),
                 io.String.Input("output_name", default="majoor_edit"),
@@ -63,6 +64,10 @@ class MajoorShotAssemble(io.ComfyNode):
                 io.Combo.Input("music_cut_mood", options=["auto", "calm", "confident", "dreamy", "intense"], default="auto", optional=True),
                 io.Audio.Input("dialogue", optional=True, tooltip="Independent dialogue bus starting at zero. Replaces take audio, unaffected by video cuts/speed. Longer than the video is an error, never silently truncated."),
                 io.Boolean.Input("preserve_dialogue", default=False, optional=True, tooltip="With voice_shots: preserve full available take audio on an independent bus. If a sentence/take exceeds the montage, stop and request an explicit dialogue edit rather than truncating it."),
+                io.Combo.Input("delivery_profile", options=list(PROFILES), default="social", optional=True,
+                               tooltip="Social keeps H.264. ProRes/DNxHR masters require MOV, preserve 10-bit processing and use PCM audio. ProRes 4444 retains alpha. Not an HDR/OCIO conversion."),
+                io.Combo.Input("color_policy", options=list(COLOR_POLICIES), default="require_bt709", optional=True,
+                               tooltip="Master profiles require tagged SDR BT.709 sources. assume_bt709 is an explicit assumption for untagged inputs, never a conversion from HDR."),
             ],
             outputs=[io.Video.Output(display_name="video")],
         )
@@ -70,7 +75,8 @@ class MajoorShotAssemble(io.ComfyNode):
     @classmethod
     def execute(cls, shot_list, assembly_mode, missing_shot_policy, duration_policy, fps_policy, audio_policy, output_format, video_codec, output_name, manual_order="", output_fps=24.0, effects=True, sub_cuts=True, music=None, sfx=None, music_volume=1.0, sfx_volume=1.0, music_fade=0.5, replace_source_audio=False, voice_shots=False, text=True, shot_volume=1.0, duck_music=0.0, auto_sfx=False,sfx_library="",motion_layers="",loudness_target=0.0,
                 music_edit_mode="legacy", music_cut_density="auto", music_cut_variation=0.5, music_cut_sync=0.8,
-                music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", dialogue=None, preserve_dialogue=False) -> io.NodeOutput:
+                music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", dialogue=None, preserve_dialogue=False,
+                delivery_profile="social", color_policy="require_bt709") -> io.NodeOutput:
         audio_policy = "shot_audio" if voice_shots else "mute" if replace_source_audio else audio_policy
         bar = comfy.utils.ProgressBar(1000)
         rhythm_warnings = []
@@ -78,6 +84,8 @@ class MajoorShotAssemble(io.ComfyNode):
             opts = AssemblyOptions(assembly_mode, manual_order, missing_shot_policy, duration_policy, fps_policy, output_fps, audio_policy, output_format, video_codec, output_name, effects, sub_cuts,
                                    stack.enter_context(audio_file(music)), stack.enter_context(audio_file(sfx)), music_volume, sfx_volume, music_fade, text, shot_volume, duck_music, auto_sfx,sfx_library,motion_layers,loudness_target)
             opts.dialogue = stack.enter_context(audio_file(dialogue))
+            opts.delivery_profile = delivery_profile
+            opts.color_policy = color_policy
             if preserve_dialogue and voice_shots and dialogue is None and not any(DIALOGUE_KEY in (s.plan or {}) for s in shot_list.shots):
                 opts.preserve_dialogue = True
             if music_edit_mode not in MODES:
@@ -104,5 +112,5 @@ class MajoorShotAssemble(io.ComfyNode):
             result.warnings.extend(rhythm_warnings)
         summary = f"{result.shot_count} shots · {result.modified_count} modified · {format_timecode(result.duration_seconds)}" + ("\n(reused existing export)" if result.reused else "")
         summary += "".join(f"\n⚠ {w}" for w in result.warnings)
-        preview = {"filename": result.path.name, "subfolder": f"{OUTPUT_SUBFOLDER}/{shot_list.project_id}/exports", "type": "output"}
+        preview = {"filename": result.path.name, "subfolder": project_media_base(shot_list, "exports"), "type": "output"}
         return io.NodeOutput(VideoFromFile(str(result.path)), ui={"images": [preview], "animated": (True,), "text": (summary,), "majoor_assembly": [{"shots": [{"id": i, "take": t, "duration": d} for i, t, d in result.timeline], "warnings": result.warnings}]})

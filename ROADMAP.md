@@ -26,3 +26,10 @@ Continuous narration/transcription/subtitles; data-driven infographic layouts an
 Generated quality is model-dependent and needs human review. The local Studio expects shared media storage; public multi-user hosting and remote artifact transfer are not qualified. Model, dependency and media terms remain separate.
 
 [Pack README](README.md) · [Model inventory](docs/models-and-downloads.md) · [License scope](LICENSES.md) · [Studio source](https://github.com/MajoorWaldi/HyperKut-Studio)
+
+
+## Audit remediation tracking
+
+Robustness work now has executed local evidence: output-key export locks, actual-workspace media URLs, source-offset-aware cut/layer limits, non-finite FX rejection, persistent audio, saved-detection reconciliation, corruption checks and lease-protected cache retention. See the [qualification matrix](docs/qualification-matrix.md) for precise PASS scope and still-open acceptance cases.
+
+Explicit SDR master delivery and the first rational editorial-intent compiler are [partially implemented and tested](docs/editorial-engine-rfc.md), no longer RFC-only. Complete FX/render-graph unification, broad master qualification and narrative/human approval remain open. Jury admission exists in the separate Studio, but public multi-user deployment remains outside the qualified boundary.
