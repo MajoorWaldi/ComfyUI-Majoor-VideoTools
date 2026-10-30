@@ -55,7 +55,12 @@ def review_delivery(video, timeline_source=None):
     from .media_probe import probe
     metadata_path = timeline_path(timeline_source or video)
     if not metadata_path.is_file(): return {'status': 'not_evaluated', 'reason': 'no_assembly_timeline'}
-    data = json.loads(metadata_path.read_text(encoding='utf-8'))
+    try:
+        data = json.loads(metadata_path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {'status': 'not_evaluated', 'reason': 'invalid_assembly_timeline'}
+    if not isinstance(data, dict) or data.get('version') not in (1, 2) or not isinstance(data.get('boundaries'), list):
+        return {'status': 'not_evaluated', 'reason': 'unsupported_assembly_timeline'}
     if data.get('video_fingerprint') != file_fingerprint(timeline_source or video):
         return {'status': 'not_evaluated', 'reason': 'stale_assembly_timeline'}
     info = probe(video, with_packets=False)

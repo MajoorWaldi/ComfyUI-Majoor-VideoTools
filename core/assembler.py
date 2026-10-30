@@ -3,6 +3,7 @@ import json
 import math
 import os
 import wave
+import uuid
 from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from pathlib import Path
@@ -12,19 +13,23 @@ import numpy as np
 
 from ..adapters.ffmpeg import run_ffmpeg
 from .audio_quality import normalize_loudness
+from .cache_policy import cache_session
+from .delivery_profiles import get_profile, output_options, qualify_inputs, validate_delivery
+from .editorial_graph import compile_project
+from .export_transaction import export_lock, durable_audio
 from .beats import read_wav_mono, strong_accents, write_wav
 from .errors import AssemblyError, MediaError, ShotNotFoundError
 from .fingerprints import file_fingerprint, json_fingerprint
-from .fx import merged, overlay_filters, render_text, segment_chain, source_seconds, split_filters, split_frames, text_overlay_filters, transition_filters
+from .fx import validate_stored_fx, merged, overlay_filters, render_text, segment_chain, source_seconds, split_filters, split_frames, text_overlay_filters, transition_filters
 from .media_probe import probe
 from .models import ORIGINAL, Shot, ShotList
 from .paths import ProjectStore, sanitize_name
 from .sfx import CUES, RATE as SFX_RATE, plan_cues, render_track
 from .sfx_library import load_library
-from .timeline import shot_duration, shot_start
+from .timeline import shot_duration
 from .timeline_edit import EDIT_KEY, MUSIC_GAIN_KEY, take_bounds
 
-ASSEMBLY_VERSION = "4"
+ASSEMBLY_VERSION = "5"
 ORDER_MODES = ("original_order", "manual_order")
 MISSING_POLICIES = ("error", "use_original")
 DURATION_POLICIES = ("trim_or_pad_last_frame", "trim_or_error", "retime_to_target", "use_generated_duration")
@@ -63,6 +68,8 @@ class AssemblyOptions:
     loudness_target: float = 0.0  # LUFS of the finished edit (for example -14); 0 leaves the mix as it is
     dialogue: Path | None = None
     preserve_dialogue: bool = False
+    delivery_profile: str = "social"
+    color_policy: str = "require_bt709"
 
 
 @dataclass
@@ -147,30 +154,53 @@ def ordered_shots(shot_list: ShotList, opts: AssemblyOptions) -> list[Shot]:
 
 def _fx_segments(shot: Shot, revision_id: str, path: Path, actual: Fraction, fx: dict, target_frames: int, fps: Fraction, width: int, height: int, store: ProjectStore,
                  use_sub_cuts: bool = True, resolve_take: Callable[[str], tuple[Path, Fraction] | tuple[Path, Fraction, float] | None] | None = None, warnings: list[str] | None = None,
-                 has_audio: bool = False, source_offset: float = 0.0) -> list[Segment]:
+                 has_audio: bool = False, source_offset: float = 0.0, allow_padding: bool = False) -> list[Segment]:
     """One segment per sub-cut (or a single one), all read from the same generated take with their own seek, speed, zoom and look."""
     subs = (fx.get("sub_cuts") if use_sub_cuts else None) or [None]
     frames = split_frames(target_frames, [c["frames"] for c in subs], 1) if subs[0] else [target_frames]
     subs = subs[: len(frames)]
     overlay = render_text(fx["text"], width, height, store.resolve("cache/text")) if fx.get("text") else None
-    segments, offset, elapsed = [], 0.0, 0.0
+    available = float(actual - Fraction(str(source_offset)))
+    if not math.isfinite(available) or available <= 0:
+        raise AssemblyError(f"{shot.shot_id}: no media remains after source offset")
+
+    def bounded_start(requested, needed, length, context):
+        if not math.isfinite(float(requested)) or not math.isfinite(needed) or needed <= 0:
+            raise AssemblyError(f"{shot.shot_id}: {context} has invalid source timing")
+        if not math.isfinite(length) or length <= 0:
+            raise AssemblyError(f"{shot.shot_id}: {context} has no available source media")
+        if needed > length + 1e-7:
+            if not allow_padding:
+                raise AssemblyError(f"{shot.shot_id}: {context} needs {needed:.6f}s but only {length:.6f}s remains after source offset")
+            if warnings is not None:
+                message = f"{shot.shot_id}: {context} padded with its last frame (needs {needed:.6f}s, available {length:.6f}s)"
+                if message not in warnings:
+                    warnings.append(message)
+        bounded = max(0.0, min(float(requested), max(0.0, length - needed)))
+        if abs(bounded - float(requested)) > 1e-7 and warnings is not None:
+            message = f"{shot.shot_id}: {context} start clamped inside available source window"
+            if message not in warnings:
+                warnings.append(message)
+        return bounded
+
+    segments, offset, elapsed = [], 0.0, Fraction(0)
     for i, (sub, n) in enumerate(zip(subs, frames)):
         spec = merged(fx, sub)
         overlays, split = spec.pop("overlay", None) or [], spec.pop("split", None)
         composing = bool(overlays or split)
-        out_seconds = n / float(fps)
+        out_seconds = float(Fraction(n) / fps)
         need = source_seconds(spec, out_seconds)
         start = (sub or {}).get("start")
         if start is None:
             start = offset
+        start = bounded_start(start, need, available, "sub-cut")
         offset = start + need
-        start = max(0.0, min(start, float(actual) - need))  # keep the cut inside the take
         transition = (sub or {}).get("transition") if sub and "transition" in sub else (fx.get("transition") if i == 0 else None)
         chain = segment_chain(spec, n, fps, width, height, transition, apply_transition=not composing)
         seek = ["-ss", f"{start + source_offset:.6f}"] if start + source_offset > 0 else []
 
         def layer_of(entry: dict, kind: str) -> Layer:
-            source_path, source_length = path, actual
+            source_path, source_length = path, Fraction(str(available))
             layer_offset = source_offset
             if entry["source"] != "self":
                 found = resolve_take(entry["source"]) if resolve_take else None
@@ -180,11 +210,11 @@ def _fx_segments(shot: Shot, revision_id: str, path: Path, actual: Fraction, fx:
                 else:
                     source_path, source_length = found[:2]
                     layer_offset = found[2] if len(found) > 2 else 0.0
-            at = max(0.0, min(start + entry.get("offset", 0.0), float(source_length) - need))
+            at = bounded_start(start + entry.get("offset", 0.0), need, float(source_length), kind)
             layer_spec = {k: spec[k] for k in ("speed", "speed_ramp") if k in spec} | {k: entry[k] for k in ("zoom", "focus", "flip", "look") if k in entry}
             return Layer(source_path, ["-ss", f"{at + layer_offset:.6f}"] if at + layer_offset > 0 else [], segment_chain(layer_spec, n, fps, width, height, None), kind, entry)
 
-        segment = Segment(shot, revision_id, path, seek, has_audio, False, n, Fraction(n) / fps, chain, overlay, overlay_spec=fx.get("text"), overlay_offset=elapsed, shot_seconds=target_frames / float(fps), cue=CUES.get(transition["type"], "") if transition else ("hit" if i == 0 else ""),
+        segment = Segment(shot, revision_id, path, seek, has_audio, False, n, Fraction(n) / fps, chain, overlay, overlay_spec=fx.get("text"), overlay_offset=float(elapsed), shot_seconds=target_frames / float(fps), cue=CUES.get(transition["type"], "") if transition else ("hit" if i == 0 else ""),
                           audio_speed=float(spec.get("speed", 1.0)), audio_ramp="speed_ramp" in spec)
         if split:
             segment.compose, segment.layout = "split", split["layout"]
@@ -195,7 +225,7 @@ def _fx_segments(shot: Shot, revision_id: str, path: Path, actual: Fraction, fx:
         if composing:
             segment.post = ",".join(transition_filters(transition, n, fps, width, height, include_punch=True))
         segments.append(segment)
-        elapsed += out_seconds
+        elapsed += Fraction(n) / fps
     return segments
 
 
@@ -227,7 +257,9 @@ def _plan(shot_list: ShotList, store: ProjectStore, opts: AssemblyOptions, fps: 
         offset = _source_offset(revision, length)
         return found, length - Fraction(str(offset)), offset
 
-    for shot in ordered_shots(shot_list, opts):
+    composition = compile_project(shot_list, order=[shot.shot_id for shot in ordered_shots(shot_list, opts)])
+    for occurrence in composition.clips:
+        shot = shot_list.get_shot(occurrence.shot_id)
         revision = shot.active
         path = store.resolve(revision.media_ref)
         edit = (shot.plan or {}).get(EDIT_KEY)
@@ -238,7 +270,7 @@ def _plan(shot_list: ShotList, store: ProjectStore, opts: AssemblyOptions, fps: 
                 raise AssemblyError(f"{shot.shot_id}: invalid editorial take; select the take in Timeline Edit")
             generated = probe(path, with_packets=False)
             offset = _source_offset(revision, generated.duration)
-            target = Fraction(shot.frame_count) / source.fps
+            target = occurrence.duration
             if abs(offset - edit["source_start_seconds"]) > 1e-8:
                 raise AssemblyError(f"{shot.shot_id}: editorial source offset changed outside Timeline Edit")
             if Fraction(str(offset)) + target > generated.duration + Fraction(1, 100000):
@@ -260,7 +292,7 @@ def _plan(shot_list: ShotList, store: ProjectStore, opts: AssemblyOptions, fps: 
             warnings.append(f"{shot.shot_id}: {revision.revision_id} media missing, original shot used instead")
             revision = shot.revision(ORIGINAL)
             path = store.resolve(revision.media_ref)
-        target = shot_duration(source, shot)
+        target = occurrence.duration
         target_frames = max(1, round(target * fps))
 
         if revision.media_range is not None:  # untouched original: exact frame range of the source
@@ -279,7 +311,7 @@ def _plan(shot_list: ShotList, store: ProjectStore, opts: AssemblyOptions, fps: 
             if not path.is_file():
                 raise MediaError(f"{shot.shot_id}: project source is missing ({revision.media_ref})")
             fd = 1 / source.fps
-            start = shot_start(source, shot)
+            start = occurrence.source_start
             ss = max(start - fd / 2, Fraction(0))
             seek = ["-ss", f"{float(ss):.6f}", "-t", f"{float(target + start - ss):.6f}"]
             # at the end of the file ffmpeg can flush one frame short; pad then trim keeps the count exact
@@ -293,11 +325,13 @@ def _plan(shot_list: ShotList, store: ProjectStore, opts: AssemblyOptions, fps: 
         keep = opts.duration_policy == "use_generated_duration" or revision.duration_policy == "keep_generated"
         fx = (shot.plan or {}).get("fx")
         if fx and opts.effects:
+            validate_stored_fx(fx, shot.shot_id, fps)
+        if fx and opts.effects:
             transitions=[fx.get('transition'),*(c.get('transition') for c in fx.get('sub_cuts',[]))]
             warnings.extend(f'{shot.shot_id}: {t["approximation"]}' for t in transitions if t and t.get('approximation'))
         if fx and not keep and opts.effects:  # effects of a timeline plan: sub-cuts, speed, zoom, transition, text
             segments += _fx_segments(shot, revision.revision_id, path, generated.duration, fx if opts.text else {k: v for k, v in fx.items() if k != "text"}, target_frames, fps, width, height, store, opts.sub_cuts, resolve_take, warnings,
-                                     generated.has_audio, source_offset)
+                                     generated.has_audio, source_offset, opts.duration_policy == "trim_or_pad_last_frame")
             continue
         fps_filter = f"fps={fps.numerator}/{fps.denominator}"
         short_by = target - actual
@@ -333,12 +367,16 @@ def _plan(shot_list: ShotList, store: ProjectStore, opts: AssemblyOptions, fps: 
 
 
 def _filter_graph(segments: list[Segment], width: int, height: int, fps: Fraction, audio_policy: str, source_input: int | None, total: Fraction,
-                  tracks: tuple[tuple[int, float, float], ...] = (), shot_volume: float = 1.0, duck: float = 0.0, dialogue_input: int | None = None) -> tuple[str, bool]:
+                  tracks: tuple[tuple[int, float, float], ...] = (), shot_volume: float = 1.0, duck: float = 0.0, dialogue_input: int | None = None,
+                  pixel_format: str = "yuv420p") -> tuple[str, bool]:
     lines = []
 
     def normalized(index: int, chain: str, label: str) -> str:
-        return (f"[{index}:v:0]scale={width}:{height}:force_original_aspect_ratio=decrease:flags=bicubic,"
-                f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p,setpts=PTS-STARTPTS,{chain},setpts=PTS-STARTPTS[{label}]")
+        color = "" if pixel_format == "yuv420p" else ":in_color_matrix=bt709:out_color_matrix=bt709:out_range=tv"
+        padding = ":color=black@0" if pixel_format.startswith("yuva") else ""
+        return (f"[{index}:v:0]scale={width}:{height}:force_original_aspect_ratio=decrease:flags=bicubic{color},"
+                f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2{padding},setsar=1,format={pixel_format},"
+                f"setpts=PTS-STARTPTS,{chain},setpts=PTS-STARTPTS[{label}]")
 
     for i, seg in enumerate(segments):
         if not seg.layers:
@@ -351,17 +389,18 @@ def _filter_graph(segments: list[Segment], width: int, height: int, fps: Fractio
             current, k = f"m{i}", 0
             panels = [f"l{i}_{j}" for j, layer in enumerate(seg.layers) if layer.kind == "panel"]
             if panels:
-                lines += split_filters(panels, seg.layout, f"s{i}", width, height, f"sp{i}")
+                lines += split_filters(panels, seg.layout, f"s{i}", width, height, f"sp{i}", pixel_format)
                 current = f"s{i}"
             for j, layer in enumerate(seg.layers):
                 if layer.kind == "overlay":
-                    lines += overlay_filters(current, f"l{i}_{j}", f"o{i}_{k}", layer.spec, f"ov{i}_{k}")
+                    lines += overlay_filters(current, f"l{i}_{j}", f"o{i}_{k}", layer.spec, f"ov{i}_{k}", pixel_format)
                     current, k = f"o{i}_{k}", k + 1
-            lines.append(f"[{current}]{seg.post + ',' if seg.post else ''}format=yuv420p,setpts=PTS-STARTPTS[v{i}]")
+            lines.append(f"[{current}]{seg.post + ',' if seg.post else ''}format={pixel_format},setpts=PTS-STARTPTS[v{i}]")
         if seg.overlay_index is not None:
             animate, placing = text_overlay_filters(seg.overlay_spec, seg.overlay_offset, seg.shot_seconds, height) if seg.overlay_spec else ("", "x=0:y=0")
-            lines.append(f"[{seg.overlay_index}:v:0]format=rgba,setpts=PTS-STARTPTS{animate}[o{i}]")
-            lines.append(f"[v{i}][o{i}]overlay={placing}:eof_action=pass:format=auto,format=yuv420p,setpts=PTS-STARTPTS[v{i}]")
+            text_format = "rgba" if pixel_format == "yuv420p" else "yuva444p10le"
+            lines.append(f"[{seg.overlay_index}:v:0]format={text_format},setpts=PTS-STARTPTS{animate}[o{i}]")
+            lines.append(f"[v{i}][o{i}]overlay={placing}:eof_action=pass:format=auto,format={pixel_format},setpts=PTS-STARTPTS[v{i}]")
     n = len(segments)
     lines.append("".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0,setpts=N/({fps.numerator}/{fps.denominator}*TB),fps={fps.numerator}/{fps.denominator}[v]")
 
@@ -371,13 +410,13 @@ def _filter_graph(segments: list[Segment], width: int, height: int, fps: Fractio
         lines.append(f"[{dialogue_input}:a:0]aresample={AUDIO_RATE},aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=duration={float(total):.6f}[{out}]")
         has_audio = True
     elif audio_policy == "source_master" and source_input is not None:
-        lines.append(f"[{source_input}:a:0]aresample={AUDIO_RATE},aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=duration={float(total):.6f}[{out}]")
+        lines.append(f"[{source_input}:a:0]aresample={AUDIO_RATE}:async=1:first_pts=0,aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=duration={float(total):.6f}[{out}]")
         has_audio = True
     elif audio_policy == "shot_audio" and any(s.has_audio for s in segments):
         for i, seg in enumerate(segments):
             d = float(seg.seconds)
             if seg.has_audio and not seg.audio_ramp:
-                lines.append(f"[{seg.input_index}:a:0]aresample={AUDIO_RATE},aformat=sample_fmts=fltp:channel_layouts=stereo{atempo_filters(seg.audio_speed)},apad,atrim=duration={d:.6f},asetpts=PTS-STARTPTS[a{i}]")
+                lines.append(f"[{seg.input_index}:a:0]aresample={AUDIO_RATE}:async=1:first_pts=0,aformat=sample_fmts=fltp:channel_layouts=stereo{atempo_filters(seg.audio_speed)},apad,atrim=duration={d:.6f},asetpts=PTS-STARTPTS[a{i}]")
             else:
                 lines.append(f"anullsrc=r={AUDIO_RATE}:cl=stereo,atrim=duration={d:.6f},asetpts=PTS-STARTPTS[a{i}]")
         lines.append("".join(f"[a{i}]" for i in range(n)) + f"concat=n={n}:v=0:a=1,volume={shot_volume:g}[{out}]")
@@ -432,9 +471,31 @@ def assemble_shots(
         if value not in allowed:
             raise AssemblyError(f"{name}='{value}' is not supported. Available: {list(allowed)}")
 
-    source = shot_list.source
+    for name, low, high in (("output_fps", 1, 240), ("music_volume", 0, 4), ("sfx_volume", 0, 4),
+                            ("shot_volume", 0, 4), ("music_fade", 0, 10), ("duck", 0, 1),
+                            ("loudness_target", -60, 0)):
+        value = getattr(opts, name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise AssemblyError(f"{name} must be a finite number")
+        try:
+            valid = math.isfinite(value) and low <= value <= high
+        except OverflowError:
+            valid = False
+        if not valid:
+            raise AssemblyError(f"{name} must be finite and between {low} and {high}")
+    if opts.loudness_target and opts.loudness_target > -5:
+        raise AssemblyError("loudness_target must be zero (disabled) or between -60 and -5 LUFS")
+    get_profile(opts.delivery_profile, opts.output_format, opts.color_policy)
+    shot_list.validate()
     store = ProjectStore(store_root, shot_list.project_id)
-    warnings: list[str] = []
+    with cache_session(store) as cache_warnings:
+        return _assemble_validated(shot_list, store, opts, on_progress, is_cancelled, cache_warnings)
+
+
+def _assemble_validated(shot_list, store, opts, on_progress, is_cancelled, cache_warnings):
+    source = shot_list.source
+    profile = get_profile(opts.delivery_profile, opts.output_format, opts.color_policy)
+    warnings: list[str] = list(cache_warnings)
     fps = source.fps if opts.fps_policy == "source" else Fraction(opts.output_fps).limit_denominator(1001)
     if fps <= 0:
         raise AssemblyError("output_fps must be positive")
@@ -590,10 +651,16 @@ def assemble_shots(
             generated_kinds=set(tone_bank)-set(library)
             library={**tone_bank,**library}
             library_key=json_fingerprint([library_key,tone_key,anchors,'tone-score-v3'])
-            sfx_path = store.resolve(f"cache/sfx_{json_fingerprint([events,library_key,round(level, 2)])[:10]}_{round(float(total), 3)}.wav")
-            if not sfx_path.is_file():
-                sfx_path.parent.mkdir(parents=True, exist_ok=True)
-                write_wav(sfx_path, render_track(events, float(total),library, level, generated_kinds, anchors=anchors), SFX_RATE)
+            sfx_path = store.resolve(f"cache/sfx_{json_fingerprint([events, library_key, level, str(total), SFX_RATE, file_fingerprint(Path(__file__).with_name('sfx.py')), file_fingerprint(Path(__file__).with_name('tone_sfx.py'))])[:24]}.wav")
+            with export_lock(store, 'sfx:' + os.path.normcase(str(sfx_path.resolve())), is_cancelled):
+                if not sfx_path.is_file():
+                    sfx_path.parent.mkdir(parents=True, exist_ok=True)
+                    temporary_sfx = sfx_path.with_name(sfx_path.stem + '.' + uuid.uuid4().hex + '.tmp.wav')
+                    try:
+                        write_wav(temporary_sfx, render_track(events, float(total),library, level, generated_kinds, anchors=anchors), SFX_RATE)
+                        os.replace(temporary_sfx, sfx_path)
+                    finally:
+                        temporary_sfx.unlink(missing_ok=True)
             if music_measurement is not None:
                 from .beats import read_wav
                 from .sfx import cue_balance
@@ -601,17 +668,27 @@ def assemble_shots(
                 sound_balance=cue_balance(events,bus*opts.sfx_volume,music_measurement[0],bus_rate,music_measurement[1])
             tracks.append((next_input + (source_input is not None) + len(extra_inputs), opts.sfx_volume, 0.0))
             extra_inputs.append(sfx_path)
-    store.write_json('exports/optional-audio.json', {'version': 1, 'warnings': [w for w in warnings if w.startswith('optional:')]})
     dialogue_input = None
     if dialogue is not None:
         dialogue_input = next_input + (source_input is not None) + len(extra_inputs)
         extra_inputs.append(dialogue)
     ducking = opts.duck if opts.music is not None and (audio_policy == "shot_audio" or dialogue_input is not None) else 0.0
-    graph, has_audio = _filter_graph(segments, width, height, fps, audio_policy, source_input, total, tuple(tracks), opts.shot_volume, ducking, dialogue_input)
+    graph, has_audio = _filter_graph(segments, width, height, fps, audio_policy, source_input, total, tuple(tracks),
+                                     opts.shot_volume, ducking, dialogue_input, profile.working_format)
 
+    media_inputs = {seg.path for seg in segments}
+    media_inputs.update(layer.path for seg in segments for layer in seg.layers)
+    media_inputs.update(seg.overlay for seg in segments if seg.overlay is not None)
+    warnings.extend(qualify_inputs(profile, media_inputs, segments, opts.color_policy, width, height))
+    if source_input is not None:
+        media_inputs.add(store.resolve(source.uri))
+    input_fingerprints = sorted((store.rel(path), file_fingerprint(path)) for path in media_inputs)
+    renderer_build = {name: file_fingerprint(Path(__file__).with_name(name))
+                      for name in ("assembler.py", "fx.py", "audio_quality.py", "delivery_profiles.py", "editorial_graph.py", "motion_score.py", "motion_timing.py", "motion_scenes.py")}
     plan_key = json_fingerprint(
         [
-            ASSEMBLY_VERSION, shared_score, source.fingerprint, graph, opts.output_format, opts.video_codec, opts.loudness_target, [file_fingerprint(p) for p in extra_inputs],
+            ASSEMBLY_VERSION, renderer_build, input_fingerprints, shared_score, source.fingerprint, graph, opts.output_format, opts.video_codec,
+            opts.delivery_profile, opts.color_policy, opts.loudness_target, [file_fingerprint(p) for p in extra_inputs],
             [[s.shot.shot_id, s.revision_id, s.shot.revision(s.revision_id).fingerprint, s.seek, str(s.overlay and s.overlay.name), [[l.path.name, l.seek, l.kind] for l in s.layers]] for s in segments],
         ]
     )
@@ -619,65 +696,84 @@ def assemble_shots(
     out = store.resolve(f"exports/{name}_{plan_key[:10]}.{opts.output_format}")
     from .delivery_review import save_timeline
     cursor, delivery_boundaries = 0, []
+    delivery_time = Fraction(0)
     for seg in segments:
         if cursor:
             delivery_boundaries.append({'frame': cursor, 'transition': seg.cue if seg.cue not in ('', 'hit') else 'cut'})
-        cursor += round(float(seg.seconds) * float(fps))
-    delivery_timeline = {'version': 1, 'fps': float(fps), 'frames': cursor, 'boundaries': delivery_boundaries,
-                         'audio_source': str(opts.music) if opts.music is not None else None, 'sound_balance':sound_balance}
-    if out.exists() and _valid(out, total, has_audio):
-        write_score(store, out, shared_score)
-        save_timeline(out, delivery_timeline)
-        return AssemblyResult(out, len(shot_ids), modified, float(total), warnings, True, timeline)
+        delivery_time += seg.seconds
+        cursor = round(delivery_time * fps)
+    audio_asset = durable_audio(store, opts.music)
+    delivery_timeline = {'version': 2, 'fps': float(fps), 'fps_num': fps.numerator, 'fps_den': fps.denominator, 'frames': cursor, 'boundaries': delivery_boundaries,
+                         'audio_source': audio_asset['media_ref'] if audio_asset else None, 'audio_asset': audio_asset, 'sound_balance':sound_balance,
+                         'audio_policy': audio_policy, 'plan_fingerprint': plan_key, 'renderer_build': renderer_build,
+                         'delivery_profile': profile.name, 'working_pixel_format': profile.working_format,
+                         'editorial_intent': compile_project(shot_list, order=[shot.shot_id for shot in ordered_shots(shot_list, opts)]).to_dict(),
+                         'signal_range': 'limited' if profile.name != 'social' else 'legacy',
+                         'range_signaling': 'ProRes legal-range convention; MOV nclc has no range flag' if profile.codec == 'prores' else 'stream'}
+    with export_lock(store, os.path.normcase(str(out.resolve())), is_cancelled):
+        if out.exists() and _valid(out, total, has_audio):
+            validate_delivery(out, profile)
+            write_score(store, out, shared_score)
+            save_timeline(out, delivery_timeline)
+            store.write_json('exports/optional-audio.json', {'version': 2, 'export': store.rel(out), 'plan_fingerprint': plan_key,
+                             'warnings': [w for w in warnings if w.startswith('optional:')]})
+            return AssemblyResult(out, len(shot_ids), modified, float(total), warnings, True, timeline)
 
-    cmd: list[str] = ["-y"]
-    for seg in segments:
-        cmd += [*seg.seek, "-i", str(seg.path)]
-        if seg.overlay is not None:
-            cmd += ["-loop", "1", "-framerate", f"{fps.numerator}/{fps.denominator}", "-t", f"{float(seg.seconds) + 0.5:.6f}", "-i", str(seg.overlay)]
-        for layer in seg.layers:
-            cmd += [*layer.seek, "-i", str(layer.path)]
-    if source_input is not None:
-        cmd += ["-i", str(store.resolve(source.uri))]
-    for path in extra_inputs:
-        cmd += ["-i", str(path)]
-    script = store.resolve(f"logs/filter_{plan_key[:10]}.txt")
-    script.write_text(graph, encoding="utf-8")
-    cmd += ["-filter_complex_script", str(script), "-map", "[v]"]
-    if has_audio:
-        cmd += ["-map", "[a]", "-c:a", "aac", "-b:a", "192k"]
-    cmd += [
-        "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p", "-fps_mode", "passthrough",
-        "-fflags", "+bitexact", "-flags:v", "+bitexact", "-flags:a", "+bitexact", "-map_metadata", "-1",
-        "-movflags", "+faststart", "-t", f"{float(total):.6f}",
-    ]
-    tmp = out.with_name(out.stem + ".partial" + out.suffix)
-    tmp.unlink(missing_ok=True)
-    cmd.append(str(tmp))
-    try:
-        run_ffmpeg(cmd, float(total), on_progress, is_cancelled)
-        if not _valid(tmp, total, has_audio):
-            raise AssemblyError(f"Export validation failed for {out.name}: duration or streams do not match the plan")
-        if opts.loudness_target and has_audio:
-            leveled = out.with_name(out.stem + ".leveled" + out.suffix)
-            try:
-                report = normalize_loudness(tmp, leveled, opts.loudness_target)
-                if not _valid(leveled, total, has_audio):
-                    raise AssemblyError(f"Loudness normalization of {out.name} changed its duration or streams")
-                os.replace(leveled, tmp)
-            finally:
-                leveled.unlink(missing_ok=True)
-            if report["applied"]:
-                warnings.append(f"Loudness {report['before']['integrated_lufs']:.1f} -> {report['after']['integrated_lufs']:.1f} LUFS ({report['gain_db']:+.1f} dB), true peak {report['after']['true_peak_dbtp']:.1f} dBTP")
-            if report.get('assessment', {}).get('status') == 'warning':
-                warnings.append('Audio target not reached within 1 LU; decoded true-peak headroom takes priority over additional compression.')
-        os.replace(tmp, out)
-        write_score(store, out, shared_score)
-        save_timeline(out, delivery_timeline)
-    except BaseException:
-        tmp.unlink(missing_ok=True)
-        raise
-    return AssemblyResult(out, len(shot_ids), modified, float(total), warnings, False, timeline)
+        cmd: list[str] = ["-y"]
+        for seg in segments:
+            cmd += [*seg.seek, "-i", str(seg.path)]
+            if seg.overlay is not None:
+                cmd += ["-loop", "1", "-framerate", f"{fps.numerator}/{fps.denominator}", "-t", f"{float(seg.seconds) + 0.5:.6f}", "-i", str(seg.overlay)]
+            for layer in seg.layers:
+                cmd += [*layer.seek, "-i", str(layer.path)]
+        if source_input is not None:
+            cmd += ["-i", str(store.resolve(source.uri))]
+        for path in extra_inputs:
+            cmd += ["-i", str(path)]
+        token = uuid.uuid4().hex
+        script = store.resolve(f"logs/filter_{plan_key[:10]}_{token}.txt")
+        script.write_text(graph, encoding="utf-8")
+        cmd += ["-filter_complex_script", str(script), "-map", "[v]"]
+        if has_audio:
+            cmd += ["-map", "[a]", "-c:a", "aac", "-b:a", "192k"] if profile.name == "social" else ["-map", "[a]", "-c:a", "pcm_s24le"]
+        cmd += [
+            *output_options(profile), "-fps_mode", "passthrough",
+            "-fflags", "+bitexact", "-flags:v", "+bitexact", "-flags:a", "+bitexact", "-map_metadata", "-1",
+            "-movflags", "+faststart", "-t", f"{float(total):.6f}",
+        ]
+        tmp = out.with_name(out.stem + "." + token + ".partial" + out.suffix)
+        cmd.append(str(tmp))
+        try:
+            run_ffmpeg(cmd, float(total), on_progress, is_cancelled)
+            if not _valid(tmp, total, has_audio):
+                raise AssemblyError(f"Export validation failed for {out.name}: duration or streams do not match the plan")
+            validate_delivery(tmp, profile)
+            if opts.loudness_target and has_audio:
+                leveled = out.with_name(out.stem + "." + token + ".leveled" + out.suffix)
+                try:
+                    report = normalize_loudness(tmp, leveled, opts.loudness_target, is_cancelled=is_cancelled,
+                                                audio_codec="aac" if profile.name == "social" else "pcm_s24le")
+                    if not _valid(leveled, total, has_audio):
+                        raise AssemblyError(f"Loudness normalization of {out.name} changed its duration or streams")
+                    validate_delivery(leveled, profile)
+                    os.replace(leveled, tmp)
+                finally:
+                    leveled.unlink(missing_ok=True)
+                if report["applied"]:
+                    warnings.append(f"Loudness {report['before']['integrated_lufs']:.1f} -> {report['after']['integrated_lufs']:.1f} LUFS ({report['gain_db']:+.1f} dB), true peak {report['after']['true_peak_dbtp']:.1f} dBTP")
+                if report.get('assessment', {}).get('status') == 'warning':
+                    warnings.append('Audio target not reached within 1 LU; decoded true-peak headroom takes priority over additional compression.')
+            if is_cancelled and is_cancelled():
+                raise AssemblyError("Cancelled before publishing export")
+            os.replace(tmp, out)
+            write_score(store, out, shared_score)
+            save_timeline(out, delivery_timeline)
+            store.write_json('exports/optional-audio.json', {'version': 2, 'export': store.rel(out), 'plan_fingerprint': plan_key,
+                             'warnings': [w for w in warnings if w.startswith('optional:')]})
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
+        return AssemblyResult(out, len(shot_ids), modified, float(total), warnings, False, timeline)
 
 
 def _valid(path: Path, expected: Fraction, want_audio: bool) -> bool:

@@ -174,5 +174,5 @@ def test_render_decodes_correct_order_frames_audio_and_preserves_manifest(tmp_pa
     with pytest.raises(AssemblyError, match="shorter than one output frame"):
         assemble_shots(tiny, root, dataclasses.replace(opts, fps_policy="fixed", output_fps=12))
     bad_shot = dataclasses.replace(edited.shots[0], active_revision_id="missing")
-    with pytest.raises(ShotNotFoundError):
+    with pytest.raises(ManifestError, match="missing original or active revision"):
         assemble_shots(dataclasses.replace(edited, shots=(bad_shot,)), root, opts)

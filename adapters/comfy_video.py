@@ -380,6 +380,12 @@ def projects_root(scope=None, worker_root="") -> Path:
     return Path(folder_paths.get_output_directory()) / OUTPUT_SUBFOLDER
 
 
+def project_media_base(scope, relative="") -> str:
+    from ..core.media_locator import project_media_location
+    return project_media_location(projects_root(scope), scope.project_id,
+                                  Path(folder_paths.get_output_directory()), relative)
+
+
 @contextlib.contextmanager
 def video_file(video):
     """Yield a path holding the video. Untrimmed, uncropped file-backed videos are used in place; anything else is saved first."""

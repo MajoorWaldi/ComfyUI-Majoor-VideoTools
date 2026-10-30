@@ -127,9 +127,45 @@ def test_every_variable_of_a_math_expression_is_wired(name):
     maths = [n for n in nodes if n["type"] == "ComfyMathExpression"]
     assert maths
     for node in maths:
-        used = set(re.findall(r"[a-z]", node["widgets_values"][0]))
-        wired = {i["name"].split(".")[-1] for i in node["inputs"] if i.get("link") is not None}
-        assert used <= wired, f"{node['id']}: {node['widgets_values'][0]} uses {sorted(used - wired)} without a link"
+        _assert_math_inputs_wired(node)
+
+
+def _assert_math_inputs_wired(node):
+    used = set(re.findall(r"\b[a-z]\b", node["widgets_values"][0]))
+    wired = {i["name"].split(".")[-1] for i in node["inputs"] if i.get("link") is not None}
+    assert used <= wired, f"{node['id']}: {node['widgets_values'][0]} uses {sorted(used - wired)} without a link"
+
+
+def test_math_wiring_guard_detects_a_removed_link():
+    import copy
+
+    node = {"id": 1, "widgets_values": ["max(a, b) + c"],
+            "inputs": [{"name": f"values.{name}", "link": i} for i, name in enumerate("abc")]}
+    _assert_math_inputs_wired(node)
+    broken = copy.deepcopy(node)
+    broken["inputs"][2]["link"] = None
+    with pytest.raises(AssertionError, match="c.*without a link"):
+        _assert_math_inputs_wired(broken)
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_math_wiring_guard_detects_removed_workflow_inputs(name):
+    import copy
+
+    workflow = _load(name)
+    nodes = workflow["nodes"] + [n for d in workflow["definitions"]["subgraphs"] for n in d["nodes"]]
+    checked = 0
+    for node in nodes:
+        if node["type"] != "ComfyMathExpression":
+            continue
+        for variable in set(re.findall(r"\b[a-z]\b", node["widgets_values"][0])):
+            broken = copy.deepcopy(node)
+            socket = next(i for i in broken["inputs"] if i["name"].split(".")[-1] == variable)
+            socket["link"] = None
+            with pytest.raises(AssertionError, match="without a link"):
+                _assert_math_inputs_wired(broken)
+            checked += 1
+    assert checked
 
 
 @pytest.mark.parametrize("name", NAMES)
@@ -149,3 +185,12 @@ def test_a_widget_of_a_subgraph_ends_in_a_widget(name):
             assert targets and all(nodes[t]["inputs"][slot].get("widget") for t, slot in targets.items()), f"{definition['name']}: {given['name']} does not end in a widget"
             checked += 1
     assert checked
+
+
+
+def test_sources_do_not_contain_accidental_control_characters():
+    for folder in ("core", "adapters", "nodes", "tests", "web"):
+        for path in (ROOT / folder).rglob("*"):
+            if path.is_file() and path.suffix in (".py", ".js", ".mjs", ".md", ".txt"):
+                unexpected = {byte for byte in path.read_bytes() if byte < 32 and byte not in (9, 10, 13)}
+                assert not unexpected, f"{path}: control characters {sorted(unexpected)}"

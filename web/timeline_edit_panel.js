@@ -111,7 +111,7 @@ export function openTimelineEditor(payload, doc, { urlFor, onChange, onClose, on
   dialog.setAttribute("aria-label", labels.title || "Timeline Edit");
   const style = el("style"); style.textContent = CSS;
   const title = el("h2", "Timeline Edit");
-  const note = el("p", "Raw takes. Dialogue excerpts are independent of picture cuts and may include ambience. Music starts at 00:00.");
+  const note = el("p", labels.preview || "Raw-take preview. Export is authoritative for timing and audio. Dialogue is independent of picture cuts; music starts at 00:00.");
   note.className = "mjr-edit-note";
   const video = el("video"); video.muted = true; video.playsInline = true; video.preload = "auto";
   const audio = el("audio"); audio.preload = "auto";

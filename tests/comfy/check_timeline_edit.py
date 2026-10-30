@@ -13,6 +13,7 @@ import urllib.request
 from pathlib import Path
 
 import _boot
+import folder_paths
 import numpy as np
 import torch
 
@@ -39,7 +40,8 @@ def main():
     assert sum(n.define_schema().node_id == "MajoorTimelineEdit" for n in nodes) == 1
     with tempfile.TemporaryDirectory(prefix="mjr-timeline-check-") as directory:
         root = (args.output_root or Path(directory)) / "MajoorVideoTools"
-        timeline_edit.projects_root = lambda: root
+        folder_paths.get_output_directory = lambda: str(root.parent)
+        timeline_edit.projects_root = lambda shot_list=None: root
         sl = create_template(json.dumps({"shots": [{"duration": 1, "prompt": "Red"}, {"duration": 1, "prompt": "Blue"}]}),
                              root, fps=24, aspect_ratio="1:1", resolution=128, thumbnails=False)
         for shot, color in zip(sl.shots, ["red", "blue"]):

@@ -6,7 +6,7 @@ from fractions import Fraction
 from pathlib import Path
 
 from . import energy as energy_tools
-from .errors import MajoorError
+from .errors import MajoorError, ManifestError
 from .fx import parse_fx
 from .fingerprints import file_fingerprint, json_fingerprint
 from .frames import write_thumbnail
@@ -195,6 +195,21 @@ def detect_scenes(
         if energy != "off":  # what each shot did, as the effects that Shot Assemble puts on a generated take of it
             events = [energy_tools.Event(k, f, n, s) for k, f, n, s in cached.get("events", [])]
             shots = tuple(_with_energy(s, events, info.fps, energy == "events_and_camera") for s in shots)
+        current_data = store.read_json("manifest.json")
+        if current_data is not None:
+            current = dataclasses.replace(ShotList.from_dict(current_data), storage_root=Path(store_root).resolve())
+            def signature(source_value, shot_values):
+                return (source_value.fingerprint, source_value.fps_num, source_value.fps_den,
+                        source_value.time_base_num, source_value.time_base_den, source_value.width, source_value.height,
+                        tuple((s.shot_id, s.start_frame, s.end_frame_exclusive, s.start_pts, s.end_pts_exclusive) for s in shot_values))
+            if signature(current.source, current.shots) != signature(source, shots):
+                raise ManifestError("Detection boundaries changed for an existing project; saved takes were preserved. Use a distinct detection configuration/project instead of remapping shot IDs.")
+            current.validate()
+            if thumbnails:
+                refreshed = tuple(_with_thumbnail(store, source_path, source, info, s, force_refresh) for s in current.shots)
+                current = dataclasses.replace(current, shots=refreshed)
+                persist_manifest(store, current)
+            return current
         if thumbnails:
             shots = tuple(_with_thumbnail(store, source_path, source, info, s, force_refresh) for s in shots)
         shot_list = ShotList(

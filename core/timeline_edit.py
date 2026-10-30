@@ -2,7 +2,6 @@
 import json
 import math
 import re
-from dataclasses import replace
 from fractions import Fraction
 
 from .errors import ManifestError
@@ -140,43 +139,5 @@ def parse_document(shot_list: ShotList, text: str) -> dict:
 
 def compile_edit(shot_list: ShotList, document: dict) -> ShotList:
     """Create independent occurrences; never persist over the generation manifest."""
-    validate_document(shot_list, document)
-    fps, cursor, shots = shot_list.source.fps, 0, []
-    for index, clip in enumerate(document["clips"]):
-        source = shot_list.get_shot(clip["shot_id"])
-        revision = source.revision(clip["revision_id"])
-        offset, _ = take_bounds(shot_list, source, revision)
-        length = clip["out_frame"] - clip["in_frame"]
-        start = offset + Fraction(clip["in_frame"]) / fps
-        # Original ranges are resolved here, before replacing source coordinates
-        # by editorial coordinates. The assembler then treats both kinds equally.
-        selected = replace(revision, media_range=None, source_start_seconds=float(start), duration_policy="inherit_target")
-        revisions = tuple(selected if r.revision_id == selected.revision_id else r for r in source.revisions)
-        plan = {"prompt": (source.plan or {}).get("prompt", ""),
-                EDIT_KEY: {"version": 1, "source_shot_id": source.shot_id,
-                           "revision_id": revision.revision_id, "in_frame": clip["in_frame"],
-                           "out_frame": clip["out_frame"], "source_start_seconds": float(start)}}
-        shots.append(replace(source, shot_id=f"EDIT_{clip['id']}", timeline_index=index,
-                             start_frame=cursor, end_frame_exclusive=cursor + length,
-                             start_pts=None, end_pts_exclusive=None,
-                             target_duration_seconds=float(Fraction(length) / fps),
-                             active_revision_id=selected.revision_id, revisions=revisions, plan=plan))
-        cursor += length
-    result = replace(shot_list, shots=tuple(shots))
-    if "dialogue" in document:
-        entries = []
-        for clip in document["dialogue"]:
-            shot = shot_list.get_shot(clip["shot_id"])
-            revision = shot.revision(clip["revision_id"])
-            offset, _ = take_bounds(shot_list, shot, revision)
-            entries.append({"file": revision.media_ref, "start": float(offset) + clip["in_frame"] / float(fps),
-                            "duration": (clip["out_frame"] - clip["in_frame"]) / float(fps),
-                            "at": clip["at_frame"] / float(fps), "gain": clip.get("gain", 1.)})
-        first = result.shots[0]
-        first = replace(first, plan={**first.plan, DIALOGUE_KEY: entries})
-        result = replace(result, shots=(first, *result.shots[1:]))
-    if "music_gain" in document:
-        first = result.shots[0]
-        result = replace(result, shots=(replace(first, plan={**first.plan, MUSIC_GAIN_KEY: document["music_gain"]}), *result.shots[1:]))
-    result.validate()
-    return result
+    from .editorial_graph import compile_project, export_shot_list
+    return export_shot_list(compile_project(shot_list, document), shot_list)
