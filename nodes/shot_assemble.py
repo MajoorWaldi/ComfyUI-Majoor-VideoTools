@@ -58,7 +58,7 @@ class MajoorShotAssemble(io.ComfyNode):
                 io.Combo.Input("music_edit_mode", options=list(MODES), default="legacy", optional=True, tooltip="Optional Remix excerpt cuts inside generated takes. Reference boundaries and raw takes remain unchanged."),
                 io.Combo.Input("music_cut_density", options=["auto", "low", "medium", "high"], default="auto", optional=True),
                 io.Float.Input("music_cut_variation", default=0.5, min=0, max=1, step=0.01, optional=True),
-                io.Float.Input("music_cut_sync", default=0.8, min=0, max=1, step=0.01, optional=True),
+                io.Float.Input("music_cut_sync", default=1.0, min=0, max=1, step=0.01, optional=True),
                 io.Int.Input("music_cut_seed", default=42, min=0, max=0xffffffffffffffff, optional=True),
                 io.Combo.Input("music_cut_every", options=list(CUT_EVERY), default="2_beats", optional=True),
                 io.Combo.Input("music_cut_mood", options=["auto", "calm", "confident", "dreamy", "intense"], default="auto", optional=True),
@@ -74,7 +74,7 @@ class MajoorShotAssemble(io.ComfyNode):
 
     @classmethod
     def execute(cls, shot_list, assembly_mode, missing_shot_policy, duration_policy, fps_policy, audio_policy, output_format, video_codec, output_name, manual_order="", output_fps=24.0, effects=True, sub_cuts=True, music=None, sfx=None, music_volume=1.0, sfx_volume=1.0, music_fade=0.5, replace_source_audio=False, voice_shots=False, text=True, shot_volume=1.0, duck_music=0.0, auto_sfx=False,sfx_library="",motion_layers="",loudness_target=0.0,
-                music_edit_mode="legacy", music_cut_density="auto", music_cut_variation=0.5, music_cut_sync=0.8,
+                music_edit_mode="legacy", music_cut_density="auto", music_cut_variation=0.5, music_cut_sync=1.0,
                 music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", dialogue=None, preserve_dialogue=False,
                 delivery_profile="social", color_policy="require_bt709") -> io.NodeOutput:
         audio_policy = "shot_audio" if voice_shots else "mute" if replace_source_audio else audio_policy

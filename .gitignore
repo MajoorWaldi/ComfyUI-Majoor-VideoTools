@@ -18,6 +18,7 @@ node_modules/
 # Local secrets
 .env
 .env.*
+.cloudflare/
 
 # Editors and OS
 .vscode/
@@ -29,4 +30,3 @@ desktop.ini
 
 # the app of the challenge: its own repository (see its README)
 HyperKut Studio/
-/tests/test_worker_scope.py

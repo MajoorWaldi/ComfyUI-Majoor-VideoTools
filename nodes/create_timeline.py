@@ -85,7 +85,7 @@ class MajoorCreateTimeline(io.ComfyNode):
                 io.Combo.Input("music_edit_mode", options=list(MODES), default="legacy", optional=True, tooltip="For source=json with music: adaptive energy-aware cuts, seeded random musical cuts, a regular grid, or free narrative timing. Legacy preserves existing workflows."),
                 io.Combo.Input("music_cut_density", options=["auto", "low", "medium", "high"], default="auto", optional=True),
                 io.Float.Input("music_cut_variation", default=0.5, min=0, max=1, step=0.01, optional=True),
-                io.Float.Input("music_cut_sync", default=0.8, min=0, max=1, step=0.01, optional=True),
+                io.Float.Input("music_cut_sync", default=1.0, min=0, max=1, step=0.01, optional=True),
                 io.Int.Input("music_cut_seed", default=42, min=0, max=0xffffffffffffffff, optional=True),
                 io.Combo.Input("music_cut_every", options=list(CUT_EVERY), default="2_beats", optional=True),
                 io.Combo.Input("music_cut_mood", options=["auto", "calm", "confident", "dreamy", "intense"], default="auto", optional=True, tooltip="Optional artistic mood bias. Acoustic energy and accents remain measured from the music."),
@@ -100,7 +100,7 @@ class MajoorCreateTimeline(io.ComfyNode):
 
     @classmethod
     def execute(cls, source, fps, aspect_ratio, resolution, generation_profile, music=None, video=None, preview_thumbnails=True, card_text=True, width=0, height=0, skeleton_json="", rhythm_reference_only=False,
-                music_edit_mode="legacy", music_cut_density="auto", music_cut_variation=0.5, music_cut_sync=0.8,
+                music_edit_mode="legacy", music_cut_density="auto", music_cut_variation=0.5, music_cut_sync=1.0,
                 music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", project_root="") -> io.NodeOutput:
         kind = source["source"]
         rate = fps if fps > 0 else 24.0

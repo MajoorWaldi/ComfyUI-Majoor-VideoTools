@@ -15,7 +15,7 @@ MODES = ("legacy", "adaptive", "random", "regular", "free")
 
 
 def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", density="auto",
-                   variation=0.5, sync=0.8, seed=42, cut_every="2_beats", mood=""):
+                   variation=0.5, sync=1.0, seed=42, cut_every="2_beats", mood=""):
     if mode not in MODES or density not in ("auto", "low", "medium", "high"):
         raise MajoorError("Unsupported music editing mode or cut density")
     if not 0 <= variation <= 1 or not 0 <= sync <= 1:
