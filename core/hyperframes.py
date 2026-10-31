@@ -26,7 +26,7 @@ from .fx import TEXT_POSITIONS, safe_box
 from .hyperframes_layers import prepare_layers
 from .layout_review import subject_overlap
 from .media_probe import probe
-from .motion import needs_mask, parse_layers
+from .motion import LOTTIE_DIR, needs_mask, parse_layers
 from .motion_scenes import readability
 from .motion_score import read_score
 from .motion_timing import preview_times, shot_layers
@@ -130,6 +130,9 @@ def resolve_cues(text: str, timeline: str, duration: float, fps: float) -> list[
     return result
 
 
+COMPILED_FONTS = {'garamond': 'EB Garamond', 'code': 'JetBrains Mono', 'league': 'League Gothic', 'archivo': 'Archivo Black', 'montserrat': 'Montserrat', 'poppins': 'Poppins', 'space': 'Space Mono'}  # SIL OFL, resolved by the HyperFrames compiler
+
+
 def runtime_paths() -> tuple[Path, Path, Path]:
     root = Path(os.environ.get('MAJOOR_HYPERFRAMES_RUNTIME', Path(__file__).resolve().parents[1] / 'runtime/hyperframes'))
     node = shutil.which('node')
@@ -176,6 +179,18 @@ def write_composition(project: Path, source: Path, info, direction: dict, cues: 
     assets = project / 'assets'; assets.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, assets / 'source.mp4')
     shutil.copy2(gsap, assets / 'gsap.min.js')
+    stickers = sorted({x['name'] for x in layers or [] if x['type'] == 'lottie'})
+    lottie_tag = ''
+    if stickers:
+        player = gsap.parents[2] / 'lottie-web/build/player/lottie_canvas.min.js'
+        if not player.is_file():
+            raise RuntimeError('Lottie layers need lottie-web: rerun scripts/install_hyperframes.ps1')
+        shutil.copy2(player, assets / 'lottie.min.js')
+        lottie_tag = '<script src="assets/lottie.min.js"></script>'
+    faces = ''
+    # the compiler fetches and pins the families a stylesheet names; the canvas alone does not count
+    for font in sorted({x.get('font') for x in layers or []} & set(COMPILED_FONTS)):
+        faces += f".font-{font}{{font-family:'{COMPILED_FONTS[font]}'}}"
     shutil.copy2(Path(__file__).resolve().parents[1] / 'web/hyperframes_layers.js', assets / 'hyperframes_layers.js')
     width, height = info.display_size
     duration, fps = float(info.duration), float(info.fps)
@@ -185,13 +200,13 @@ def write_composition(project: Path, source: Path, info, direction: dict, cues: 
         cards.append(f'<div id="title{i}" class="clip title {cue["position"]}" data-start="{cue["start"]}" data-duration="{cue["end"]-cue["start"]}" data-track-index="1"><div class="panel"><div class="words">{letters}</div><div class="rule"></div></div></div>')
     scene = Path(__file__).resolve().parents[1] / 'web/hyperframes_scene.html'
     config = {'duration': duration, 'fps': fps, 'cues': cues, 'audio': audio, 'layers': layers or [], 'layer_assets': layer_assets or {},
-              'text_timing': TEXT_TIMING, 'safe_boxes': {name: safe_box(width,height,pos[0]) for name,pos in TEXT_POSITIONS.items()}, **direction}
+              'lottie': {name: json.loads((LOTTIE_DIR / f'{name}.json').read_text(encoding='utf-8')) for name in stickers}, 'text_timing': TEXT_TIMING, 'safe_boxes': {name: safe_box(width,height,pos[0]) for name,pos in TEXT_POSITIONS.items()}, **direction}
     # Script JSON cannot terminate the script tag, including user-supplied captions.
     encoded = json.dumps(config, ensure_ascii=True).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
     body = scene.read_text(encoding='utf-8').replace('__CONFIG__', encoded).replace('__CARDS__', ''.join(cards)).replace('__WIDTH__', str(width)).replace('__HEIGHT__', str(height)).replace('__ACCENT__', direction['accent']).replace('__DURATION__', str(duration))
     (project / 'compositions').mkdir(exist_ok=True)
     (project / 'compositions/motion.html').write_text(body, encoding='utf-8')
-    root = f'''<!doctype html><html><head><meta charset="utf-8"><script src="assets/gsap.min.js"></script><script src="assets/hyperframes_layers.js"></script><style>html,body{{margin:0;background:#080808;overflow:hidden}}#main{{position:relative;width:{width}px;height:{height}px}}#source,#motion{{position:absolute;inset:0;width:100%;height:100%}}#source{{object-fit:contain;z-index:1}}#motion{{z-index:2}}</style></head><body><div id="main" data-composition-id="main" data-start="0" data-duration="{duration}" data-width="{width}" data-height="{height}" data-fps="{fps}"><video id="source" class="clip" src="assets/source.mp4" data-start="0" data-duration="{duration}" data-track-index="0" muted playsinline></video><div id="motion" class="clip" data-composition-id="motion" data-composition-src="compositions/motion.html" data-start="0" data-duration="{duration}" data-track-index="1" data-track-kind="graphics" data-width="{width}" data-height="{height}"></div></div><script>const clock={{t:0}};const tl=gsap.timeline({{paused:true}});tl.to(clock,{{t:{duration},duration:{duration},ease:'none'}});window.__timelines=window.__timelines||{{}};window.__timelines.main=tl;</script></body></html>'''
+    root = f'''<!doctype html><html><head><meta charset="utf-8"><script src="assets/gsap.min.js"></script><script src="assets/hyperframes_layers.js"></script>{lottie_tag}<style>{faces}html,body{{margin:0;background:#080808;overflow:hidden}}#main{{position:relative;width:{width}px;height:{height}px}}#source,#motion{{position:absolute;inset:0;width:100%;height:100%}}#source{{object-fit:contain;z-index:1}}#motion{{z-index:2}}</style></head><body><div id="main" data-composition-id="main" data-start="0" data-duration="{duration}" data-width="{width}" data-height="{height}" data-fps="{fps}"><video id="source" class="clip" src="assets/source.mp4" data-start="0" data-duration="{duration}" data-track-index="0" muted playsinline></video><div id="motion" class="clip" data-composition-id="motion" data-composition-src="compositions/motion.html" data-start="0" data-duration="{duration}" data-track-index="1" data-track-kind="graphics" data-width="{width}" data-height="{height}"></div></div><script>const clock={{t:0}};const tl=gsap.timeline({{paused:true}});tl.to(clock,{{t:{duration},duration:{duration},ease:'none'}});window.__timelines=window.__timelines||{{}};window.__timelines.main=tl;</script></body></html>'''
     if (layer_assets or {}).get('footage') and 'frame_paths' not in (layer_assets or {}):
         root = re.sub(r'<video id="source".*?</video>', '', root)  # canvas uses exact decoded source frames
     (project / 'index.html').write_text(root, encoding='utf-8')

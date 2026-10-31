@@ -38,6 +38,7 @@ comfy.utils.ProgressBar = _Bar
 from MVT.nodes.apply_shot_metadata import MajoorApplyShotMetadata as Apply  # noqa: E402
 from MVT.nodes.audio_rhythm import MajoorAudioRhythm as Rhythm  # noqa: E402
 from MVT.nodes.casting import MajoorApplyCasting as Casting  # noqa: E402
+from MVT.nodes.music_words import MajoorMusicWords as MusicWords  # noqa: E402
 from MVT.nodes.compare_video import MajoorCompareVideo as Compare  # noqa: E402
 from MVT.nodes.create_timeline import MajoorCreateTimeline as Timeline  # noqa: E402
 from MVT.nodes.cut_markers import MajoorCutMarkers as Markers  # noqa: E402
@@ -221,6 +222,11 @@ check("Cut Markers: a marker after the end", lambda: args(Markers.execute(marker
 # --- audio rhythm, music brief, edit skills, edit mode
 plan_text = tm[1]
 check("Audio Rhythm: with music", lambda: args(Rhythm.execute(plan_json=plan_text, fps=0.0, sensitivity=0.5, music=music))[0].count("audio:"))
+check("Music Words: lyrics are placed and the structure is read", lambda: (lambda r: (len(json.loads(r[0])), sorted(json.loads(r[1]))))(args(MusicWords.execute(music=music, lyrics="one two three four", words_json=""))))
+check("Music Words: the phrases come as a line for the LLM", lambda: args(MusicWords.execute(music=music))[2].startswith("VOCAL PHRASES") or args(MusicWords.execute(music=music))[2] == "")
+check("Music Words: given words win over lyrics", lambda: [w["word"] for w in json.loads(args(MusicWords.execute(music=music, lyrics="x y", words_json='[{"word":"hey","start":0.1,"end":0.4}]'))[0])])
+check("Music Words: no lyrics gives no words (empty)", lambda: args(MusicWords.execute(music=music))[0] == "")
+check("Music Words: words out of order refused (refused)", lambda: MusicWords.execute(music=music, words_json='[{"word":"a","start":2,"end":3},{"word":"b","start":1,"end":2}]'))
 check("Music Fit: a window of the click track on the bars", lambda: (lambda r: (r[0]["waveform"].shape, json.loads(r[1])["bpm"]))(args(Fit.execute(music=music, length=3.0, bpm=0.0, start=-1.0))))
 check("Music Fit: a music too short is looped", lambda: args(Fit.execute(music=music, length=float(music["waveform"].shape[-1]) / rate * 2.5, bpm=0.0, start=-1.0))[0]["waveform"].shape[-1])
 check("Audio Rhythm: stereo float music clipping", lambda: args(Rhythm.execute(plan_json=plan_text, fps=0.0, sensitivity=1.0, music={"waveform": music["waveform"] * 5, "sample_rate": rate}))[0].count("audio:"))

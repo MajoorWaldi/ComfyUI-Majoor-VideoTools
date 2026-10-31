@@ -10,7 +10,9 @@ def test_every_footage_effect_is_rendered_by_the_shared_compositor(tmp_path):
     except RuntimeError:pytest.skip('Optional HyperFrames runtime required')
     source=tmp_path/'source.mp4'
     subprocess.run(['ffmpeg','-y','-v','error','-f','lavfi','-i','testsrc2=s=320x240:r=24:d=3','-c:v','libx264','-pix_fmt','yuv420p',str(source)],check=True)
-    layers=[{'type':'effect','kind':kind,'start':i*.24,'end':min(3,(i+1)*.24),'amount':.7,'flicker':4,'speed':.4} for i,kind in enumerate(EFFECTS)]
+    kinds=[kind for kind in EFFECTS if kind!='echo']  # echo needs a subject mask
+    step=3/len(kinds)
+    layers=[{'type':'effect','kind':kind,'start':i*step,'end':min(3,(i+1)*step),'amount':.7,'flicker':4,'speed':.4} for i,kind in enumerate(kinds)]
     output=tmp_path/'effects.mp4'
     render_motion(source,parse_layers(json.dumps(layers),3),output)
     info=probe(output,with_packets=False)

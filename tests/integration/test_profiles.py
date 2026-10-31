@@ -8,7 +8,7 @@ NL = chr(10)
 
 
 def test_the_shipped_profiles_are_skill_files():
-    assert set(list_profiles()) == {"micro_emotion_pov", "slowed_dream", "hype_beat_drop", "viral_aura_farming", "beauty_premium", "narrative_cinematic", "product_advertising", "music_video", "glow_up", "outfit_change"}
+    assert set(list_profiles()) == {"micro_emotion_pov", "slowed_dream", "hype_beat_drop", "viral_aura_farming", "beauty_premium", "narrative_cinematic", "product_advertising", "music_video", "glow_up", "outfit_change", "kinetic_lyrics", "punch_text_anime", "editorial_layouts", "camera_rec_hud", "cutout_collage", "lipsync_rap", "brand_film_noir"}
     for name in list_profiles():
         skill = sk.load_skill("profile_" + name)
         assert skill.kind == "profile" and skill.meta["length"] and all(skill.meta[d] in DIALS[d] for d in DIALS), name

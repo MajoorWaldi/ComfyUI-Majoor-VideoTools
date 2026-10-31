@@ -26,13 +26,17 @@ from PIL import Image, ImageColor, ImageDraw, ImageFont
 from ..adapters.ffmpeg import CREATIONFLAGS, find_binary
 from .errors import MajoorError
 from .fx import TEXT_POSITIONS, _font
+from .motion_library import expand_rows
 from .media_probe import probe
 from .template import _json_text
 
-TYPES = ("text", "box", "brackets", "emoji", "outline", "effect", "track", "vector")
-ANIMATIONS = ("none", "fade", "pop", "slide_up", "slide_down", "slide_left", "slide_right", "typewriter", "glitch", "shake", "draw", "float", "words")
-EFFECTS = ("chromatic", "glitch", "grid", "dots", "scanlines", "grain", "vignette", "light_leak", "pan", "roll", "handheld")
+TYPES = ("text", "box", "brackets", "emoji", "outline", "effect", "track", "vector", "lottie")
+ANIMATIONS = ("none", "fade", "pop", "slide_up", "slide_down", "slide_left", "slide_right", "typewriter", "glitch", "shake", "draw", "float", "words", "scale_pop", "blur_in", "wiggle", "mask_reveal", "scramble", "split_letters", "karaoke_fill")
+EFFECTS = ("chromatic", "glitch", "grid", "dots", "scanlines", "grain", "vignette", "light_leak", "pan", "roll", "handheld", "flash", "wipe", "letterbox", "frame", "split_diagonal", "split_stack", "circle_mask", "pip", "zoom_punch", "echo", "tiles", "particles")
 TARGETS = ("frame", "subject", "background")
+FONTS = ("impact", "clean", "serif", "mono", "garamond", "code", "league", "archivo", "montserrat", "poppins", "space")
+LOTTIE_DIR = Path(__file__).resolve().parents[1] / "web/lottie"
+LETTER_REVEALS = ("mask_reveal", "scramble", "split_letters", "karaoke_fill")  # the frame renderer shows these as letters appearing; HyperFrames draws each one
 OUTLINES = ("solid", "double", "dashed", "neon")
 ANCHORS = ("subject_top", "subject_center", "subject_bottom", "subject_left", "subject_right")
 SHAPES = ("none", "dot", "ring", "cross")
@@ -74,6 +78,10 @@ def _point(value, where: str, default: list[float]) -> list[float]:
     return default
 
 
+def lottie_names() -> list[str]:
+    return sorted(p.stem for p in LOTTIE_DIR.glob("*.json"))
+
+
 def parse_layers(text: str, length: float) -> list[dict]:
     """The layers of the JSON, checked and completed (times in seconds). `length` is the length of the video in seconds."""
     try:
@@ -84,6 +92,7 @@ def parse_layers(text: str, length: float) -> list[dict]:
         data = data.get("layers", [])
     if not isinstance(data, list):
         raise MajoorError('The layers must be a list, or {"layers": [...]}')
+    data = expand_rows(data)
     if len(data) > MAX_LAYERS:
         raise MajoorError(f"{len(data)} layers: at most {MAX_LAYERS}")
     layers = []
@@ -121,9 +130,15 @@ def parse_layers(text: str, length: float) -> list[dict]:
                 position = "center"
             layer.update(content=content, size=_number(row.get("size", 0.08), "size", where, 0.02, 0.6), position=position, rotate=_number(row.get("rotate", 0), "rotate", where, -45, 45),
                          stroke=_number(row.get("stroke", 0.05), "stroke", where, 0, 0.2))
-            layer["font"] = str(row.get("font", "impact")) if row.get("font", "impact") in ("impact", "clean", "serif", "mono") else "impact"
+            layer["font"] = str(row.get("font", "impact")) if row.get("font", "impact") in FONTS else "impact"
             layer["safe"] = bool(row.get("safe", True))
             layer['accent_last'] = bool(row.get('accent_last', True))
+            layer['behind'] = layer['needs_mask'] = bool(row.get('behind', False)) and kind == 'text'  # behind the subject: the subject mask cuts it out of the picture
+            times = row.get('word_times')
+            if times is not None:
+                if not isinstance(times, list) or len(times) > 120 or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v < 0 for v in times) or times != sorted(times):
+                    raise MajoorError(f'{where}: word_times must be an ascending list of seconds from the start of the layer (at most 120)')
+                layer['word_times'] = [float(v) for v in times]
             layer["repeat"] = max(1, min(int(row.get("repeat", 1)), 12))
             if row.get("background") and _color(row["background"], where, "") != "":
                 layer["background"] = str(row["background"])
@@ -141,6 +156,14 @@ def parse_layers(text: str, length: float) -> list[dict]:
                          at=_point(row.get('at'),where,[.2,.7]),to=_point(row.get('to'),where,[.8,.7]),
                          radius=_number(row.get('radius',.009),'radius',where,.001,.2),
                          thickness=_number(row.get('thickness',.003),'thickness',where,.001,.05))
+        elif kind == "lottie":
+            name, stickers = str(row.get("name", "")), lottie_names()
+            if name not in stickers:  # a file name from a plan: only the shipped stickers, never a path
+                raise MajoorError(f"{where}: unknown lottie '{name}'. Available: {stickers}")
+            rect = row.get("rect", [0.3, 0.3, 0.4, 0.4])
+            if not (isinstance(rect, list) and len(rect) == 4):
+                raise MajoorError(f"{where}: rect must be [x, y, width, height] as fractions of the frame")
+            layer.update(name=name, loop=bool(row.get("loop", False)), rect=[_number(rect[0], "rect x", where, -1, 1), _number(rect[1], "rect y", where, -1, 1), _number(rect[2], "rect width", where, 0.001, 2), _number(rect[3], "rect height", where, 0.001, 2)])
         elif kind == "outline":
             layer.update(width=_number(row.get("width", 0.006), "width", where, 0.001, 0.05), style=_choice(row.get("style", "solid"), OUTLINES, "solid"), glow=_number(row.get("glow", 0), "glow", where, 0, 1),
                          needs_mask=True)
@@ -148,10 +171,10 @@ def parse_layers(text: str, length: float) -> list[dict]:
             effect = str(row.get("kind", "chromatic"))
             if effect not in EFFECTS:
                 raise MajoorError(f"{where}: unknown effect '{effect}'. Available: {list(EFFECTS)}")
-            target = _choice(row.get("target", "frame"), TARGETS, "frame")
+            target = "background" if effect == "echo" else _choice(row.get("target", "frame"), TARGETS, "frame")  # echoes sit behind the subject
             layer.update(kind=effect, amount=_number(row.get("amount", 0.5), "amount", where, 0, 1), target=target, spacing=_number(row.get("spacing", 0.06), "spacing", where, 0.01, 0.4),
                          thickness=_number(row.get("thickness", 0.0015), "thickness", where, 0.0005, 0.02), radius=_number(row.get("radius", 0.008), "radius", where, 0.001, 0.05),
-                         flicker=_number(row.get("flicker", 0), "flicker", where, 0, 30), speed=_number(row.get("speed", 0), "speed", where, -2, 2), needs_mask=target != "frame")
+                         count=int(_number(row.get("count", 40), "count", where, 1, 300)), flicker=_number(row.get("flicker", 0), "flicker", where, 0, 30), speed=_number(row.get("speed", 0), "speed", where, -2, 2), needs_mask=target != "frame")
         else:  # track
             anchor = str(row.get("anchor", "")) if str(row.get("anchor", "")) in ANCHORS else ""
             layer.update(anchor=anchor, at=_point(row.get("at"), where, [0.5, 0.5]), shape=_choice(row.get("shape", "ring"), SHAPES, "ring"), label=str(row.get("label", "")).strip()[:60],
@@ -186,6 +209,14 @@ def _state(layer: dict, t: float, length: float, seed: int) -> dict | None:
         state["alpha"] *= p
     elif animation == "pop":
         state["scale"], state["alpha"] = 0.6 + 0.4 * _back(p), state["alpha"] * min(p * 3, 1)
+    elif animation == "scale_pop":
+        state["scale"], state["alpha"] = 0.3 + 0.7 * _back(p), state["alpha"] * min(p * 3, 1)
+    elif animation == "blur_in":
+        state["alpha"] *= _ease(p)
+    elif animation == "wiggle":
+        state["dx"], state["alpha"] = 0.006 * math.sin(t * 14), state["alpha"] * min(p * 2, 1)
+    elif animation in LETTER_REVEALS:
+        state["reveal"] = p
     elif animation in ("slide_up", "slide_down"):
         state["dy"], state["alpha"] = (1 - _ease(p)) * 0.08 * (1 if animation == "slide_up" else -1), state["alpha"] * _ease(p)
     elif animation in ("slide_left", "slide_right"):
@@ -347,6 +378,65 @@ def _pattern(layer: dict, width: int, height: int, t: float) -> np.ndarray:
     return ((dx * dx + dy * dy) < radius * radius).astype(np.float32)
 
 
+def _particle(i: int) -> tuple[float, float, float]:
+    """Three numbers in [0, 1) for particle i; hyperframes_layers.js has the same formula."""
+    return tuple((math.sin(i * k) * m) % 1.0 for k, m in ((12.9898, 43758.5453), (78.233, 12345.6789), (39.346, 24634.6345)))
+
+
+def _particles(frame: np.ndarray, layer: dict, amount: float, t: float) -> None:
+    height, width = frame.shape[:2]
+    over = frame.copy()
+    tau, radius = (t - layer["start"]) * (abs(layer["speed"]) or .3), max(int(min(width, height) * layer["radius"]), 1)
+    color = ImageColor.getrgb(layer["color"])[:3]
+    for i in range(layer["count"]):
+        u, v, w = _particle(i)
+        x, y = (u + (w - .5) * .3 * tau) % 1.0, (v + (.3 + w) * tau) % 1.0
+        cv2.circle(over, (int(x * width), int(y * height)), max(int(radius * (.5 + w)), 1), color, -1)
+    frame[:] = cv2.addWeighted(over, min(amount, 1), frame, 1 - min(amount, 1), 0)
+
+
+def _layout(frame: np.ndarray, layer: dict, amount: float, t: float, subject: np.ndarray | None) -> None:
+    """The effects that rearrange the picture itself."""
+    height, width = frame.shape[:2]
+    kind, source = layer["kind"], frame.copy()
+    def crop(x, y, w, h, size):
+        return cv2.resize(source[int(y * height):int((y + h) * height), int(x * width):int((x + w) * width)], size, interpolation=cv2.INTER_LINEAR)
+    if kind == "split_stack":
+        half = height // 2
+        frame[:half] = crop(0, .25, 1, .5, (width, half))
+        frame[half:] = crop(.15, .3, .7, .35, (width, height - half))
+    elif kind == "split_diagonal":
+        yy, xx = np.mgrid[0:height, 0:width]
+        right = xx > width * (.6 - .2 * yy / max(height - 1, 1))
+        frame[right] = source[:, ::-1][right]
+    elif kind == "circle_mask":
+        yy, xx = np.mgrid[0:height, 0:width]
+        outside = (xx - width / 2) ** 2 + (yy - height / 2) ** 2 > (min(width, height) * .42 * min(amount, 1)) ** 2
+        frame[outside] = ImageColor.getrgb(layer["color"])[:3]
+    elif kind == "pip":
+        frame[:] = crop(.2, .2, .6, .6, (width, height))
+        w, h, m = max(int(width * .32), 1), max(int(height * .32), 1), int(min(width, height) * .04)
+        frame[height - h - m:height - m, width - w - m:width - m] = cv2.resize(source, (w, h), interpolation=cv2.INTER_LINEAR)
+    elif kind == "tiles":
+        half = (width // 2, height // 2)
+        small = cv2.resize(source, half, interpolation=cv2.INTER_AREA)
+        frame[:half[1], :half[0]], frame[:half[1], width - half[0]:] = small, small
+        frame[height - half[1]:, :half[0]], frame[height - half[1]:, width - half[0]:] = small, small
+    elif kind == "zoom_punch":
+        p = min(max((t - layer["start"]) / max(layer["in_time"], .05), 0), 1)
+        matrix = cv2.getRotationMatrix2D((width / 2, height / 2), 0, 1 + .25 * amount * _ease(p))
+        frame[:] = cv2.warpAffine(source, matrix, (width, height), borderMode=cv2.BORDER_REFLECT_101)
+    else:  # echo
+        out = source.astype(np.float32)
+        for k in (3, 2, 1):
+            shift = np.float32([[1, 0, width * .04 * k], [0, 1, height * .02 * k]])
+            copy = cv2.warpAffine(source, shift, (width, height)).astype(np.float32)
+            weight = cv2.warpAffine(subject, shift, (width, height))[..., None] * amount * (.75 - .15 * k)
+            out = out * (1 - weight) + copy * weight
+        keep = subject[..., None]
+        frame[:] = np.clip(out * (1 - keep) + source * keep, 0, 255).astype(np.uint8)
+
+
 def _effect(frame: np.ndarray, layer: dict, state: dict, t: float, index: int, subject: np.ndarray | None) -> None:
     if layer["flicker"] and int(t * layer["flicker"] * 2) % 2:
         return
@@ -380,6 +470,29 @@ def _effect(frame: np.ndarray, layer: dict, state: dict, t: float, index: int, s
         changed = _chromatic(frame, layer, amount) if layer["kind"] == "chromatic" else _glitch(frame, layer, amount, index * 17 + 3)
         weight = np.ones(frame.shape[:2], np.float32) if layer["target"] == "frame" else (subject if layer["target"] == "subject" else 1 - subject)
         frame[:] = (frame.astype(np.float32) * (1 - weight[..., None]) + changed.astype(np.float32) * weight[..., None]).astype(np.uint8)
+        return
+    if layer["kind"] == "particles":
+        _particles(frame, layer, amount, t)
+        return
+    if layer["kind"] in ("split_diagonal", "split_stack", "circle_mask", "pip", "zoom_punch", "echo", "tiles"):
+        _layout(frame, layer, amount, t, subject)
+        return
+    if layer["kind"] in ("flash", "wipe", "letterbox", "frame"):
+        height, width = frame.shape[:2]
+        p = min(max((t - layer["start"]) / max(layer["in_time"], .05), 0), 1)
+        weight, strength = np.zeros((height, width), np.float32), state["alpha"]
+        if layer["kind"] == "flash":
+            weight[:], strength = 1 - p, amount
+        elif layer["kind"] == "wipe":
+            x = int(width * (p * 1.2 - .2))
+            weight[:, max(x, 0):max(x + int(width * .2), 0)], strength = 1, amount
+        elif layer["kind"] == "letterbox":
+            bar = int(height * .12 * min(layer["amount"], 1))
+            weight[:bar], weight[height - bar:] = 1, 1
+        else:
+            m = int(min(width, height) * .04 * min(layer["amount"], 1))
+            weight[:m], weight[height - 3 * m:], weight[:, :m], weight[:, width - m:] = 1, 1, 1, 1
+        _tint(frame, weight, ImageColor.getrgb(layer["color"])[:3], strength)
         return
     weight = _pattern(layer, frame.shape[1], frame.shape[0], t - layer["start"])
     if layer["target"] != "frame":
@@ -512,6 +625,7 @@ def draw_layers(frame: np.ndarray, layers: list[dict], t: float, length: float, 
     margin = int(min(width, height) * 0.05)
     if tracker is not None:
         tracker.update(layers, cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY), t, subject)
+    untouched = frame.copy() if subject is not None and any(x.get("behind") for x in layers) else None
     for n, layer in enumerate(layers):
         state = _state(layer, t, length, index * 31 + n)
         if state is None:
@@ -519,13 +633,15 @@ def draw_layers(frame: np.ndarray, layers: list[dict], t: float, length: float, 
         kind = layer["type"]
         if kind == "effect":
             _effect(frame, layer, state, t, index, subject)
+        elif kind == "lottie":
+            continue  # stickers need the HyperFrames compositor
         elif kind == "outline":
             _outline(frame, layer, state, subject, t)
         elif kind == "track":
             if tracker is not None and id(layer) in tracker.points:
                 _track(frame, layer, state, tracker.points[id(layer)], sprites)
         elif kind in ("text", "emoji"):
-            chars = max(math.ceil(len(layer["content"]) * state["reveal"]), 1) if layer["animation"] == "typewriter" and kind == "text" else len(layer["content"])
+            chars = max(math.ceil(len(layer["content"]) * state["reveal"]), 1) if layer["animation"] in ("typewriter", *LETTER_REVEALS) and kind == "text" else len(layer["content"])
             full = sprites.text(layer, len(layer["content"]), 1.0)  # the box of the whole text keeps its place while the letters appear
             sprite = sprites.text(layer, chars, state["scale"])
             if "x" in layer:
@@ -536,6 +652,9 @@ def draw_layers(frame: np.ndarray, layers: list[dict], t: float, length: float, 
             grown = state["scale"] != 1.0  # a text that pops grows around its center
             x, y = x + int(state["dx"] * width) + ((full.width - sprite.width) // 2 if grown else 0), y + int(state["dy"] * height) + ((full.height - sprite.height) // 2 if grown else 0)
             _paste(frame, sprite, x, y, state["alpha"])
+            if layer.get("behind") and untouched is not None:
+                keep = subject[..., None]
+                frame[:] = (frame * (1 - keep) + untouched * keep).astype(np.uint8)
         else:
             sprite, (x, y) = sprites.shape(layer, state["reveal"], state["scale"])
             _paste(frame, sprite, x + int(state["dx"] * width), y + int(state["dy"] * height), state["alpha"])

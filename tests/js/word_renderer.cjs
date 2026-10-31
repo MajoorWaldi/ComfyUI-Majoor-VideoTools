@@ -29,5 +29,16 @@ async function trace(content,time,extra={}){
   assert.deepEqual(r.rects[0],[60,60,880,800]);assert.ok(r.centers[0][0]<940&&r.centers[0][1]<860);
   assert.equal(r.layout.length,1);assert.ok(r.layout[0].effective_font_px>0);
   assert.ok(r.layout[0].rect[0]>=60&&r.layout[0].rect[2]<=940.001);
-  console.log('word renderer: order, wrapping, repeats, accent, fade, exit and shared safe box passed');
+  r=await trace('ONE TWO',.5,{word_times:[0,1]});
+  assert.deepEqual(r.calls.map(x=>[x.word,x.alpha>0]),[['ONE',true],['TWO',false]]);
+  r=await trace('AB',.01,{animation:'split_letters'});
+  assert.deepEqual(r.calls.map(x=>[x.word,x.alpha>0]),[['A',true],['B',false]]);
+  r=await trace('HELLOWORLD',.1,{animation:'scramble'});
+  assert.equal(r.calls[0].word.length,10);assert.equal(r.calls[0].word.slice(0,4),'HELL');assert.notEqual(r.calls[0].word.slice(4),'OWORLD');
+  r=await trace('ONE TWO',.5,{animation:'karaoke_fill',word_times:[0,1]});
+  assert.ok(r.calls.some(x=>x.word==='ONE'&&x.color==='#ff0000')&&r.rects.some(x=>x[2]>0));
+  for(const animation of ['scale_pop','blur_in','wiggle','mask_reveal']){
+    r=await trace('HELLO',.125,{animation});assert.ok(r.calls.length>0&&r.calls[0].word==='HELLO'&&r.calls[0].alpha>0,animation);
+  }
+  console.log('word renderer: order, wrapping, repeats, accent, fade, exit, word times and the new animations passed');
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -5,6 +5,7 @@ This is a direct-component inventory, reviewed 2026-10-26, not a complete transi
 | Component | Version used by finishing installers | License | Upstream |
 |---|---|---|---|
 | HyperFrames | 0.8.201 | Apache-2.0 | https://github.com/heygen-com/hyperframes |
+| lottie-web | 5.12.2 | MIT | https://github.com/airbnb/lottie-web |
 | GSAP | 3.15.0 | GreenSock Standard “no charge” license | https://github.com/greensock/GSAP ; https://gsap.com/standard-license |
 | Tone.js | 15.1.22 | MIT; Yotam Mann | https://github.com/Tonejs/Tone.js |
 | puppeteer-core | 25.16.0 in Tone installer | Apache-2.0 | https://github.com/puppeteer/puppeteer |

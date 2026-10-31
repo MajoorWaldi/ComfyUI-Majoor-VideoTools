@@ -43,6 +43,7 @@ TEXT_FONTS = {
     "serif": ["georgiab.ttf", "timesbd.ttf", "Georgia Bold.ttf", "DejaVuSerif-Bold.ttf", "LiberationSerif-Bold.ttf"],
     "mono": ["consolab.ttf", "courbd.ttf", "Courier New Bold.ttf", "DejaVuSansMono-Bold.ttf", "LiberationMono-Bold.ttf"],
 }
+TEXT_FONTS.update(garamond=TEXT_FONTS["serif"], code=TEXT_FONTS["mono"])
 TEXT_ANIMATIONS = ("none", "fade", "slide_up", "words")
 # anchor of the text block (x, y as fractions of the safe box of the frame, see safe_box)
 TEXT_POSITIONS = {

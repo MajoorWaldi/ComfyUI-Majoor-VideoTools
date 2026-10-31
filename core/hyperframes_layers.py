@@ -22,14 +22,14 @@ def prepare_layers(project, source, info, layers, masks=None, cancelled=None):
     fps, duration = float(info.fps), float(info.duration)
     count = max(round(duration * fps), 1)
     # Source pixels are needed only for footage effects or optical-flow tracking.
-    footage = any(x['type'] == 'effect' for x in layers)
+    footage = any(x['type'] == 'effect' or x.get('behind') for x in layers)
     tracking = any(x['type'] == 'track' for x in layers)
     optical = any(x['type'] == 'track' and not x['anchor'] for x in layers)
     frames = project / 'assets/frames'
     frame_paths = None
     if footage or optical:
         frames.mkdir(parents=True, exist_ok=True)
-        effects = [x for x in layers if x['type']=='effect']
+        effects = [x for x in layers if x['type']=='effect' or x.get('behind')]  # the picture is needed where a text goes behind the subject
         selected = list(range(count)) if optical else [i for i in range(count) if any(x['start'] <= i/fps < (x['end'] if x['end'] is not None else duration) for x in effects)]
         filters = f'fps={info.fps},scale={width}:{height}'
         if not optical and len(selected) < count:
@@ -52,7 +52,7 @@ def prepare_layers(project, source, info, layers, masks=None, cancelled=None):
     tracks={str(i):[] for i,x in enumerate(layers) if x['type']=='track'}
     outlines={str(i):{'ring':[],'halo':[]} for i,x in enumerate(layers) if x['type']=='outline'}
     mask_paths=[]
-    targeted=any(x['type']=='effect' and x['target']!='frame' for x in layers)
+    targeted=any(x['type']=='effect' and x['target']!='frame' or x.get('behind') for x in layers)
     for index in range(count):
         if cancelled and cancelled():
             raise InterruptedError('HyperFrames layer preparation cancelled')

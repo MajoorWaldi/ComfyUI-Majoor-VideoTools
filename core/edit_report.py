@@ -14,6 +14,7 @@ from .audio_quality import measure_loudness
 from .beats import read_wav_mono, strong_accents
 from .errors import MediaError
 from .media_probe import probe
+from .sync_score import sync_score
 
 REVIEW_CHECKLIST = """Look at each frame of the sheet.
 Composition: one focal point; nothing collides; nothing important near the edge; the first frame is a real picture, not black.
@@ -45,6 +46,18 @@ def cut_times(manifest: dict) -> list[float]:
             times.append(round(at + inside, 3))
         at += float(shot.get("target_duration_seconds", 0))
     return sorted(set(times))
+
+
+def text_events(manifest: dict) -> list[float]:
+    """When each text layer of the plans appears in the edit, in seconds: the start of its shot plus its own start. Layers whose start is not a number of seconds are left out."""
+    times, at = [], 0.0
+    for shot in manifest.get("shots", []):
+        for layer in (shot.get("plan") or {}).get("motion") or []:
+            start = layer.get("start") if isinstance(layer, dict) and layer.get("type", "text") == "text" else None
+            if isinstance(start, (int, float)) and not isinstance(start, bool):
+                times.append(round(at + float(start), 3))
+        at += float(shot.get("target_duration_seconds", 0))
+    return sorted(times)
 
 
 def frame_at(video: Path, seconds: float) -> Image.Image:
@@ -106,9 +119,11 @@ def edit_report(project_dir: Path, video: Path, out_dir: Path | None = None) -> 
     music = project_dir / "music" / "retained.wav"
     if music.is_file():
         samples, rate = read_wav_mono(music)
-        report["sync"] = sync_report(cuts, *strong_accents(samples, rate))
+        accents, strength = strong_accents(samples, rate)
+        report["sync"] = sync_report(cuts, accents, strength)
+        report["text_sync"] = sync_score(text_events(manifest), accents[strength >= .7])
     else:
-        report["sync"] = None
+        report["sync"] = report["text_sync"] = None
     duration = float(probe(video, with_packets=False).duration)
     boundaries = sorted(set([0.0, *(c for c in cuts if 0 < c < duration), duration]))
     sample_times = [a + min(.3, (b - a) / 2) for a, b in zip(boundaries, boundaries[1:]) if b > a]
