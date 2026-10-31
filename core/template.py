@@ -118,29 +118,27 @@ def _json_text(text: str) -> str:
 def _layers(row: dict, sid: str) -> tuple[Layer, ...]:
     items = row.get("layers", [])
     if not isinstance(items, list):
-        raise MajoorError(f"{sid}: layers must be a list")
+        return ()  # a layers field that is no list is no layers
     layers = []
     for n, item in enumerate(items, start=1):
         where = f"{sid} layer {n}"
         if not isinstance(item, dict):
-            raise MajoorError(f"{where} must be an object")
-        if "rect" in item:
-            try:
-                x, y, w, h = (float(v) for v in item["rect"])
-            except (TypeError, ValueError):
-                raise MajoorError(f"{where}: rect must be [x, y, width, height] as fractions of the frame") from None
-        else:
-            name = str(item.get("layout", "full"))
-            if name not in LAYOUTS:
-                raise MajoorError(f"{where}: unknown layout '{name}'. Available: {list(LAYOUTS)}")
-            x, y, w, h = LAYOUTS[name]
-        if not (0 <= x < 1 and 0 <= y < 1 and 0 < w <= 1 - x + 1e-9 and 0 < h <= 1 - y + 1e-9):
-            raise MajoorError(f"{where}: the rectangle must stay inside the frame (fractions between 0 and 1)")
-        opacity = float(item.get("opacity", 1.0))
-        if not 0 <= opacity <= 1:
-            raise MajoorError(f"{where}: opacity must be between 0 and 1")
+            continue
+        try:
+            x, y, w, h = (float(v) for v in item["rect"]) if "rect" in item else LAYOUTS[str(item.get("layout", "full"))]
+        except (TypeError, ValueError, KeyError):
+            x, y, w, h = LAYOUTS["full"]  # a rect or a layout that does not exist is the whole frame
+        x, y = min(max(x, 0.0), 0.99), min(max(y, 0.0), 0.99)  # a rectangle that leaves the frame is brought back inside
+        w, h = min(max(w, 0.01), 1 - x), min(max(h, 0.01), 1 - y)
+        try:
+            opacity = min(max(float(item.get("opacity", 1.0)), 0.0), 1.0)
+        except (TypeError, ValueError):
+            opacity = 1.0
         color = str(item.get("color", "white"))
-        _rgb(color, where)
+        try:
+            _rgb(color, where)
+        except MajoorError:
+            color = "white"
         layers.append(Layer((x, y, w, h), color, opacity))
     return tuple(layers)
 
@@ -229,8 +227,7 @@ def parse_plan(text: str, fps: float, aspect_ratio: str, resolution: int) -> Pla
         except MajoorError:
             color = ""  # the color only codes the timeline by role: 'none' or 'transparent' from an LLM is no reason to stop
         motion = row.get('motion') or []
-        if not isinstance(motion, list) or len(motion) > 20 or any(not isinstance(layer, dict) for layer in motion):
-            raise MajoorError(f'{sid}: motion must contain at most 20 layer objects')
+        motion = [layer for layer in motion if isinstance(layer, dict)][:20] if isinstance(motion, list) else []  # only layer objects, twenty at most
         if motion:
             from .motion_timing import shot_layers
             from .motion import parse_layers

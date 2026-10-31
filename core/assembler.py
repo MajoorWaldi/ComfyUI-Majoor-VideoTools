@@ -329,6 +329,7 @@ def _plan(shot_list: ShotList, store: ProjectStore, opts: AssemblyOptions, fps: 
         if fx and opts.effects:
             transitions=[fx.get('transition'),*(c.get('transition') for c in fx.get('sub_cuts',[]))]
             warnings.extend(f'{shot.shot_id}: {t["approximation"]}' for t in transitions if t and t.get('approximation'))
+            warnings.extend(f'{shot.shot_id}: effect left out: {note}' for note in fx.get('ignored', []))
         if fx and not keep and opts.effects:  # effects of a timeline plan: sub-cuts, speed, zoom, transition, text
             segments += _fx_segments(shot, revision.revision_id, path, generated.duration, fx if opts.text else {k: v for k, v in fx.items() if k != "text"}, target_frames, fps, width, height, store, opts.sub_cuts, resolve_take, warnings,
                                      generated.has_audio, source_offset, opts.duration_policy == "trim_or_pad_last_frame")

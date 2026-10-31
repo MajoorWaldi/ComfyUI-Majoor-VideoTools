@@ -13,8 +13,7 @@ def test_unambiguous_vector_type_alias_preserves_geometry_and_timing(shape):
     assert len(result.shots) == 1
 
 
-def test_unknown_shapes_and_conflicting_aliases_still_fail():
-    with pytest.raises(MajoorError, match='conflicting'):
-        parse_layers('[{"type":"line","shape":"ring"}]', 2)
-    with pytest.raises(MajoorError, match='unknown type'):
-        parse_layers('[{"type":"invented_shape"}]', 2)
+def test_unknown_shapes_and_conflicting_aliases_are_left_out_and_said():
+    skipped = []
+    assert parse_layers('[{"type":"line","shape":"ring"}, {"type":"invented_shape"}]', 2, skipped) == []
+    assert any('conflicting' in note for note in skipped) and any('unknown type' in note for note in skipped)

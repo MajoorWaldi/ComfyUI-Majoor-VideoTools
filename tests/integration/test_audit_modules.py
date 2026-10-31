@@ -14,9 +14,11 @@ RATE = 8000
 def test_parse_words_accepts_a_list_or_an_object_and_rejects_bad_times():
     rows = [{"word": "one", "start": 0, "end": .4}, {"word": "two", "start": .5, "end": .9}]
     assert parse_words({"words": rows}) == parse_words(rows) == [{"word": "one", "start": 0.0, "end": .4}, {"word": "two", "start": .5, "end": .9}]
-    for bad in ([], [{"word": "x", "start": 1, "end": 1}], [{"word": "x", "start": 1, "end": 2}, {"word": "y", "start": .5, "end": 3}], [{"word": " ", "start": 0, "end": 1}]):
+    for bad in ([], [{"word": " ", "start": 0, "end": 1}], [{"word": "x", "start": -1, "end": 1}]):  # nothing that can be timed
         with pytest.raises(MajoorError):
             parse_words(bad)
+    mixed = parse_words([{"word": "y", "start": .5, "end": 3}, {"word": "x", "start": 0, "end": 0}, {"word": "bad", "start": "a", "end": 1}])  # out of order, no length, no time
+    assert [w["word"] for w in mixed] == ["x", "y"] and mixed[0]["end"] > mixed[0]["start"]
 
 
 def test_lyrics_are_spread_over_the_phrases_and_never_in_the_pauses():
@@ -90,9 +92,8 @@ def test_new_animations_word_times_and_beat_effects_parse_as_layers():
     layers = parse_layers(json.dumps(rows), 6)
     assert [l["animation"] for l in layers[:4]] == ["blur_in", "scramble", "karaoke_fill", "split_letters"] and layers[0]["word_times"] == [0.0, .5]
     assert [l["kind"] for l in layers[4:]] == ["flash", "wipe", "letterbox", "frame"]
-    for bad in ([1, 0], [-1], "x", [float("nan")]):
-        with pytest.raises(MajoorError):
-            parse_layers(json.dumps([{"type": "text", "content": "A", "word_times": bad}]).replace("NaN", "NaN"), 6)
+    for bad in ([1, 0], [-1], "x", [float("nan")]):  # word timing that cannot be read is no word timing: the text still shows
+        assert "word_times" not in parse_layers(json.dumps([{"type": "text", "content": "A", "word_times": bad}]), 6)[0]
 
 
 def test_beat_effects_draw_in_the_frame_renderer():
@@ -164,9 +165,9 @@ def test_lottie_names_are_an_allowlist_and_fonts_are_known():
     assert {"burst", "sparkle"} <= set(lottie_names())
     layer = parse_layers(json.dumps(expand_rows([{"template": "sticker", "start": 0, "end": 1, "name": "burst"}])), 2)[0]
     assert layer["type"] == "lottie" and layer["name"] == "burst" and layer["loop"] is True
-    for name in ("../../secret", "nope", ""):
-        with pytest.raises(MajoorError):
-            parse_layers(json.dumps([{"type": "lottie", "name": name}]), 2)
+    for name in ("../../secret", "nope", ""):  # never a path: the layer is left out, said, and nothing is read
+        skipped = []
+        assert parse_layers(json.dumps([{"type": "lottie", "name": name}]), 2, skipped) == [] and "unknown lottie" in skipped[0]
     assert 8 <= len(FONTS) <= 12
     assert parse_layers(json.dumps([{"type": "text", "content": "A", "font": "league"}]), 2)[0]["font"] == "league"
 

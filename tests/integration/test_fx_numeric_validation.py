@@ -26,8 +26,9 @@ def test_invalid_numbers_are_rejected_with_shot_context(value):
     for row in effect_rows(value):
         if value is None and row == {"sub_cuts": [{"duration_frames": 24, "start": None}]}:
             continue  # Existing contract: null start means automatic sequential placement.
-        with pytest.raises(MajoorError, match="SHOT_007"):
-            parse_fx(row, "SHOT_007", Fraction(24), lambda value, fps: 24)
+        fx = parse_fx(row, "SHOT_007", Fraction(24), lambda value, fps: 24)  # the effect that cannot be read is left out and said, with its shot; the plan still runs
+        assert fx.get("ignored") and all("SHOT_007" in note for note in fx["ignored"]), (row, fx)
+        assert "nan" not in repr(fx).lower() and "inf" not in repr({k: v for k, v in fx.items() if k != "ignored"}).lower()
 
 
 @pytest.mark.parametrize("value,expected", [(-5, .1), (20, 8), (1.25, 1.25), ("2", 2)])

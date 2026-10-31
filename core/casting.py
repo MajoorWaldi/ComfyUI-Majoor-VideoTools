@@ -32,23 +32,28 @@ def parse_casting(text: str) -> dict:
         raise MajoorError("The casting planner did not return valid JSON") from error
     if not isinstance(data, dict) or not isinstance(data.get("characters"), list) or not data["characters"]:
         raise MajoorError("Casting needs a non-empty list of characters")
-    if len(data["characters"]) > MAX_CHARACTERS:
-        raise MajoorError(f"Casting has more than {MAX_CHARACTERS} characters")
+    data["characters"] = data["characters"][:MAX_CHARACTERS]  # the first twelve
     sizes = data.get("shot_sizes", ["medium", "close_up"])
-    if not isinstance(sizes, list) or not sizes or any(s not in SHOT_SIZES for s in sizes):
-        raise MajoorError(f"Casting shot_sizes must be a list of {list(SHOT_SIZES)}")
+    sizes = [str(s).strip().lower().replace(" ", "_").replace("-", "_") for s in sizes] if isinstance(sizes, list) else []
+    sizes = [s for s in sizes if s in SHOT_SIZES] or ["medium", "close_up"]  # a size that does not exist is left out
     characters, seen = [], set()
     for item in data["characters"]:
         if not isinstance(item, dict):
             raise MajoorError("Each casting character must be an object")
-        cid = _text(item.get("id"), "character id")
-        if not _ID.match(cid) or cid in seen:
-            raise MajoorError(f"Casting: character id '{cid}' must be unique lowercase letters, digits or underscore")
+        name = _text(item.get("name", item.get("id")), "character name")
+        base = re.sub(r"[^a-z0-9_]+", "_", str(item.get("id") or name).strip().lower()).strip("_")[:28] or "character"
+        cid, n = base, 1
+        while cid in seen:  # the same id twice: the second gets a number
+            n += 1
+            cid = f"{base}_{n}"
         seen.add(cid)
         start, end = item.get("start"), item.get("end")
-        if any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in (start, end)) or not 0 <= start < end:
-            raise MajoorError(f"Casting: {cid} needs numbers 0 <= start < end (seconds)")
-        characters.append({"id": cid, "name": _text(item.get("name"), f"{cid}.name"), "look": _text(item.get("look"), f"{cid}.look"),
+        if any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in (start, end)):
+            raise MajoorError(f"Casting: {cid} needs numbers for start and end (seconds)")
+        start, end = sorted((max(start, 0), max(end, 0)))  # a part written backwards is the same part
+        if end == start:
+            raise MajoorError(f"Casting: {cid} needs a part that lasts (start < end)")
+        characters.append({"id": cid, "name": name, "look": _text(item.get("look", name), f"{cid}.look"),
                            "location": _text(item.get("location", ""), f"{cid}.location", required=False),
                            "performance": _text(item.get("performance", ""), f"{cid}.performance", required=False),
                            "start": float(start), "end": float(end)})

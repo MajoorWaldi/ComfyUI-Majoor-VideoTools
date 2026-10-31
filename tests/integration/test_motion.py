@@ -31,9 +31,13 @@ def test_the_layers_are_checked_and_completed():
     layers = parse_layers('```json\n{"layers": [{"type": "text", "content": "hello", "size": 0.9, "start": "50%", "animation": "spin"}, {"type": "brackets", "rect": [0.1, 0.1, 0.3, 0.3]}]}\n```', 4.0)
     assert layers[0]["start"] == 2.0 and layers[0]["size"] == 0.6 and layers[0]["animation"] == "none" and layers[0]["end"] is None  # out of range and unknown names are brought back, not refused
     assert layers[1]["type"] == "brackets" and layers[1]["rect"] == [0.1, 0.1, 0.3, 0.3]
-    for bad, message in (("nope", "not valid JSON"), ('[{"type": "star"}]', "unknown type"), ('[{"type": "text"}]', "needs"), ('[{"type": "box", "rect": [1, 2]}]', "rect must be"), ('{"layers": 3}', "must be a list")):
+    for bad, message in (("nope", "not valid JSON"), ('{"layers": 3}', "must be a list")):
         with pytest.raises(MajoorError, match=message):
             parse_layers(bad, 4.0)
+    skipped = []  # a layer that cannot be read is left out and said, the others stay
+    kept = parse_layers('[{"type": "star"}, {"type": "text"}, {"type": "box", "rect": [1, 2]}, {"type": "text", "content": "ok", "repeat": "x"}]', 4.0, skipped)
+    assert [layer["type"] for layer in kept] == ["box"] and kept[0]["rect"] == [0.25, 0.25, 0.5, 0.5]
+    assert len(skipped) == 3 and "unknown type" in skipped[0]
 
 
 def test_a_text_appears_letter_by_letter_in_its_time_and_the_audio_stays(video, tmp_path):

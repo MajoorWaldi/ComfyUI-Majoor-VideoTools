@@ -26,12 +26,13 @@ def test_skill_loads():
 
 
 def test_rejects_bad_casts():
-    for bad in ('{"characters": []}', 'nope', '{"characters":[{"id":"A","name":"a","look":"x","start":0,"end":1}]}',
-                '{"characters":[{"id":"a","name":"a","look":"x","start":2,"end":1}]}'):
+    for bad in ('{"characters": []}', 'nope', '{"characters":[{"id":"a","name":"a","look":"x","start":1,"end":1}]}', '{"characters":[{"id":"a","name":"a","look":"x"}]}'):
         with pytest.raises(MajoorError):
             parse_casting(bad)
-    with pytest.raises(MajoorError):
-        _casting(shot_sizes=["huge"])
+    # what an LLM writes loosely is understood: ids in capitals, a part written backwards, a size that does not exist
+    loose = parse_casting('{"shot_sizes": ["Close Up", "huge"], "characters":[{"id":"Mad Witch","name":"Witch","look":"green","start":2,"end":1},{"id":"mad witch","name":"Twin","start":3,"end":4}]}')
+    assert [c["id"] for c in loose["characters"]] == ["mad_witch", "mad_witch_2"] and (loose["characters"][0]["start"], loose["characters"][0]["end"]) == (1.0, 2.0)
+    assert loose["shot_sizes"] == ["close_up"] and loose["characters"][1]["look"] == "Twin"
 
 
 def test_bible_repeats_identity_and_style():

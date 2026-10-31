@@ -13,6 +13,7 @@ Low-level raster helpers remain for compatibility; the former video renderer del
 
 start and end are seconds or a percentage of the length of the video ("40%"); no end = until the last frame."""
 import json
+import logging
 import math
 import os
 import subprocess
@@ -29,6 +30,8 @@ from .fx import TEXT_POSITIONS, _font
 from .motion_library import expand_rows
 from .media_probe import probe
 from .template import _json_text
+
+logger = logging.getLogger(__name__)
 
 TYPES = ("text", "box", "brackets", "emoji", "outline", "effect", "track", "vector", "lottie")
 ANIMATIONS = ("none", "fade", "pop", "slide_up", "slide_down", "slide_left", "slide_right", "typewriter", "glitch", "shake", "draw", "float", "words", "scale_pop", "blur_in", "wiggle", "mask_reveal", "scramble", "split_letters", "karaoke_fill")
@@ -82,8 +85,95 @@ def lottie_names() -> list[str]:
     return sorted(p.stem for p in LOTTIE_DIR.glob("*.json"))
 
 
-def parse_layers(text: str, length: float) -> list[dict]:
-    """The layers of the JSON, checked and completed (times in seconds). `length` is the length of the video in seconds."""
+def _layer(row, where: str, length: float) -> dict:
+    """One layer, checked and completed; an error when it cannot be read."""
+    if not isinstance(row, dict):
+        raise MajoorError(f"{where} must be an object")
+    kind = str(row.get("type", "text"))
+    if kind in ('line', 'dot', 'ring'):
+        if row.get('shape', kind) != kind:
+            raise MajoorError(f'{where}: conflicting vector type and shape')
+        row = {**row, 'type': 'vector', 'shape': kind}
+        kind = 'vector'
+    if kind not in TYPES:
+        raise MajoorError(f"{where}: unknown type '{kind}'. Available: {list(TYPES)}")
+    start = _time(row.get("start"), "start", where, length, 0.0)
+    end = _time(row.get("end"), "end", where, length, None)
+    if end is not None and end <= start:
+        end = start + 0.2
+    animation = _choice(row.get("animation", "none"), ANIMATIONS, "none")  # an LLM invents names: a layer without animation beats a stopped workflow
+    layer = {"type": kind, "start": start, "end": end, "animation": animation, "out": "fade" if str(row.get("out", "none")) == "fade" else "none",
+             "in_time": _number(row.get("in_time", 0.25), "in_time", where, 0.05, 3.0), "opacity": _number(row.get("opacity", 1), "opacity", where, 0, 1),
+             "color": _color(row.get("color", "white"), where, "white"), "needs_mask": False}
+    from .motion_scenes import transform
+    if 'motion_from' in row or 'motion_to' in row:
+        layer.update(motion_from=transform(row.get('motion_from', {})), motion_to=transform(row.get('motion_to', {})))
+    layer['ease'] = _choice(row.get('ease','out'), ('out','smooth','linear','back'), 'out')
+    if row.get('scene'): layer['scene']=str(row['scene'])[:80]
+    if kind in ("text", "emoji"):
+        content = str(row.get("content", "")).strip()[:120 if kind == "text" else 8]
+        if not content:
+            raise MajoorError(f'{where}: a {kind} layer needs "content"')
+        position = str(row.get("position", "center"))
+        if position not in TEXT_POSITIONS and "x" not in row:
+            position = "center"
+        layer.update(content=content, size=_number(row.get("size", 0.08), "size", where, 0.02, 0.6), position=position, rotate=_number(row.get("rotate", 0), "rotate", where, -45, 45),
+                     stroke=_number(row.get("stroke", 0.05), "stroke", where, 0, 0.2))
+        layer["font"] = str(row.get("font", "impact")) if row.get("font", "impact") in FONTS else "impact"
+        layer["safe"] = bool(row.get("safe", True))
+        layer['accent_last'] = bool(row.get('accent_last', True))
+        layer['behind'] = layer['needs_mask'] = bool(row.get('behind', False)) and kind == 'text'  # behind the subject: the subject mask cuts it out of the picture
+        times = row.get('word_times')
+        if times is not None:
+            if isinstance(times, list) and len(times) <= 120 and not any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v < 0 for v in times) and times == sorted(times):
+                layer['word_times'] = [float(v) for v in times]  # ascending seconds from the start of the layer; any other list is no word timing
+        layer["repeat"] = int(_number(row.get("repeat", 1), "repeat", where, 1, 12))
+        if row.get("background") and _color(row["background"], where, "") != "":
+            layer["background"] = str(row["background"])
+        if "x" in row:
+            layer["x"], layer["y"] = _number(row.get("x"), "x", where, -1, 1), _number(row.get("y", 0), "y", where, -1, 1)
+    elif kind in ("box", "brackets"):
+        rect = row.get("rect", [0.25, 0.25, 0.5, 0.5])
+        if not (isinstance(rect, list) and len(rect) == 4):
+            rect = [0.25, 0.25, 0.5, 0.5]  # a rect that is not [x, y, width, height] is the middle of the frame
+        layer["rect"] = [_number(rect[0], "rect x", where, -1, 1), _number(rect[1], "rect y", where, -1, 1), _number(rect[2], "rect width", where, 0.001, 2), _number(rect[3], "rect height", where, 0.001, 2)]
+        layer["thickness"] = _number(row.get("thickness", 0.004), "thickness", where, 0.001, 0.05)
+        layer["arm"] = _number(row.get("arm", 0.2), "arm", where, 0.05, 0.5)
+    elif kind == 'vector':
+        layer.update(shape=_choice(row.get('shape','line'),('line','dot','ring'),'line'),
+                     at=_point(row.get('at'),where,[.2,.7]),to=_point(row.get('to'),where,[.8,.7]),
+                     radius=_number(row.get('radius',.009),'radius',where,.001,.2),
+                     thickness=_number(row.get('thickness',.003),'thickness',where,.001,.05))
+    elif kind == "lottie":
+        name, stickers = str(row.get("name", "")), lottie_names()
+        if name not in stickers:  # a file name from a plan: only the shipped stickers, never a path
+            raise MajoorError(f"{where}: unknown lottie '{name}'. Available: {stickers}")
+        rect = row.get("rect", [0.3, 0.3, 0.4, 0.4])
+        if not (isinstance(rect, list) and len(rect) == 4):
+            rect = [0.3, 0.3, 0.4, 0.4]
+        layer.update(name=name, loop=bool(row.get("loop", False)), rect=[_number(rect[0], "rect x", where, -1, 1), _number(rect[1], "rect y", where, -1, 1), _number(rect[2], "rect width", where, 0.001, 2), _number(rect[3], "rect height", where, 0.001, 2)])
+    elif kind == "outline":
+        layer.update(width=_number(row.get("width", 0.006), "width", where, 0.001, 0.05), style=_choice(row.get("style", "solid"), OUTLINES, "solid"), glow=_number(row.get("glow", 0), "glow", where, 0, 1),
+                     needs_mask=True)
+    elif kind == "effect":
+        effect = str(row.get("kind", "chromatic"))
+        if effect not in EFFECTS:
+            raise MajoorError(f"{where}: unknown effect '{effect}'. Available: {list(EFFECTS)}")
+        target = "background" if effect == "echo" else _choice(row.get("target", "frame"), TARGETS, "frame")  # echoes sit behind the subject
+        layer.update(kind=effect, amount=_number(row.get("amount", 0.5), "amount", where, 0, 1), target=target, spacing=_number(row.get("spacing", 0.06), "spacing", where, 0.01, 0.4),
+                     thickness=_number(row.get("thickness", 0.0015), "thickness", where, 0.0005, 0.02), radius=_number(row.get("radius", 0.008), "radius", where, 0.001, 0.05),
+                     count=int(_number(row.get("count", 40), "count", where, 1, 300)), flicker=_number(row.get("flicker", 0), "flicker", where, 0, 30), speed=_number(row.get("speed", 0), "speed", where, -2, 2), needs_mask=target != "frame")
+    else:  # track
+        anchor = str(row.get("anchor", "")) if str(row.get("anchor", "")) in ANCHORS else ""
+        layer.update(anchor=anchor, at=_point(row.get("at"), where, [0.5, 0.5]), shape=_choice(row.get("shape", "ring"), SHAPES, "ring"), label=str(row.get("label", "")).strip()[:60],
+                     emoji=str(row.get("emoji", "")).strip()[:4], offset=_point(row.get("offset"), where, [0.08, -0.08]), line=bool(row.get("line", True)),
+                     size=_number(row.get("size", 0.035), "size", where, 0.015, 0.2), radius=_number(row.get("radius", 0.014), "radius", where, 0.004, 0.08), needs_mask=bool(anchor))
+    return layer
+
+
+def parse_layers(text: str, length: float, skipped: list | None = None) -> list[dict]:
+    """The layers of the JSON, checked and completed (times in seconds). `length` is the length of the video in seconds.
+    A layer that cannot be read is left out, and said in `skipped` when it is given."""
     try:
         data = json.loads(_json_text(text))
     except json.JSONDecodeError as e:
@@ -94,93 +184,18 @@ def parse_layers(text: str, length: float) -> list[dict]:
         raise MajoorError('The layers must be a list, or {"layers": [...]}')
     data = expand_rows(data)
     if len(data) > MAX_LAYERS:
-        raise MajoorError(f"{len(data)} layers: at most {MAX_LAYERS}")
+        logger.warning("%d layers: the first %d are kept", len(data), MAX_LAYERS)
+        if skipped is not None:
+            skipped.append(f"{len(data)} layers: the first {MAX_LAYERS} are kept")
+        data = data[:MAX_LAYERS]
     layers = []
     for i, row in enumerate(data, start=1):
-        where = f"layer #{i}"
-        if not isinstance(row, dict):
-            raise MajoorError(f"{where} must be an object")
-        kind = str(row.get("type", "text"))
-        if kind in ('line', 'dot', 'ring'):
-            if row.get('shape', kind) != kind:
-                raise MajoorError(f'{where}: conflicting vector type and shape')
-            row = {**row, 'type': 'vector', 'shape': kind}
-            kind = 'vector'
-        if kind not in TYPES:
-            raise MajoorError(f"{where}: unknown type '{kind}'. Available: {list(TYPES)}")
-        start = _time(row.get("start"), "start", where, length, 0.0)
-        end = _time(row.get("end"), "end", where, length, None)
-        if end is not None and end <= start:
-            end = start + 0.2
-        animation = _choice(row.get("animation", "none"), ANIMATIONS, "none")  # an LLM invents names: a layer without animation beats a stopped workflow
-        layer = {"type": kind, "start": start, "end": end, "animation": animation, "out": "fade" if str(row.get("out", "none")) == "fade" else "none",
-                 "in_time": _number(row.get("in_time", 0.25), "in_time", where, 0.05, 3.0), "opacity": _number(row.get("opacity", 1), "opacity", where, 0, 1),
-                 "color": _color(row.get("color", "white"), where, "white"), "needs_mask": False}
-        from .motion_scenes import transform
-        if 'motion_from' in row or 'motion_to' in row:
-            layer.update(motion_from=transform(row.get('motion_from', {})), motion_to=transform(row.get('motion_to', {})))
-        layer['ease'] = _choice(row.get('ease','out'), ('out','smooth','linear','back'), 'out')
-        if row.get('scene'): layer['scene']=str(row['scene'])[:80]
-        if kind in ("text", "emoji"):
-            content = str(row.get("content", "")).strip()[:120 if kind == "text" else 8]
-            if not content:
-                raise MajoorError(f'{where}: a {kind} layer needs "content"')
-            position = str(row.get("position", "center"))
-            if position not in TEXT_POSITIONS and "x" not in row:
-                position = "center"
-            layer.update(content=content, size=_number(row.get("size", 0.08), "size", where, 0.02, 0.6), position=position, rotate=_number(row.get("rotate", 0), "rotate", where, -45, 45),
-                         stroke=_number(row.get("stroke", 0.05), "stroke", where, 0, 0.2))
-            layer["font"] = str(row.get("font", "impact")) if row.get("font", "impact") in FONTS else "impact"
-            layer["safe"] = bool(row.get("safe", True))
-            layer['accent_last'] = bool(row.get('accent_last', True))
-            layer['behind'] = layer['needs_mask'] = bool(row.get('behind', False)) and kind == 'text'  # behind the subject: the subject mask cuts it out of the picture
-            times = row.get('word_times')
-            if times is not None:
-                if not isinstance(times, list) or len(times) > 120 or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v < 0 for v in times) or times != sorted(times):
-                    raise MajoorError(f'{where}: word_times must be an ascending list of seconds from the start of the layer (at most 120)')
-                layer['word_times'] = [float(v) for v in times]
-            layer["repeat"] = max(1, min(int(row.get("repeat", 1)), 12))
-            if row.get("background") and _color(row["background"], where, "") != "":
-                layer["background"] = str(row["background"])
-            if "x" in row:
-                layer["x"], layer["y"] = _number(row.get("x"), "x", where, -1, 1), _number(row.get("y", 0), "y", where, -1, 1)
-        elif kind in ("box", "brackets"):
-            rect = row.get("rect", [0.25, 0.25, 0.5, 0.5])
-            if not (isinstance(rect, list) and len(rect) == 4):
-                raise MajoorError(f"{where}: rect must be [x, y, width, height] as fractions of the frame")
-            layer["rect"] = [_number(rect[0], "rect x", where, -1, 1), _number(rect[1], "rect y", where, -1, 1), _number(rect[2], "rect width", where, 0.001, 2), _number(rect[3], "rect height", where, 0.001, 2)]
-            layer["thickness"] = _number(row.get("thickness", 0.004), "thickness", where, 0.001, 0.05)
-            layer["arm"] = _number(row.get("arm", 0.2), "arm", where, 0.05, 0.5)
-        elif kind == 'vector':
-            layer.update(shape=_choice(row.get('shape','line'),('line','dot','ring'),'line'),
-                         at=_point(row.get('at'),where,[.2,.7]),to=_point(row.get('to'),where,[.8,.7]),
-                         radius=_number(row.get('radius',.009),'radius',where,.001,.2),
-                         thickness=_number(row.get('thickness',.003),'thickness',where,.001,.05))
-        elif kind == "lottie":
-            name, stickers = str(row.get("name", "")), lottie_names()
-            if name not in stickers:  # a file name from a plan: only the shipped stickers, never a path
-                raise MajoorError(f"{where}: unknown lottie '{name}'. Available: {stickers}")
-            rect = row.get("rect", [0.3, 0.3, 0.4, 0.4])
-            if not (isinstance(rect, list) and len(rect) == 4):
-                raise MajoorError(f"{where}: rect must be [x, y, width, height] as fractions of the frame")
-            layer.update(name=name, loop=bool(row.get("loop", False)), rect=[_number(rect[0], "rect x", where, -1, 1), _number(rect[1], "rect y", where, -1, 1), _number(rect[2], "rect width", where, 0.001, 2), _number(rect[3], "rect height", where, 0.001, 2)])
-        elif kind == "outline":
-            layer.update(width=_number(row.get("width", 0.006), "width", where, 0.001, 0.05), style=_choice(row.get("style", "solid"), OUTLINES, "solid"), glow=_number(row.get("glow", 0), "glow", where, 0, 1),
-                         needs_mask=True)
-        elif kind == "effect":
-            effect = str(row.get("kind", "chromatic"))
-            if effect not in EFFECTS:
-                raise MajoorError(f"{where}: unknown effect '{effect}'. Available: {list(EFFECTS)}")
-            target = "background" if effect == "echo" else _choice(row.get("target", "frame"), TARGETS, "frame")  # echoes sit behind the subject
-            layer.update(kind=effect, amount=_number(row.get("amount", 0.5), "amount", where, 0, 1), target=target, spacing=_number(row.get("spacing", 0.06), "spacing", where, 0.01, 0.4),
-                         thickness=_number(row.get("thickness", 0.0015), "thickness", where, 0.0005, 0.02), radius=_number(row.get("radius", 0.008), "radius", where, 0.001, 0.05),
-                         count=int(_number(row.get("count", 40), "count", where, 1, 300)), flicker=_number(row.get("flicker", 0), "flicker", where, 0, 30), speed=_number(row.get("speed", 0), "speed", where, -2, 2), needs_mask=target != "frame")
-        else:  # track
-            anchor = str(row.get("anchor", "")) if str(row.get("anchor", "")) in ANCHORS else ""
-            layer.update(anchor=anchor, at=_point(row.get("at"), where, [0.5, 0.5]), shape=_choice(row.get("shape", "ring"), SHAPES, "ring"), label=str(row.get("label", "")).strip()[:60],
-                         emoji=str(row.get("emoji", "")).strip()[:4], offset=_point(row.get("offset"), where, [0.08, -0.08]), line=bool(row.get("line", True)),
-                         size=_number(row.get("size", 0.035), "size", where, 0.015, 0.2), radius=_number(row.get("radius", 0.014), "radius", where, 0.004, 0.08), needs_mask=bool(anchor))
-        layers.append(layer)
+        try:
+            layers.append(_layer(row, f"layer #{i}", length))
+        except MajoorError as error:  # one layer that cannot be read is left out: the video and the other layers still come
+            logger.warning("%s", error)
+            if skipped is not None:
+                skipped.append(str(error))
     return layers
 
 

@@ -27,6 +27,11 @@ TRANSITIONS = {"cut": 0, "flash": 4, "flash_black": 4, "fade_black": 6, "fade_wh
 TRANSITION_ALIASES = {"flash_white": "flash", "white_flash": "flash", "black_flash": "flash_black", "dip_to_black": "fade_black", "fade": "fade_black", "fade_in": "fade_black", "dip_to_white": "fade_white",
                       "whip_pan": "whip", "whip_horizontal": "whip", "whip_vertical": "whip_v", "defocus": "blur", "dissolve": "blur", "cross_dissolve": "blur", "crossfade": "blur",
                       "zoom": "punch", "punch_in": "punch", "rgb_split": "glitch", "glitch_rgb": "glitch", "camera_shake": "shake", "negative": "invert", "flicker": "strobe"}
+LOOK_ALIASES = {"bw": "mono", "b&w": "mono", "black_and_white": "mono", "grayscale": "mono", "greyscale": "mono", "noir": "mono", "monochrome": "mono",
+                "high_contrast": "contrast", "inverted": "negative", "invert": "negative"}
+POSITION_ALIASES = {"middle": "center", "centre": "center", "center_center": "center", "top_center": "top", "upper": "top", "bottom_center": "bottom", "lower": "bottom",
+                    "lower_third": "bottom", "center_left": "left", "center_right": "right", "left_center": "left", "right_center": "right"}
+BLEND_ALIASES = {"soft_light": "softlight", "addition": "add", "lighter": "lighten", "darker": "darken", "multiply_blend": "multiply"}
 MAX_SUB_CUTS = 24
 SUB_MIN_FRAMES = 3
 SPEED = (0.1, 8.0)
@@ -56,7 +61,7 @@ def _number(value, name: str, where: str, lo: float, hi: float, strict: bool = F
     if isinstance(value, bool):
         raise MajoorError(f"{where}: {name} must be a number")
     try:
-        number = float(value)
+        number = float(str(value).strip().rstrip("x×") if isinstance(value, str) else value)
     except (TypeError, ValueError, OverflowError):
         raise MajoorError(f"{where}: {name} must be a number") from None
     if not math.isfinite(number):
@@ -70,9 +75,9 @@ def _number(value, name: str, where: str, lo: float, hi: float, strict: bool = F
 
 def _pair(value, name: str, where: str, lo: float, hi: float) -> list[float]:
     if isinstance(value, (list, tuple)):
-        if len(value) != 2:
+        if not value:
             raise MajoorError(f"{where}: {name} must be one number or [from, to]")
-        return [_number(v, name, where, lo, hi) for v in value]
+        return [_number(v, name, where, lo, hi) for v in (value[0], value[-1])]  # three values or more: the first and the last are the move
     number = _number(value, name, where, lo, hi)
     return [number, number]
 
@@ -118,7 +123,7 @@ def _layer_spec(item, where: str, *, overlay: bool) -> dict:
         raise MajoorError(f'{where} must be an object like {{"source": "SHOT_003"}}')
     source = str(item.get("source", "self"))
     if not _SOURCE.fullmatch(source):
-        raise MajoorError(f"{where}: invalid source '{source}' (a shot id, or self)")
+        source = "self"  # a name that is no shot id shows this shot
     out: dict = {"source": source, "offset": _number(item.get("offset", 0.0), "offset", where, 0.0, 600.0)}
     if "zoom" in item:
         out["zoom"] = _pair(item["zoom"], "zoom", where, *ZOOM)
@@ -126,77 +131,103 @@ def _layer_spec(item, where: str, *, overlay: bool) -> dict:
         out["focus"] = _pair(item["focus"], "focus", where, 0.0, 1.0)
     if "flip" in item:
         out["flip"] = bool(item["flip"])
-    if "look" in item:
-        look = str(item["look"])
-        if look not in LOOKS:
-            raise MajoorError(f"{where}: unknown look '{look}'. Available: {list(LOOKS)}")
-        out["look"] = look
+    if "look" in item and _look(item["look"]):
+        out["look"] = _look(item["look"])
     if overlay:
         out["opacity"] = _number(item.get("opacity", 0.5), "opacity", where, 0.0, 1.0)
-        blend = str(item.get("blend", "screen"))
-        if blend not in BLENDS:
-            raise MajoorError(f"{where}: unknown blend '{blend}'. Available: {list(BLENDS)}")
-        out["blend"] = blend
+        blend = _key(item.get("blend", "screen"))
+        blend = BLEND_ALIASES.get(blend, blend)
+        out["blend"] = blend if blend in BLENDS else "normal"
         out["scale"] = _number(item.get("scale", 1.0), "scale", where, 0.1, 1.0)
-        position = str(item.get("position", "center"))
-        if position not in TEXT_POSITIONS:
-            raise MajoorError(f"{where}: unknown position '{position}'. Available: {list(TEXT_POSITIONS)}")
-        out["position"] = position
+        out["position"] = _position(item.get("position", "center"))
     return out
 
 
-def _composite(item: dict, where: str) -> dict:
+def _key(value) -> str:
+    return str(value).strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _look(value) -> str:
+    """The look, with the names an LLM writes for them; a look that does not exist is no look."""
+    look = _key(value)
+    look = LOOK_ALIASES.get(look, look)
+    return look if look in LOOKS else ""
+
+
+def _position(value) -> str:
+    position = _key(value)
+    position = POSITION_ALIASES.get(position, position)
+    return position if position in TEXT_POSITIONS else "center"
+
+
+def _composite(item: dict, where: str, ignored: list | None = None) -> dict:
     """overlay (a surimpression: other takes blended over the picture) and split (the picture replaced by panels)."""
     out: dict = {}
     if item.get("overlay"):
         layers = item["overlay"] if isinstance(item["overlay"], list) else [item["overlay"]]
         if len(layers) > MAX_OVERLAYS:
-            raise MajoorError(f"{where}: at most {MAX_OVERLAYS} overlays")
+            if ignored is None:
+                raise MajoorError(f"{where}: at most {MAX_OVERLAYS} overlays")
+            ignored.append(f"{where}: kept the first {MAX_OVERLAYS} overlays of {len(layers)}")
+            layers = layers[:MAX_OVERLAYS]
         out["overlay"] = [_layer_spec(layer, f"{where} overlay {n}", overlay=True) for n, layer in enumerate(layers, start=1)]
     if "overlay" in item and not item["overlay"]:
         out["overlay"] = None
     if item.get("split"):
         split = item["split"] if isinstance(item["split"], dict) else {"layout": item["split"]}
-        layout = str(split.get("layout", "left_right"))
-        if layout not in SPLIT_LAYOUTS:
-            raise MajoorError(f"{where}: unknown split layout '{layout}'. Available: {list(SPLIT_LAYOUTS)}")
+        layout = _key(split.get("layout", "left_right")) if isinstance(split, dict) else "left_right"
         panels = split.get("panels") or []
-        if not isinstance(panels, list) or len(panels) > SPLIT_LAYOUTS[layout]:
-            raise MajoorError(f"{where}: the split '{layout}' has {SPLIT_LAYOUTS[layout]} panels, panels must be a list of at most that many")
-        parsed = [_layer_spec(panel, f"{where} split panel {n}", overlay=False) for n, panel in enumerate(panels, start=1)]
-        while len(parsed) < SPLIT_LAYOUTS[layout]:  # the panels left out show this shot
-            parsed.append({"source": "self", "offset": 0.0})
-        out["split"] = {"layout": layout, "panels": parsed}
+        if layout not in SPLIT_LAYOUTS or not isinstance(panels, list) or len(panels) > SPLIT_LAYOUTS[layout]:
+            if ignored is None:
+                raise MajoorError(f"{where}: the split '{layout}' is not one of {list(SPLIT_LAYOUTS)}, or has more panels than it holds")
+            ignored.append(f"{where}: split '{layout}' left out")
+        else:
+            parsed = [_layer_spec(panel, f"{where} split panel {n}", overlay=False) for n, panel in enumerate(panels, start=1)]
+            while len(parsed) < SPLIT_LAYOUTS[layout]:  # the panels left out show this shot
+                parsed.append({"source": "self", "offset": 0.0})
+            out["split"] = {"layout": layout, "panels": parsed}
     if "split" in item and not item["split"]:
         out["split"] = None
     return out
 
 
-def _common(item: dict, where: str, fps: Fraction) -> dict:
-    """The effects that exist both on a shot and on one of its sub-cuts. Only the keys that were given are kept."""
+def _common(item: dict, where: str, fps: Fraction, ignored: list | None = None) -> dict:
+    """The effects that exist both on a shot and on one of its sub-cuts. Only the keys that were given are kept.
+    With `ignored`, an effect that cannot be read is left out and said there: the plan still runs. Without it, it is an error (stored plans)."""
     out: dict = {}
+
+    def keep(make) -> None:
+        try:
+            make()
+        except MajoorError as error:
+            if ignored is None:
+                raise
+            ignored.append(str(error))
+
     if "speed" in item:
-        out["speed"] = _number(item["speed"], "speed", where, *SPEED)
+        keep(lambda: out.__setitem__("speed", _number(item["speed"], "speed", where, *SPEED)))
     if "speed_ramp" in item:
-        ramp = item["speed_ramp"]
-        if not isinstance(ramp, (list, tuple)) or len(ramp) != 2:
-            raise MajoorError(f"{where}: speed_ramp must be [start_speed, end_speed]")
-        out["speed_ramp"] = [_number(v, "speed_ramp", where, *SPEED) for v in ramp]
+        def ramp():
+            value = item["speed_ramp"]
+            if not isinstance(value, (list, tuple)) or len(value) != 2:
+                raise MajoorError(f"{where}: speed_ramp must be [start_speed, end_speed]")
+            out["speed_ramp"] = [_number(v, "speed_ramp", where, *SPEED) for v in value]
+        keep(ramp)
     if "zoom" in item:
-        out["zoom"] = _pair(item["zoom"], "zoom", where, *ZOOM)
+        keep(lambda: out.__setitem__("zoom", _pair(item["zoom"], "zoom", where, *ZOOM)))
     if "focus" in item:
-        out["focus"] = _pair(item["focus"], "focus", where, 0.0, 1.0)
+        keep(lambda: out.__setitem__("focus", _pair(item["focus"], "focus", where, 0.0, 1.0)))
     if "flip" in item:
         out["flip"] = bool(item["flip"])
     if "look" in item:
-        look = str(item["look"])
-        if look not in LOOKS:
-            raise MajoorError(f"{where}: unknown look '{look}'. Available: {list(LOOKS)}")
-        out["look"] = look
+        if _look(item["look"]):
+            out["look"] = _look(item["look"])
+        elif ignored is not None and _key(item["look"]) not in ("", "none"):
+            ignored.append(f"{where}: look '{item['look']}' does not exist")
     transition = item.get("transition", item.get("transition_in"))
     if transition is not None:
-        out["transition"] = _transition(transition, where, fps)
-    out.update(_composite(item, where))
+        keep(lambda: out.__setitem__("transition", _transition(transition, where, fps)))
+    keep(lambda: out.update(_composite(item, where, ignored)))
     return out
 
 
@@ -205,12 +236,9 @@ def _text(item, where: str) -> dict:
         item = {"content": item}
     if not isinstance(item, dict) or not str(item.get("content", "")).strip():
         raise MajoorError(f'{where}: text must be a string or {{"content": "..."}}')
-    position = str(item.get("position", "center"))
-    if position not in TEXT_POSITIONS:
-        raise MajoorError(f"{where}: unknown text position '{position}'. Available: {list(TEXT_POSITIONS)}")
     spec = {
         "content": str(item["content"]).strip()[:120],
-        "position": position,
+        "position": _position(item.get("position", "center")),
         "size": _number(item.get("size", 0.08), "text size", where, 0.02, 0.6),
         "color": _color(item.get("color", "white"), where, "white"),
         "repeat": int(_number(item.get("repeat", 1), "text repeat", where, 1, 12)),
@@ -232,36 +260,54 @@ def _text(item, where: str) -> dict:
 
 def parse_fx(row: dict, sid: str, fps: Fraction, parse_duration) -> dict:
     """Read the effect fields of a plan shot. Returns {} when the shot has none."""
-    fx = _common(row, sid, fps)
+    ignored: list[str] = []
+    fx = _common(row, sid, fps, ignored)
     if row.get("refs"):  # the pictures of the character, product... used by this shot (<Picture 1>, <Picture 2>...), for workflows that wire several references
         refs = row["refs"] if isinstance(row["refs"], list) else [row["refs"]]
-        fx["refs"] = sorted({int(_number(r, "refs", sid, 1, 9, strict=True)) for r in refs})
+        try:
+            fx["refs"] = sorted({int(_number(r, "refs", sid, 1, 9, strict=True)) for r in refs})
+        except MajoorError as error:
+            ignored.append(str(error))
     if "text" in row and row["text"]:
-        fx["text"] = _text(row["text"], sid)
+        try:
+            fx["text"] = _text(row["text"], sid)
+        except MajoorError as error:
+            ignored.append(str(error))
     cuts = row.get("sub_cuts")
-    if cuts is None:
-        return fx
-    if not isinstance(cuts, list) or not cuts:
-        raise MajoorError(f"{sid}: sub_cuts must be a non-empty list")
-    if len(cuts) > MAX_SUB_CUTS:
-        raise MajoorError(f"{sid}: at most {MAX_SUB_CUTS} sub_cuts per shot")
+    if isinstance(cuts, dict):
+        cuts = [cuts]
+    if cuts is not None and not isinstance(cuts, list):
+        ignored.append(f"{sid}: sub_cuts must be a list")
+        cuts = None
+    if cuts and len(cuts) > MAX_SUB_CUTS:
+        ignored.append(f"{sid}: kept the first {MAX_SUB_CUTS} sub_cuts of {len(cuts)}")
+        cuts = cuts[:MAX_SUB_CUTS]
     subs = []
-    for n, cut in enumerate(cuts, start=1):
+    for n, cut in enumerate(cuts or [], start=1):  # a planner writes [] for a shot it does not cut
         where = f"{sid} sub_cut {n}"
         if not isinstance(cut, dict):
-            raise MajoorError(f"{where} must be an object")
+            ignored.append(f"{where} must be an object")
+            continue
         raw = next((cut[k] for k in ("duration", "duration_seconds", "seconds") if k in cut), None)
         try:
             weight = int(_number(cut["duration_frames"], "duration_frames", where, 1, float("inf"), strict=True)) if "duration_frames" in cut else parse_duration(raw, fps)
-        except (ValueError, ZeroDivisionError, TypeError, OverflowError):
-            raise MajoorError(f"{where}: cannot read the duration (use seconds, '6f' or a timecode)") from None
+        except (ValueError, ZeroDivisionError, TypeError, OverflowError, MajoorError):
+            ignored.append(f"{where}: cannot read the duration (use seconds, '6f' or a timecode)")
+            continue
         if weight < 1:
-            raise MajoorError(f"{where}: duration must be at least one frame")
-        sub = {"weight": weight, **_common(cut, where, fps)}
+            ignored.append(f"{where}: duration must be at least one frame")
+            continue
+        sub = {"weight": weight, **_common(cut, where, fps, ignored)}
         if "start" in cut and cut["start"] is not None:
-            sub["start"] = _number(cut["start"], "start", where, 0.0, 600.0)
+            try:
+                sub["start"] = _number(cut["start"], "start", where, 0.0, 600.0)
+            except MajoorError as error:
+                ignored.append(str(error))
         subs.append(sub)
-    fx["sub_cuts"] = subs
+    if subs:
+        fx["sub_cuts"] = subs
+    if ignored:
+        fx["ignored"] = ignored
     return fx
 
 

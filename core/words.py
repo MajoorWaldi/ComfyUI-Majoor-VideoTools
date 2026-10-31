@@ -15,18 +15,17 @@ def parse_words(text) -> list[dict]:
     rows = data.get("words") if isinstance(data, dict) else data
     if not isinstance(rows, list) or not rows:
         raise MajoorError("Words must be a non-empty list of {word, start, end}")
-    words, last = [], 0.0
-    for row in rows:
+    words = []
+    for row in rows:  # a transcription has rows it cannot time: they are left out, the others stay in order
         if not isinstance(row, dict) or not isinstance(row.get("word"), str) or not row["word"].strip():
-            raise MajoorError("Each word needs a non-empty text in 'word'")
+            continue
         start, end = row.get("start"), row.get("end")
-        if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in (start, end)) or start < 0 or end <= start:
-            raise MajoorError(f"Word '{row['word']}' needs finite seconds with 0 <= start < end")
-        if start < last - 1e-6:
-            raise MajoorError(f"Word '{row['word']}' starts before the previous word")
-        words.append({"word": row["word"].strip(), "start": float(start), "end": float(end)})
-        last = float(start)
-    return words
+        if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in (start, end)) or start < 0:
+            continue
+        words.append({"word": row["word"].strip(), "start": float(start), "end": float(end) if end > start else float(start) + 0.05})
+    if not words:
+        raise MajoorError("Words must hold at least one {word, start, end} with a readable time")
+    return sorted(words, key=lambda word: word["start"])
 
 
 def align_lyrics(lyrics: str, phrases) -> list[dict]:

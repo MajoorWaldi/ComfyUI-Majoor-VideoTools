@@ -223,14 +223,14 @@ def test_colored_shots_and_layers(root):
 
 
 def test_layer_errors():
-    for text, message in (
-        ('{"shots": [{"duration": 1, "layers": [{"layout": "diagonal"}]}]}', "unknown layout"),
-        ('{"shots": [{"duration": 1, "layers": [{"rect": [0.6, 0, 0.6, 1]}]}]}', "inside the frame"),
-        ('{"shots": [{"duration": 1, "layers": [{"rect": "full"}]}]}', "rect must be"),
-        ('{"shots": [{"duration": 1, "layers": "left"}]}', "must be a list"),
-    ):
-        with pytest.raises(MajoorError, match=message):
-            parse_plan(text, 24, "16:9", 320)
+    for text, rects in (
+        ('{"shots": [{"duration": 1, "layers": [{"layout": "diagonal"}]}]}', [(0.0, 0.0, 1.0, 1.0)]),
+        ('{"shots": [{"duration": 1, "layers": [{"rect": [0.6, 0, 0.6, 1]}]}]}', [(0.6, 0.0, 0.4, 1.0)]),
+        ('{"shots": [{"duration": 1, "layers": [{"rect": "full"}]}]}', [(0.0, 0.0, 1.0, 1.0)]),
+        ('{"shots": [{"duration": 1, "layers": "left"}]}', []),
+    ):  # a layer that does not fit is the whole frame or brought back inside it: the plan still runs
+        layers = parse_plan(text, 24, "16:9", 320).shots[0].layers
+        assert [tuple(round(v, 3) for v in layer.rect) for layer in layers] == rects
 
 
 def test_v1_planner_prompt_example_is_a_valid_15s_plan():
@@ -326,15 +326,22 @@ def test_effect_values_out_of_range_are_clamped():
 
 def test_fx_errors():
     for text, message in (
-        ('{"shots": [{"duration": 1, "look": "sepia"}]}', "unknown look"),
+        ('{"shots": [{"duration": 1, "look": "sepia"}]}', "look 'sepia' does not exist"),
         ('{"shots": [{"duration": 1, "speed_ramp": 2}]}', "speed_ramp must be"),
-        ('{"shots": [{"duration": 1, "sub_cuts": []}]}', "non-empty list"),
+        ('{"shots": [{"duration": 1, "speed": "fast"}]}', "speed must be a number"),
+        ('{"shots": [{"duration": 1, "sub_cuts": "cut"}]}', "must be a list"),
         ('{"shots": [{"duration": 1, "sub_cuts": [{"duration": 0}]}]}', "at least one frame"),
         ('{"shots": [{"duration": 1, "sub_cuts": [{"zoom": 2}]}]}', "cannot read the duration"),
-        ('{"shots": [{"duration": 1, "text": {"content": "x", "position": "nowhere"}}]}', "unknown text position"),
-    ):
-        with pytest.raises(MajoorError, match=message):
-            parse_plan(text, 24, "16:9", 320)
+        ('{"shots": [{"duration": 1, "text": {"position": "bottom"}}]}', "text must be a string"),
+    ):  # a plan the planner got a little wrong still runs: the effect that cannot be read is left out, and said
+        fx = parse_plan(text, 24, "16:9", 320).shots[0].fx
+        assert any(message in note for note in fx["ignored"]), (message, fx)
+
+
+def test_the_names_an_llm_writes_are_understood():
+    fx = parse_plan('{"shots": [{"duration": 1, "look": "B&W", "speed": "1.5x", "zoom": [1, 1.5, 2], "text": {"content": "x", "position": "lower third"}, "sub_cuts": [{"duration": 0.5}, 3, {"duration": 0.5}]}]}', 24, "16:9", 320).shots[0].fx
+    assert fx["look"] == "mono" and fx["speed"] == 1.5 and fx["zoom"] == [1.0, 2.0] and fx["text"]["position"] == "bottom"
+    assert len(fx["sub_cuts"]) == 2 and any("must be an object" in note for note in fx["ignored"])
 
 
 def test_effects_are_rendered_by_the_assembler(root, fixtures):
@@ -675,15 +682,15 @@ def test_overlays_and_splits_are_read():
     assert [(o["source"], o["blend"], o["opacity"], o["scale"], o["position"]) for o in fx["overlay"]] == [("B", "add", 0.4, 1.0, "center"), ("self", "screen", 0.5, 0.4, "bottom_right")]
     assert fx["refs"] == [1, 2] and fx["sub_cuts"][0]["split"] is None and fx["sub_cuts"][1]["split"]["layout"] == "grid_4" and len(fx["sub_cuts"][1]["split"]["panels"]) == 4
     for text, message in (
-        ('{"shots": [{"duration": 1, "split": {"layout": "diagonal"}}]}', "unknown split layout"),
-        ('{"shots": [{"duration": 1, "split": {"layout": "left_right", "panels": [{}, {}, {}]}}]}', "has 2 panels"),
-        ('{"shots": [{"duration": 1, "overlay": [{"blend": "glow"}]}]}', "unknown blend"),
-        ('{"shots": [{"duration": 1, "overlay": [{"source": "a b"}]}]}', "invalid source"),
-        ('{"shots": [{"duration": 1, "overlay": [{}, {}, {}, {}]}]}', "at most 3 overlays"),
+        ('{"shots": [{"duration": 1, "split": {"layout": "diagonal"}}]}', "split 'diagonal' left out"),
+        ('{"shots": [{"duration": 1, "split": {"layout": "left_right", "panels": [{}, {}, {}]}}]}', "split 'left_right' left out"),
+        ('{"shots": [{"duration": 1, "overlay": [{}, {}, {}, {}]}]}', "kept the first 3 overlays"),
         ('{"shots": [{"duration": 1, "refs": [10]}]}', "refs must be between"),
-    ):
-        with pytest.raises(MajoorError, match=message):
-            parse_plan(text, 24, "16:9", 320)
+    ):  # a plan the planner got a little wrong still runs: the effect that cannot be read is left out, and said
+        fx = parse_plan(text, 24, "16:9", 320).shots[0].fx
+        assert any(message in note for note in fx["ignored"]), (message, fx)
+    fx = parse_plan('{"shots": [{"duration": 1, "overlay": [{"blend": "glow", "source": "a b"}]}]}', 24, "16:9", 320).shots[0].fx
+    assert fx["overlay"][0]["blend"] == "normal" and fx["overlay"][0]["source"] == "self"
 
 
 def test_split_screens_and_surimpressions_are_composed(root, fixtures, tmp_path):
@@ -885,3 +892,8 @@ def test_the_sound_of_a_take_follows_the_speed_of_its_cut():
 
     assert atempo_filters(1.0) == "" and atempo_filters(2.0) == ",atempo=2.000000"
     assert atempo_filters(3.0) == ",atempo=2.0,atempo=1.500000" and atempo_filters(0.3) == ",atempo=0.5,atempo=0.600000"
+
+
+def test_an_empty_sub_cuts_list_means_no_sub_cuts():
+    plan = parse_plan('{"shots": [{"duration": 1, "sub_cuts": []}]}', 24, "16:9", 320)
+    assert "sub_cuts" not in plan.shots[0].fx
