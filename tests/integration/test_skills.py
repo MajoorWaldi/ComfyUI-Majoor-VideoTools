@@ -41,7 +41,7 @@ def test_unknown_skill_and_bad_names():
 
 
 def test_the_shipped_skills_load():
-    assert set(sk.prompt_skills()) == {"dynamic_edit_skill", "timeline_planner", "h3_shot_prompt_from_plan", "music_brief_from_plan", "music_brief_minimax3", "music_brief_yue2", "prompt_enhancer", "remix_shot_prompt", "shot_reader", "clip_judge", "overlay_reader", "plate_check"}
+    assert set(sk.prompt_skills()) == {"dynamic_edit_skill", "timeline_planner", "h3_shot_prompt_from_plan", "music_brief_from_plan", "music_brief_minimax3", "music_brief_yue2", "prompt_enhancer", "remix_shot_prompt", "shot_reader", "clip_judge", "overlay_reader", "plate_check", "casting_planner"}
     assert {i for i in sk.list_skills() if i not in sk.prompt_skills()} == {i for i in sk.list_skills() if i.startswith(("profile_", "mode_"))}  # profiles and modes are data, not prompts
     assert sk.list_skills("h3_writer") == ["h3_shot_prompt_from_plan", "remix_shot_prompt"]
     assert sk.list_skills("music_writer") == ["music_brief_from_plan", "music_brief_minimax3", "music_brief_yue2"]

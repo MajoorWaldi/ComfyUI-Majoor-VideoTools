@@ -37,6 +37,7 @@ comfy.utils.ProgressBar = _Bar
 
 from MVT.nodes.apply_shot_metadata import MajoorApplyShotMetadata as Apply  # noqa: E402
 from MVT.nodes.audio_rhythm import MajoorAudioRhythm as Rhythm  # noqa: E402
+from MVT.nodes.casting import MajoorApplyCasting as Casting  # noqa: E402
 from MVT.nodes.compare_video import MajoorCompareVideo as Compare  # noqa: E402
 from MVT.nodes.create_timeline import MajoorCreateTimeline as Timeline  # noqa: E402
 from MVT.nodes.cut_markers import MajoorCutMarkers as Markers  # noqa: E402
@@ -186,6 +187,14 @@ sel = check("Select Shot: SHOT_002", lambda: args(Select.execute(shot_list=shot_
 check("   outputs", lambda: (tuple(sel[1].shape), sel[3], sel[5], round(sel[6], 2)))
 check("Select Shot: every_n reaches the last frame", lambda: (lambda s: (tuple(s[1].shape), len(s[1])))(args(Select.execute(shot_list=shot_list, shot_id="SHOT_002", take="active", frame_sampling="every_n", sample_count=5, preview_resolution=128, every_n=4, spread_to_end=True))))
 check("Select Shot: unknown shot refused", lambda: Select.execute(shot_list=shot_list, shot_id="SHOT_099", take="active", frame_sampling="first", sample_count=1, preview_resolution=128))
+_cast = json.dumps({"style": "night, neon", "characters": [
+    {"id": "ghoul", "name": "Ghoul", "look": "grey ghoul, black hood", "location": "rooftop", "performance": "rap", "start": 0, "end": 1.5},
+    {"id": "witch", "name": "Witch", "look": "green witch, puffer", "location": "garage", "start": 1.5, "end": 600}]})
+_cast_list = args(Casting.execute(shot_list=shot_list, casting_json=_cast))[0]
+check("Apply Casting: every shot carries a character, a size and the bible in its prompt", lambda: [(s.plan["cast"]["character_id"], s.plan["cast"]["shot_size"], "night, neon" in s.plan["prompt"]) for s in _cast_list.shots])
+check("Apply Casting: Select Shot reads the prompt and the location of the cast", lambda: (lambda r: (r[3].startswith("Ghoul:"), r[10]))(args(Select.execute(shot_list=_cast_list, shot_id="SHOT_001", take="active", frame_sampling="first", sample_count=1, preview_resolution=128))))
+check("Apply Casting: applying twice gives the same prompts", lambda: [s.plan["prompt"] for s in args(Casting.execute(shot_list=_cast_list, casting_json=_cast))[0].shots] == [s.plan["prompt"] for s in _cast_list.shots])
+check("Apply Casting: invalid casting refused (refused)", lambda: Casting.execute(shot_list=shot_list, casting_json='{"characters": []}'))
 check("Select Shot: unknown revision refused", lambda: Select.execute(shot_list=shot_list, shot_id="SHOT_001", take="revision_id", frame_sampling="first", sample_count=1, preview_resolution=128, revision_id="take_9"))
 current = shot_list
 for sid in ("SHOT_001", "SHOT_002", "SHOT_003"):

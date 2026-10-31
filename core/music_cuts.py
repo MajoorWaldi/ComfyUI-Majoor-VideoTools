@@ -11,7 +11,29 @@ from .errors import MajoorError
 from .template import MIN_SHOT_FRAMES, _find_shots, _json_text, parse_plan
 from .timeline_sources import _with_lengths, merge_plans, plan_from_music, plan_text, protected_action
 
-MODES = ("legacy", "adaptive", "random", "regular", "free")
+MODES = ("legacy", "adaptive", "random", "regular", "free", "phrases")
+
+
+def vocal_phrases(samples, rate, *, min_pause=.35, min_length=.6):
+    """(start, end) seconds of the stretches loud enough to carry a voice, split at pauses of at least `min_pause` seconds."""
+    hop = max(1, round(rate * .05))
+    levels = np.array([np.sqrt(np.mean(chunk.astype(np.float64) ** 2)) for start in range(0, len(samples), hop)
+                       if len(chunk := samples[start:start + hop])])
+    if not len(levels) or levels.max() <= 0:
+        return []
+    active = levels >= .25 * np.percentile(levels, 95)
+    phrases, begin, last = [], None, None
+    for i, on in enumerate(active):
+        if on:
+            if begin is None:
+                begin = i
+            last = i
+        elif begin is not None and (i - last) * hop / rate >= min_pause:
+            phrases.append((begin * hop / rate, (last + 1) * hop / rate))
+            begin = None
+    if begin is not None:
+        phrases.append((begin * hop / rate, (last + 1) * hop / rate))
+    return [(a, b) for a, b in phrases if b - a >= min_length]
 
 
 def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", density="auto",
@@ -26,6 +48,22 @@ def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", densit
     if samples.ndim != 1 or not len(samples) or not np.isfinite(samples).all():
         raise MajoorError("Music cut planning requires nonempty finite mono audio")
     total = max(1, round(duration * fps))
+    if mode == "phrases":
+        phrases = vocal_phrases(samples, rate)
+        # a cut falls in the middle of each pause between two phrases
+        cuts = [round((a_end + b_start) / 2 * fps) for (_, a_end), (b_start, _) in zip(phrases, phrases[1:])]
+        cuts = [f for f in cuts if MIN_SHOT_FRAMES <= f <= total - MIN_SHOT_FRAMES]
+        bounds = [0]
+        for f in cuts:
+            if f - bounds[-1] >= MIN_SHOT_FRAMES:
+                bounds.append(f)
+        bounds.append(total)
+        bpm, beats = detect_beats(samples, rate)
+        return {"fps": fps, "shots": [{"duration_frames": b - a, "prompt": "", "notes": "vocal phrase"}
+                                      for a, b in zip(bounds, bounds[1:])]}, {
+            "bpm": float(bpm) if bpm > 0 else None, "beat_times": [float(t) for t in beats] if bpm > 0 else [],
+            "warnings": [] if phrases else ["No vocal phrase found; the whole track is one shot"],
+            "timing_source": "vocal_phrases" if phrases else "narrative"}
     if mode == "regular":
         return plan_from_music(samples, rate, duration=duration, fps=fps, cut_every=cut_every)
     if mode in ("legacy", "free"):

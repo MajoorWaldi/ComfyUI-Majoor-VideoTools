@@ -9,6 +9,7 @@ if __package__:
     from .nodes.apply_shot_metadata import MajoorApplyShotMetadata
     from .nodes.compare_video import MajoorCompareVideo
     from .nodes.deploy_shots import MajoorDeployShots, register_routes
+    from .nodes.casting import MajoorApplyCasting
     from .nodes.music_brief import MajoorMusicBrief
     from .nodes.edit_mode import MajoorEditMode, register_routes as register_mode_routes
     from .nodes.audio_rhythm import MajoorAudioRhythm
@@ -43,7 +44,7 @@ if __package__:
         @override
         async def get_node_list(self) -> list[type[io.ComfyNode]]:
             return [MajoorSceneDetectSplit, MajoorSelectShot, MajoorApplyShotMetadata, MajoorShotAssemble, MajoorCompareVideo, MajoorPreviewVideo, MajoorLoadVideoAdvanced, MajoorAudioRhythm, MajoorMusicBrief, MajoorEditMode,
-                    MajoorCreateTimeline, MajoorEnsureBurst, MajoorCutMarkers, MajoorDeployShots, MajoorEditSkills, MajoorSelectEveryNFrames, MajoorGetVideoComponentsAdvanced, MajoorMotionGraphics, MajoorMusicFit, MajoorTakeCheck, MajoorSaveProjectInfo, MajoorLoadShotList, MajoorSaveProjectMusic, MajoorLoadProjectMusic,MajoorCheckPlate,MajoorEnergyReport,MajoorShotSource,MajoorMusicDirection,MajoorYuE2Style,MajoorYuE2Score,MajoorHyperFrames,MajoorTimelineEdit]
+                    MajoorCreateTimeline, MajoorEnsureBurst, MajoorCutMarkers, MajoorDeployShots, MajoorEditSkills, MajoorSelectEveryNFrames, MajoorGetVideoComponentsAdvanced, MajoorMotionGraphics, MajoorMusicFit, MajoorTakeCheck, MajoorSaveProjectInfo, MajoorLoadShotList, MajoorSaveProjectMusic, MajoorLoadProjectMusic,MajoorCheckPlate,MajoorEnergyReport,MajoorShotSource,MajoorMusicDirection,MajoorYuE2Style,MajoorYuE2Score,MajoorHyperFrames,MajoorTimelineEdit,MajoorApplyCasting]
 
     async def comfy_entrypoint() -> MajoorVideoToolsExtension:
         return MajoorVideoToolsExtension()
