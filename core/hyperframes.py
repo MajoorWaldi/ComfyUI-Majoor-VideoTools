@@ -408,6 +408,9 @@ def render_hyperframes(source: Path, output_root: Path, direction_text='', cues_
             report.update(build_id=VERSION, media_fingerprint=file_fingerprint(staged))
             staged.replace(result)
             atomic_json(project / 'report.json', report)
+            for scratch in ('assets/frames', 'assets/masks'):  # decoded pictures of the render only: the cache reuses motion.mp4 and report.json
+                shutil.rmtree(project / scratch, ignore_errors=True)
+            (project / 'assets/source.mp4').unlink(missing_ok=True)
         finally:
             silent.unlink(missing_ok=True)
             staged.unlink(missing_ok=True)
