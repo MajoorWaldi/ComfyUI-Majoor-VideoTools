@@ -16,7 +16,7 @@ RULES
 - "location" is one place per character; different characters may share one.
 - "performance" is what the character does in their part: delivery, gestures, energy. Take it from the brief.
 - "start" and "end" are seconds of the edit. Follow the SECTIONS when given (a vocal phrase belongs to one character); otherwise split the length so the characters follow one another, with no gap and no overlap, the last one ending at the length.
-- "shot_sizes" is the order in which the shot sizes repeat inside a character: wide, medium, close_up, extreme_close_up. Use what the brief asks (for example medium and close_up alternate); default ["medium", "close_up"].
+- "shot_sizes" is the order in which the shot sizes repeat inside a character: wide, medium, close_up, extreme_close_up. Use what the brief asks (for example medium and close_up alternate); default ["medium", "close_up"]. Write "auto" (the string) when the brief leaves the framing to you: the Creative Director then chooses each size from the length, the energy and the place of the shot.
 - Do not name real people, artists or brands. Do not describe transitions or effects: the editor decides them.
 - ids are lowercase letters, digits and underscore, unique.
 

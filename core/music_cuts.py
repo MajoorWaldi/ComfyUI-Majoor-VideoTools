@@ -8,6 +8,7 @@ import numpy as np
 
 from .beats import detect_beats
 from .errors import MajoorError
+from .words import parse_words, phrase_groups
 from .template import MIN_SHOT_FRAMES, _find_shots, _json_text, parse_plan
 from .timeline_sources import _with_lengths, merge_plans, plan_from_music, plan_text, protected_action
 
@@ -37,7 +38,7 @@ def vocal_phrases(samples, rate, *, min_pause=.35, min_length=.6):
 
 
 def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", density="auto",
-                   variation=0.5, sync=1.0, seed=42, cut_every="2_beats", mood=""):
+                   variation=0.5, sync=1.0, seed=42, cut_every="2_beats", mood="", words=None):
     if mode not in MODES or density not in ("auto", "low", "medium", "high"):
         raise MajoorError("Unsupported music editing mode or cut density")
     if not 0 <= variation <= 1 or not 0 <= sync <= 1:
@@ -49,7 +50,12 @@ def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", densit
         raise MajoorError("Music cut planning requires nonempty finite mono audio")
     total = max(1, round(duration * fps))
     if mode == "phrases":
-        phrases = vocal_phrases(samples, rate)
+        # Words with times (a transcript) say exactly where a phrase starts and ends; without them, the loud stretches of the voice are used.
+        try:
+            spoken = [(a, b) for a, b in phrase_groups(parse_words(words)) if b - a >= .3] if words else []
+        except ValueError as error:  # json.JSONDecodeError
+            raise MajoorError(f"The words are not valid JSON: {error}") from error
+        phrases = spoken or vocal_phrases(samples, rate)
         # a cut falls in the middle of each pause between two phrases
         cuts = [round((a_end + b_start) / 2 * fps) for (_, a_end), (b_start, _) in zip(phrases, phrases[1:])]
         cuts = [f for f in cuts if MIN_SHOT_FRAMES <= f <= total - MIN_SHOT_FRAMES]
@@ -63,7 +69,7 @@ def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", densit
                                       for a, b in zip(bounds, bounds[1:])]}, {
             "bpm": float(bpm) if bpm > 0 else None, "beat_times": [float(t) for t in beats] if bpm > 0 else [],
             "warnings": [] if phrases else ["No vocal phrase found; the whole track is one shot"],
-            "timing_source": "vocal_phrases" if phrases else "narrative"}
+            "timing_source": ("word_phrases" if spoken else "vocal_phrases") if phrases else "narrative"}
     if mode == "regular":
         return plan_from_music(samples, rate, duration=duration, fps=fps, cut_every=cut_every)
     if mode in ("legacy", "free"):

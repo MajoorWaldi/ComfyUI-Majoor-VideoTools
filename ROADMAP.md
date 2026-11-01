@@ -13,6 +13,9 @@ The VideoTools pack provides shot detection, identified takes, metadata, assembl
 
 ## Improve and qualify
 
+- [ ] Qualify Lip Sync Check, Creative Director sizes and character references on real MiniMax H3 Ref2VA renders (the logic is tested on synthetic clips; no model-backed run yet).
+- [ ] Wire Music Words → Create Timeline `words_json` and the lip-sync retake switch into the maintained Studio workflows.
+
 - [ ] Clean-install model-backed workflows with pinned checkpoint revisions and authorized inputs.
 - [ ] Dense-edit narrative continuity, action/identity consistency and musical phrasing.
 - [ ] Experimental compositor performance, browser coverage and preview/export agreement.

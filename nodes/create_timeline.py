@@ -89,6 +89,7 @@ class MajoorCreateTimeline(io.ComfyNode):
                 io.Int.Input("music_cut_seed", default=42, min=0, max=0xffffffffffffffff, optional=True),
                 io.Combo.Input("music_cut_every", options=list(CUT_EVERY), default="2_beats", optional=True),
                 io.Combo.Input("music_cut_mood", options=["auto", "calm", "confident", "dreamy", "intense"], default="auto", optional=True, tooltip="Optional artistic mood bias. Acoustic energy and accents remain measured from the music."),
+                io.String.Input("words_json", default="", optional=True, force_input=True, tooltip="Words with times from Music Words: in the phrases mode, the cuts fall in the pauses between the sung or spoken phrases they give, instead of the loud stretches of the voice."),
             ],
             outputs=[
                 MajoorShotList.Output(display_name="shot_list"),
@@ -101,7 +102,7 @@ class MajoorCreateTimeline(io.ComfyNode):
     @classmethod
     def execute(cls, source, fps, aspect_ratio, resolution, generation_profile, music=None, video=None, preview_thumbnails=True, card_text=True, width=0, height=0, skeleton_json="", rhythm_reference_only=False,
                 music_edit_mode="legacy", music_cut_density="auto", music_cut_variation=0.5, music_cut_sync=1.0,
-                music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", project_root="") -> io.NodeOutput:
+                music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", project_root="", words_json="") -> io.NodeOutput:
         kind = source["source"]
         rate = fps if fps > 0 else 24.0
         aspect = "16:9" if aspect_ratio == "auto" else aspect_ratio
@@ -132,7 +133,7 @@ class MajoorCreateTimeline(io.ComfyNode):
                         duration = source.get("duration", 0) or len(samples) / sample_rate
                         timing, info = music_cut_plan(samples, sample_rate, duration=duration, fps=rate,
                             mode=music_edit_mode, density=music_cut_density, variation=music_cut_variation,
-                            sync=music_cut_sync, seed=music_cut_seed, cut_every=music_cut_every, mood=music_cut_mood)
+                            sync=music_cut_sync, seed=music_cut_seed, cut_every=music_cut_every, mood=music_cut_mood, words=words_json if words_json and words_json.strip() else None)
                         merged, timing_notes = apply_music_timing(text, timing, rate, aspect, resolution)
                         text = plan_text(merged)
                         timing_warnings = tuple([*info["warnings"], *timing_notes])
