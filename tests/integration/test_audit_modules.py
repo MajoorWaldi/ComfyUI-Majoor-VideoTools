@@ -200,3 +200,10 @@ def test_lyrics_words_leave_when_the_next_one_comes():
     words = mark_accents(parse_words([{"word": "a", "start": 0, "end": .4}, {"word": "b", "start": .5, "end": .9}, {"word": "c", "start": 3, "end": 3.4}]), [])
     rows = expand_rows([{"template": "kinetic_lyrics", "start": 0, "end": 9, "words": words}])
     assert [(r["content"], r["start"], r["end"]) for r in rows] == [("a", 0, .5), ("b", .5, 3), ("c", 3, pytest.approx(3.7))]
+
+
+def test_frame_suffix_is_removed_not_stripped_by_characters():
+    from fractions import Fraction
+    from majoor_videotools.core.template import parse_duration
+    assert parse_duration("12frames", Fraction(24)) == 12
+    assert parse_duration("7f", Fraction(24)) == 7

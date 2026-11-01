@@ -45,6 +45,8 @@ def register_routes() -> None:
     async def deploy_shots(request):
         try:
             body = await request.json()
+            if len(body.get("shots", [])) > 500 or not 1 <= int(body.get("columns", 1)) <= 50:
+                raise MajoorError("Too many shots (max 500) or columns outside 1-50")
             workflow, report = deploy(
                 load_recipe(pick_recipe(str(body.get("recipe", "")), bool(body.get("has_plan", False)))),
                 body["workflow"],

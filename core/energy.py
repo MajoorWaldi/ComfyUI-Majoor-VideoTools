@@ -60,7 +60,10 @@ def read_gray(path: Path, fps: Fraction, limit: int | None = None) -> np.ndarray
     if limit:
         cmd += ["-frames:v", str(limit)]
     with tempfile.TemporaryFile() as stream:
-        out=subprocess.run([*cmd,'-'],stdout=stream,stderr=subprocess.PIPE,creationflags=CREATIONFLAGS)
+        try:
+            out=subprocess.run([*cmd,'-'],stdout=stream,stderr=subprocess.PIPE,creationflags=CREATIONFLAGS,timeout=600)
+        except subprocess.TimeoutExpired:
+            raise MajoorError('ffmpeg exceeded its 600 second limit while reading the frames') from None
         if out.returncode:
             raise MajoorError(f'ffmpeg could not read the frames: {out.stderr.decode(errors="replace")[:300]}')
         size=SIZE[0]*SIZE[1]

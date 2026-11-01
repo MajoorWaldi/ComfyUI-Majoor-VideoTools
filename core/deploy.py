@@ -263,8 +263,8 @@ def template_block(recipe: dict) -> Block:
 
 class Alloc:
     def __init__(self, workflow: dict):
-        self.node = max([workflow.get("last_node_id", 0), *(n["id"] for n in workflow.get("nodes", []))] or [0])
-        self.link = max([workflow.get("last_link_id", 0), *(l[0] for l in workflow.get("links", []))] or [0])
+        self.node = max([workflow.get("last_node_id", 0), *(n["id"] for n in workflow.get("nodes", []))])
+        self.link = max([workflow.get("last_link_id", 0), *(l[0] for l in workflow.get("links", []))])
         self.group = max([0, *(g.get("id", 0) for g in workflow.get("groups", []))])
 
     def next_node(self) -> int:

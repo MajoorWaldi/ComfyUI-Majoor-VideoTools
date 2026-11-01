@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import os
+import signal
 import re
 import shutil
 import subprocess
@@ -163,12 +164,16 @@ def analyze_audio(source: Path, info) -> dict:
     bands = []
     edges = [45, 100, 220, 480, 1000, 2200, 4800, 7900]
     freq = np.fft.rfftfreq(1024, 1 / rate)
+    window = np.hanning(1024)
+    masks = [(freq >= a) & (freq < b) for a, b in zip(edges, edges[1:])]
     for i in range(round(float(info.duration) * float(info.fps))):
         start = max(0, round(i / float(info.fps) * rate) - 512)
         chunk = samples[start:start + 1024]
         chunk = np.pad(chunk, (0, max(0, 1024 - len(chunk))))
-        spectrum = abs(np.fft.rfft(chunk * np.hanning(1024)))
-        bands.append([float(spectrum[(freq >= a) & (freq < b)].mean()) for a, b in zip(edges, edges[1:])])
+        spectrum = abs(np.fft.rfft(chunk * window))
+        bands.append([float(spectrum[mask].mean()) for mask in masks])
+    if not bands:
+        return {'bands': [], 'hits': sorted(chosen), 'onsets': [], 'audio': True}
     array = np.array(bands)
     array = np.clip(array / np.maximum(np.percentile(array, 94, axis=0), .001), 0, 1)
     return {'bands': array.round(3).tolist(), 'hits': sorted(chosen),
@@ -203,7 +208,8 @@ def write_composition(project: Path, source: Path, info, direction: dict, cues: 
               'lottie': {name: json.loads((LOTTIE_DIR / f'{name}.json').read_text(encoding='utf-8')) for name in stickers}, 'text_timing': TEXT_TIMING, 'safe_boxes': {name: safe_box(width,height,pos[0]) for name,pos in TEXT_POSITIONS.items()}, **direction}
     # Script JSON cannot terminate the script tag, including user-supplied captions.
     encoded = json.dumps(config, ensure_ascii=True).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
-    body = scene.read_text(encoding='utf-8').replace('__CONFIG__', encoded).replace('__CARDS__', ''.join(cards)).replace('__WIDTH__', str(width)).replace('__HEIGHT__', str(height)).replace('__ACCENT__', direction['accent']).replace('__DURATION__', str(duration))
+    values = {'__CONFIG__': encoded, '__CARDS__': ''.join(cards), '__WIDTH__': str(width), '__HEIGHT__': str(height), '__ACCENT__': direction['accent'], '__DURATION__': str(duration)}
+    body = re.sub('|'.join(map(re.escape, values)), lambda m: values[m.group(0)], scene.read_text(encoding='utf-8'))  # one pass: user text can never be substituted again
     (project / 'compositions').mkdir(exist_ok=True)
     (project / 'compositions/motion.html').write_text(body, encoding='utf-8')
     root = f'''<!doctype html><html><head><meta charset="utf-8"><script src="assets/gsap.min.js"></script><script src="assets/hyperframes_layers.js"></script>{lottie_tag}<style>{faces}html,body{{margin:0;background:#080808;overflow:hidden}}#main{{position:relative;width:{width}px;height:{height}px}}#source,#motion{{position:absolute;inset:0;width:100%;height:100%}}#source{{object-fit:contain;z-index:1}}#motion{{z-index:2}}</style></head><body><div id="main" data-composition-id="main" data-start="0" data-duration="{duration}" data-width="{width}" data-height="{height}" data-fps="{fps}"><video id="source" class="clip" src="assets/source.mp4" data-start="0" data-duration="{duration}" data-track-index="0" muted playsinline></video><div id="motion" class="clip" data-composition-id="motion" data-composition-src="compositions/motion.html" data-start="0" data-duration="{duration}" data-track-index="1" data-track-kind="graphics" data-width="{width}" data-height="{height}"></div></div><script>const clock={{t:0}};const tl=gsap.timeline({{paused:true}});tl.to(clock,{{t:{duration},duration:{duration},ease:'none'}});window.__timelines=window.__timelines||{{}};window.__timelines.main=tl;</script></body></html>'''
@@ -219,7 +225,7 @@ def _render_command(cmd, project, log, cancelled, progress, timeout=900, complet
     complete_since = None
     recovered_shutdown = False
     with log.open('wb') as stream:
-        process = subprocess.Popen(cmd, cwd=project, env=env, stdout=stream, stderr=subprocess.STDOUT, shell=False, creationflags=CREATIONFLAGS)
+        process = subprocess.Popen(cmd, cwd=project, env=env, stdout=stream, stderr=subprocess.STDOUT, shell=False, creationflags=CREATIONFLAGS, start_new_session=os.name != 'nt')
         try:
             while process.poll() is None:
                 if cancelled and cancelled():
@@ -249,7 +255,13 @@ def _render_command(cmd, project, log, cancelled, progress, timeout=900, complet
                 if os.name == 'nt':
                     subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=CREATIONFLAGS)
                 if process.poll() is None:
-                    process.kill()
+                    if os.name != 'nt':
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)  # the CLI spawns Chrome: kill the whole group
+                        except OSError:
+                            process.kill()
+                    else:
+                        process.kill()
                 process.wait(timeout=10)
         if process.returncode and not recovered_shutdown:
             raise RuntimeError('HyperFrames failed; original video retained. ' + log.read_text(errors='replace')[-1800:])

@@ -11,6 +11,17 @@ pkg = types.ModuleType("majoor_videotools")
 pkg.__path__ = [str(ROOT)]
 sys.modules.setdefault("majoor_videotools", pkg)
 
+# HyperKut Studio lives in `<pack>/HyperKut Studio` when shipped together; for a side-by-side clone link it there.
+import os
+_studio = ROOT / "HyperKut Studio"
+_sibling = ROOT.parent / "HyperKut-Studio"
+if not _studio.exists() and _sibling.is_dir():
+    try:
+        _studio.symlink_to(_sibling, target_is_directory=True)
+    except OSError:
+        pass
+os.environ.setdefault("HYPERKUT_VIDEOTOOLS_DIR", str(ROOT))
+
 
 def _ffmpeg(args: list[str], out: Path) -> Path:
     subprocess.run(["ffmpeg", "-y", "-v", "error", *args, str(out)], check=True)

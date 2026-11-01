@@ -91,8 +91,9 @@ def parse_duration(value, fps: Fraction) -> int:
         seconds = Fraction(str(value))
     else:
         text = str(value).strip().lower().replace(" ", "")
-        if text.endswith(("frames", "frame", "f")):
-            return int(text.rstrip("framesf"))
+        for suffix in ("frames", "frame", "f"):
+            if text.endswith(suffix):
+                return int(text.removesuffix(suffix))
         seconds = Fraction(0)
         for part in text.removesuffix("s").split(":"):
             seconds = seconds * 60 + Fraction(part)
