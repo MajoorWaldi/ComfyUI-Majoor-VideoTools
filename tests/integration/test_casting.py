@@ -74,3 +74,31 @@ def test_apply_casting_writes_identity_into_plans_and_is_repeatable():
     assert plan["prompt"].endswith("he raps") and "grey ghoul" in plan["prompt"] and "Shot size: medium." in plan["prompt"]
     assert plan["location"] == "rooftop" and plan["cast"]["base_prompt"] == "he raps"
     assert once.shots[1].plan["cast"]["character_id"] == "witch" and "location" not in once.shots[1].plan
+
+
+def test_references_energy_and_auto_sizes_reach_every_plan():
+    from dataclasses import dataclass
+
+    @dataclass(frozen=True)
+    class Shot:
+        shot_id: str
+        start_frame: int
+        end_frame_exclusive: int
+        plan: dict | None = None
+
+    @dataclass(frozen=True)
+    class ShotList:
+        source: SimpleNamespace
+        shots: tuple
+
+    from majoor_videotools.core.casting import apply_casting, parse_references
+    casting = _casting(shot_sizes="auto")
+    shots = tuple(Shot(f"SHOT_{i:03d}", a, b, {"prompt": f"p{i}"}) for i, (a, b) in enumerate([(0, 72), (72, 90), (90, 100), (100, 190), (190, 192)], 1))
+    references = parse_references('{"ghoul": ["g1.png", "g2.png"]}', casting)
+    done = apply_casting(ShotList(SimpleNamespace(fps=24), shots), casting, references, {"SHOT_003": .9})
+    sizes = [s.plan["cast"]["shot_size"] for s in done.shots]
+    assert sizes[0] == "wide"                                                     # the opening shot is long enough to establish the place
+    assert done.shots[2].plan["cast"]["shot_size"] in ("close_up", "extreme_close_up")  # 0.42 s and energetic
+    assert done.shots[0].plan["cast"]["references"] == ["g1.png", "g2.png"]       # every shot of the ghoul carries its pictures
+    assert all("references" not in s.plan["cast"] for s in done.shots if s.plan["cast"]["character_id"] == "witch")
+    assert apply_casting(done, casting, references, {"SHOT_003": .9}) == done      # still repeatable

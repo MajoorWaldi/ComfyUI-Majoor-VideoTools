@@ -6,7 +6,6 @@ import math
 import os
 import shutil
 import uuid
-from fractions import Fraction
 from pathlib import Path
 
 import folder_paths

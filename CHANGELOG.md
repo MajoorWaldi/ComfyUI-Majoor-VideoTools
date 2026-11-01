@@ -15,6 +15,14 @@ The legacy SECATOR workflow filenames remain compatible. HyperKut Studio is dist
 See [roadmap](ROADMAP.md), [model inventory](docs/models-and-downloads.md) and [licenses](LICENSES.md).
 
 
+## Unreleased — H3 performance pipeline
+
+- **Lip Sync Check** (`MajoorLipSyncCheck`, `core/lipsync.py`): compares the movement of the mouth region with the loudness of the voice, frame by frame, with a delay up to 0.25 s. Verdicts `pass`, `fail` and `unmeasured` (no face, no voice, too short, or no face detector in this OpenCV: give `mouth_region`). Outputs `ok`, `retake` and `next_seed` for a switch that makes the shot again. It measures movement, not phonemes.
+- **Phrase cuts from words**: `Create Timeline` takes `words_json` (from Music Words); in the phrases mode the cuts fall in the pauses between the phrases of the words, else in the pauses of the detected voice.
+- **Character references**: `Apply Casting` takes `references_json` ({character: pictures}), carried in `plan.cast.references` of every shot of that character, and outputs `character_sheets_json`, a prompt per character to make its reference picture once.
+- **Creative Director** (`core/creative_director.py`): `"shot_sizes": "auto"` in a casting chooses each size from the duration, the energy (`shot_energy_json`) and the place of the shot; the same size never comes three times in a row.
+- **Stage runner** (`core/orchestration.py`): `plan → casting → character_sheets → shots → lipsync → assemble` with dependencies, retries, optional stages and cancellation, plus `retake_loop` that keeps the best take when every try fails.
+
 ## Unreleased — 2026-10-30 audit corrections
 
 - Prepare export serialization per output key, owned temporary files and atomic SFX/text cache publication.

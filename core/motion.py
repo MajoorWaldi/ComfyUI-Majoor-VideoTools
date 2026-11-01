@@ -16,19 +16,15 @@ import json
 import logging
 import math
 import os
-import subprocess
 from pathlib import Path
-from typing import Callable
 
 import cv2
 import numpy as np
 from PIL import Image, ImageColor, ImageDraw, ImageFont
 
-from ..adapters.ffmpeg import CREATIONFLAGS, find_binary
 from .errors import MajoorError
 from .fx import TEXT_POSITIONS, _font
 from .motion_library import expand_rows
-from .media_probe import probe
 from .template import _json_text
 
 logger = logging.getLogger(__name__)

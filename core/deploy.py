@@ -164,7 +164,7 @@ def collect_block(workflow: dict, select: dict) -> Block:
 
     def is_chain(link: list) -> bool:
         """The shot list passed from one Apply Shot Metadata to the next: it belongs to no single shot."""
-        start, end = nodes.get(link[1]), nodes.get(link[3])
+        start = nodes.get(link[1])
         return link[5] == "MAJOOR_SHOT_LIST" and start is not None and start["type"] == APPLY
 
     # the block is what is downstream of its Select Shot and of the Set/Get nodes named after the shot
@@ -263,8 +263,8 @@ def template_block(recipe: dict) -> Block:
 
 class Alloc:
     def __init__(self, workflow: dict):
-        self.node = max([workflow.get("last_node_id", 0), *(n["id"] for n in workflow.get("nodes", []))] or [0])
-        self.link = max([workflow.get("last_link_id", 0), *(l[0] for l in workflow.get("links", []))] or [0])
+        self.node = max([workflow.get("last_node_id", 0), *(n["id"] for n in workflow.get("nodes", []))])
+        self.link = max([workflow.get("last_link_id", 0), *(l[0] for l in workflow.get("links", []))])
         self.group = max([0, *(g.get("id", 0) for g in workflow.get("groups", []))])
 
     def next_node(self) -> int:
@@ -655,13 +655,13 @@ def _check_subgraph(d: dict) -> list[str]:
         if l["id"] in links:
             problems.append(f"{name}: duplicate link id {l['id']}")
         links[l["id"]] = l
-        for end, key, slot_key, field in ((l["origin_id"], "origin_id", "origin_slot", "outputs"), (l["target_id"], "target_id", "target_slot", "inputs")):
+        for end, slot_key, slots in ((l["origin_id"], "origin_slot", "outputs"), (l["target_id"], "target_slot", "inputs")):
             if end in (-10, -20):
                 continue
             node = nodes.get(end)
             if node is None:
                 problems.append(f"{name}: link {l['id']} joins a missing node {end}")
-            elif l[slot_key] >= len(node.get(field, [])):
+            elif l[slot_key] >= len(node.get(slots, [])):
                 problems.append(f"{name}: link {l['id']} uses a missing slot of node {end}")
         target = nodes.get(l["target_id"])
         if target is not None and l["target_slot"] < len(target.get("inputs", [])) and target["inputs"][l["target_slot"]].get("link") != l["id"]:

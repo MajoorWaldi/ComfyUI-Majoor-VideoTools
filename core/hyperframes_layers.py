@@ -1,6 +1,4 @@
 """Prepare masks/geometry/tracking, not rendered graphics. HyperFrames composites."""
-import math
-from pathlib import Path
 
 import cv2
 import numpy as np
