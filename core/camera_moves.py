@@ -41,9 +41,8 @@ def add_camera_moves(shot_list, brief: str = "", seed: int = 0):
     done, previous, recent = {}, None, []
     for shot in sorted(shot_list.shots, key=lambda s: s.start_frame):
         plan = dict(shot.plan or {})
-        if old := plan.pop("camera_move", None):
-            line = f"\n{MARK}{old[1]}."
-            plan["prompt"] = plan.get("prompt", "").removesuffix(line).removesuffix(line.lstrip("\n"))
+        if plan.pop("camera_move", None) is not None:  # the line an earlier run added goes, wherever later steps moved it in the prompt
+            plan["prompt"] = "\n".join(line for line in str(plan.get("prompt", "")).splitlines() if not line.startswith(MARK))
         kind = _kind(_base(plan))
         if kind is None or kind == previous:
             kind = (seed + len(done)) % len(MOVES)

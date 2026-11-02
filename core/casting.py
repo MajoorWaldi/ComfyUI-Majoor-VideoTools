@@ -160,8 +160,8 @@ def apply_lyrics(shot_list, words: list[dict], spoken: bool = False):
     for shot in shot_list.shots:
         plan = dict(shot.plan or {})
         prompt = plan.get("prompt", "")
-        if old := plan.pop("lyrics", None):
-            prompt = prompt.removesuffix(old).removesuffix("\n")
+        if old := plan.pop("lyrics", None):  # the line an earlier run added goes, even when a later step wrote after it
+            prompt = "\n".join(line for line in prompt.splitlines() if line != old)
         start, end = shot.start_frame / fps, shot.end_frame_exclusive / fps
         sung = [w for w in words if start <= w["start"] < end]
         plan["prompt"] = prompt

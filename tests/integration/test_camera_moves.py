@@ -57,3 +57,20 @@ def test_an_empty_prompt_takes_and_loses_its_move_cleanly():
     once = add_camera_moves(_list(""))
     assert once.shots[0].plan["prompt"] == MARK + "a slow push-in toward the subject."
     assert add_camera_moves(once) == once
+
+
+def test_lyrics_and_camera_moves_can_be_applied_in_any_order_and_again():
+    from majoor_videotools.core.casting import apply_lyrics
+    words = [{"word": "night", "start": 2.2, "end": 2.6}, {"word": "falls", "start": 2.7, "end": 3.0}]
+    once = add_camera_moves(apply_lyrics(_list("a dancer", "a crowd"), words))
+    again = add_camera_moves(apply_lyrics(once, words))  # the lyric line is no longer last: it must still be replaced, not doubled
+    for shot in again.shots:
+        prompt = shot.plan["prompt"]
+        assert prompt.count("Lyrics sung in this shot") <= 1 and prompt.count(MARK) == 1
+    assert again == add_camera_moves(apply_lyrics(again, words))
+
+
+def test_a_camera_move_written_by_the_planner_as_text_is_tolerated():
+    planned = ShotList(SimpleNamespace(fps=24), (Shot("SHOT_001", 0, 48, {"prompt": "a dancer", "camera_move": "orbit"}),))
+    moved = add_camera_moves(planned)
+    assert moved.shots[0].plan["prompt"].count(MARK) == 1 and isinstance(moved.shots[0].plan["camera_move"], list)
