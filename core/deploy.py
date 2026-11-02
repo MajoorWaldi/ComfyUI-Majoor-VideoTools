@@ -670,11 +670,11 @@ def _check_subgraph(d: dict) -> list[str]:
         for slot in n.get("inputs", []):
             if slot.get("link") is not None and slot["link"] not in links:
                 problems.append(f"{name}: node {n['id']} input '{slot['name']}' points at missing link {slot['link']}")
-    for field in ("inputs", "outputs"):
-        for io in d.get(field, []):
+    for side in ("inputs", "outputs"):  # not `field`: that name is the dataclasses helper of this module
+        for io in d.get(side, []):
             for lid in io.get("linkIds") or []:
                 if lid not in links:
-                    problems.append(f"{name}: {field[:-1]} '{io['name']}' lists missing link {lid}")
+                    problems.append(f"{name}: {side[:-1]} '{io['name']}' lists missing link {lid}")
     return problems
 
 

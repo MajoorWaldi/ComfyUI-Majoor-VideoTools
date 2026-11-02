@@ -1,8 +1,6 @@
 """The words of a sung or spoken track with their times, read by Whisper (faster-whisper) from a model folder on disk.
 
 No download: the folder must already be there. A track with no voice gives no words, because Whisper invents some from music."""
-from pathlib import Path
-
 from .errors import MajoorError
 
 MAX_NO_SPEECH = .6  # a segment Whisper itself finds more likely to be silence than speech is dropped
