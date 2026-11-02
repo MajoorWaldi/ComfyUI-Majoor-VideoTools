@@ -2,11 +2,11 @@
 
 No model and no network. Two signals are read at the frame rate of the take and compared:
 the *speech* (loudness of the take's own sound, or of the sound it was made for) and the *mouth*
-(how much the pixels of the mouth region change from one frame to the next). A mouth that follows
-the voice makes the two curves rise and fall together, possibly a few frames apart; the report gives
-that agreement (`score`), the delay (`lag_ms`) and a verdict. It measures movement, not phonemes:
-a take with a mouth that moves in time with the voice passes, a take with a still or unrelated mouth fails.
-The "voice" is the loudness of the sound: music or noise under the voice, or a camera that moves, make the result less reliable.
+(how much the mouth region changes its contrast as it opens and closes, once what a part of the face above it does is taken away,
+so a head that bobs with the voice does not count). A mouth that follows the voice makes the two curves rise and fall together,
+possibly a few frames apart; the report gives that agreement (`score`), the delay (`lag_ms`), the score an unrelated mouth would reach
+by chance on this voice (`chance`) and a verdict. It measures opening, not phonemes: a take whose mouth opens in time with the voice
+passes, a take with a still or unrelated mouth fails. The "voice" is the loudness of the sound: music or noise under the voice make the result less reliable.
 
 The verdict is `pass`, `fail`, or `unmeasured` (no face found, no speech, or too short): an unmeasured
 take is never turned into a pass or a failure."""
@@ -38,21 +38,21 @@ def speech_envelope(samples, rate: int, fps: float, frames: int) -> np.ndarray:
     return levels / peak if peak > 1e-6 else np.zeros(frames)
 
 
-def mouth_motion(crops) -> np.ndarray:
-    """Movement of the mouth region at each frame: the mean absolute change from the previous frame.
+def mouth_opening(crops, controls=None) -> np.ndarray:
+    """How open the mouth is at each frame: the contrast (standard deviation) of the mouth region, minus what the contrast of `controls` explains.
 
-    `crops` are equally sized gray images (uint8 or float) of that region. A frame without a face is None, and so is not measured (NaN);
-    the same goes for a frame that has no earlier frame to compare with (the first, or the one after a gap)."""
-    motion, previous = [], None
-    for crop in crops:
-        if crop is None:
-            motion.append(math.nan)
-            previous = None
-            continue
-        current = np.asarray(crop, dtype=np.float64)
-        motion.append(math.nan if previous is None else float(np.mean(np.abs(current - previous))))
-        previous = current
-    return np.array(motion)
+    `crops` are gray images (uint8 or float) of the mouth region, `controls` the same for a part of the face that does not speak (forehead, cheek),
+    frame by frame. The control is fitted to the mouth curve and taken away, so what is left belongs to the mouth. A frame without a face is None
+    and so is not measured (NaN). Without controls, or with fewer than six frames that have both, the contrast of the mouth is returned as it is."""
+    mouth = np.array([math.nan if crop is None else float(np.std(crop)) for crop in crops])
+    if controls is None:
+        return mouth
+    control = np.array([math.nan if crop is None else float(np.std(crop)) for crop in controls])
+    seen = np.isfinite(mouth) & np.isfinite(control)
+    if seen.sum() < 6 or control[seen].std() < 1e-9:
+        return mouth
+    slope, offset = np.polyfit(control[seen], mouth[seen], 1)
+    return np.where(seen, mouth - (slope * control + offset), math.nan)
 
 
 def lagged_correlation(mouth, speech, max_lag: int) -> tuple[float, int]:
@@ -77,12 +77,22 @@ def lagged_correlation(mouth, speech, max_lag: int) -> tuple[float, int]:
     return best, best_lag
 
 
+def chance_level(mouth, speech, max_lag: int) -> float:
+    """The score a mouth unrelated to this voice reaches: the 95th percentile of the best correlation of the mouth curve against the voice
+    moved in time (looping) by more than the allowed delay. 0 when the take is too short to move the voice that far."""
+    low, high = 2 * max_lag + 1, len(speech) - 2 * max_lag
+    if low >= high:
+        return 0.0
+    shifts = np.unique(np.linspace(low, high, 40).astype(int))
+    return float(np.percentile([lagged_correlation(mouth, np.roll(speech, int(shift)), max_lag)[0] for shift in shifts], 95))
+
+
 def lipsync_report(mouth, speech, fps: float) -> dict:
-    """The verdict on one take from its mouth-motion and speech curves (one value per frame, same length)."""
+    """The verdict on one take from its mouth-opening and speech curves (one value per frame, same length)."""
     mouth, speech = np.asarray(mouth, dtype=np.float64), np.asarray(speech, dtype=np.float64)
     frames = min(len(mouth), len(speech))
     mouth, speech = mouth[:frames], speech[:frames]
-    report = {"status": "unmeasured", "reason": "", "score": None, "lag_ms": None, "frames": int(frames),
+    report = {"status": "unmeasured", "reason": "", "score": None, "lag_ms": None, "chance": None, "frames": int(frames),
               "face_ratio": 0.0, "speech_ratio": 0.0}
     if fps <= 0 or frames < MIN_SECONDS * fps:
         report["reason"] = "the take is too short to measure"
@@ -102,12 +112,14 @@ def lipsync_report(mouth, speech, fps: float) -> dict:
     if speech.std() < 1e-9:
         report["reason"] = "the voice has no variation to follow"
         return report
-    score, lag = lagged_correlation(mouth, speech, max(1, round(MAX_LAG_SECONDS * fps)))
+    max_lag = max(1, round(MAX_LAG_SECONDS * fps))
+    score, lag = lagged_correlation(mouth, speech, max_lag)
     if score <= -1:
         report["reason"] = "too few frames with both a face and a voice"
         return report
-    report.update(score=round(score, 3), lag_ms=round(lag / fps * 1000))
-    report["status"] = "pass" if score >= PASS_SCORE else "fail"
+    chance = chance_level(mouth, speech, max_lag)
+    report.update(score=round(score, 3), lag_ms=round(lag / fps * 1000), chance=round(chance, 3))
+    report["status"] = "pass" if score >= PASS_SCORE and score > chance else "fail"
     report["reason"] = ("the mouth follows the voice" if report["status"] == "pass"
                         else "the mouth movement does not follow the voice")
     return report
@@ -124,7 +136,7 @@ def next_seed(seed: int, attempt: int) -> int:
 
 
 def _unmeasured(reason: str, frames: int = 0) -> dict:
-    return {"status": "unmeasured", "reason": reason, "score": None, "lag_ms": None, "frames": frames, "face_ratio": 0.0, "speech_ratio": 0.0}
+    return {"status": "unmeasured", "reason": reason, "score": None, "lag_ms": None, "chance": None, "frames": frames, "face_ratio": 0.0, "speech_ratio": 0.0}
 
 
 def parse_region(text) -> tuple[float, float, float, float] | None:
@@ -138,6 +150,20 @@ def parse_region(text) -> tuple[float, float, float, float] | None:
     if not all(math.isfinite(v) for v in (x, y, w, h)) or min(x, y) < 0 or min(w, h) <= 0 or x + w > 1.0001 or y + h > 1.0001:
         raise MajoorError('The mouth region "x,y,w,h" must lie inside the frame (numbers between 0 and 1)')
     return x, y, w, h
+
+
+def control_region(region) -> tuple[float, float, float, float] | None:
+    """The same-sized part of the frame two and a half heights above the mouth region (below it when there is no room above), or None."""
+    x, y, w, h = region
+    for top in (y - 2.5 * h, y + 2.5 * h):
+        if top >= 0 and top + h <= 1.0001:
+            return x, top, w, h
+    return None
+
+
+def _cut(gray, region):
+    height, width = gray.shape
+    return gray[int(region[1] * height):int((region[1] + region[3]) * height), int(region[0] * width):int((region[0] + region[2]) * width)]
 
 
 def _face_finder(cv2):
@@ -155,7 +181,8 @@ def measure_video(path, audio=None, *, region=None, binary: str = "ffmpeg") -> d
     """Read a take from disk and return its report. `audio` is a wav/mp4 to take the voice from; by default the take's own sound.
 
     The face is found with OpenCV's frontal-face detector on every frame and the box smoothed; the mouth region is the lower third of the
-    face. With `region` (see `parse_region`) that part of the frame is used instead and no detector is needed. When no face can be found
+    face and the control region its forehead. With `region` (see `parse_region`) that part of the frame is used instead, its control being the
+    part above it (see `control_region`), and no detector is needed. When no face can be found
     (or this OpenCV has no detector and no region was given) the report is `unmeasured`."""
     try:
         import cv2
@@ -170,16 +197,17 @@ def measure_video(path, audio=None, *, region=None, binary: str = "ffmpeg") -> d
         fps = capture.get(cv2.CAP_PROP_FPS) or 0.0
         if fps <= 0:
             raise MajoorError(f"Cannot read the frame rate of {path.name}")
-        crops, box = [], None
+        crops, controls, box = [], [], None
+        control_box = control_region(region) if region else None
         while True:
             ok, frame = capture.read()
             if not ok:
                 break
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            crop = None
+            crop = control = None
             if region:
-                height, width = gray.shape
-                crop = gray[int(region[1] * height):int((region[1] + region[3]) * height), int(region[0] * width):int((region[0] + region[2]) * width)]
+                crop = _cut(gray, region)
+                control = _cut(gray, control_box) if control_box else None
             else:
                 scale = min(1.0, 320 / gray.shape[1])  # the face is looked for on a small copy: fast, and enough
                 small = cv2.resize(gray, None, fx=scale, fy=scale) if scale < 1 else gray
@@ -192,7 +220,9 @@ def measure_video(path, audio=None, *, region=None, binary: str = "ffmpeg") -> d
                 if box is not None:
                     x, y, w, h = (int(round(v)) for v in box)
                     crop = gray[max(0, y + 2 * h // 3):max(0, y + h), max(0, x + w // 5):max(0, x + 4 * w // 5)]
+                    control = gray[max(0, y + h // 6):max(0, y + h // 3), max(0, x + w // 5):max(0, x + 4 * w // 5)]
             crops.append(cv2.resize(crop, (48, 24)) if crop is not None and crop.size else None)
+            controls.append(cv2.resize(control, (48, 24)) if control is not None and control.size else None)
     finally:
         capture.release()
     if not crops:
@@ -200,7 +230,7 @@ def measure_video(path, audio=None, *, region=None, binary: str = "ffmpeg") -> d
     samples, rate = _read_audio(Path(audio) if audio else path, binary)
     if not len(samples):
         return _unmeasured("the take has no sound", len(crops))
-    return lipsync_report(mouth_motion(crops), speech_envelope(samples, rate, fps, len(crops)), fps)
+    return lipsync_report(mouth_opening(crops, controls), speech_envelope(samples, rate, fps, len(crops)), fps)
 
 
 def _read_audio(path: Path, binary: str) -> tuple[np.ndarray, int]:

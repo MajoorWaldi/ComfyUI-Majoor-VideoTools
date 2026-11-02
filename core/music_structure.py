@@ -51,6 +51,11 @@ def track_sections(samples, rate, hop_seconds=.5, min_seconds=2.0) -> list[dict]
     return sections
 
 
+def sections_text(sections) -> str:
+    """The sections as a line for an LLM: SECTIONS OF THE MUSIC (seconds): intro 0.0-6.4, build 6.4-9.6. Empty without sections."""
+    return "SECTIONS OF THE MUSIC (seconds): " + ", ".join(f"{s['tag']} {s['start']:.1f}-{s['end']:.1f}" for s in sections) if sections else ""
+
+
 def drop_times(sections) -> list[float]:
     return [s["start"] for s in sections if s["tag"] == "drop"]
 

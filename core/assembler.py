@@ -541,6 +541,9 @@ def _assemble_validated(shot_list, store, opts, on_progress, is_cancelled, cache
     dialogue = opts.dialogue
     if opts.preserve_dialogue and dialogue is None:
         entries, cursor, seen = [], Fraction(0), set()
+        used: dict[str, Fraction] = {}
+        for segment in segments:
+            used[segment.shot.shot_id] = used.get(segment.shot.shot_id, Fraction(0)) + segment.seconds
         for segment in segments:
             sid = segment.shot.shot_id
             if sid not in seen:
@@ -549,7 +552,7 @@ def _assemble_validated(shot_list, store, opts, on_progress, is_cancelled, cache
                 offset, frames = take_bounds(shot_list, segment.shot, revision)
                 if segment.has_audio:
                     entries.append({"file": store.rel(segment.path), "start": float(offset),
-                                    "duration": frames / float(source.fps), "at": float(cursor), "gain": opts.shot_volume})
+                                    "duration": min(frames / float(source.fps), float(used[sid])), "at": float(cursor), "gain": opts.shot_volume})  # the part of the take the shot uses
             cursor += segment.seconds
         dialogue = render_dialogue(store, entries, float(total))
     if any(DIALOGUE_KEY in (s.plan or {}) for s in shot_list.shots):

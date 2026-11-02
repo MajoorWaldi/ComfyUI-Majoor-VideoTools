@@ -222,3 +222,14 @@ def test_real_export_has_a_visible_jump_cut_without_invented_visual_effects(tmp_
 def test_invalid_options_are_explicit_errors(changes):
     with pytest.raises(MajoorError):
         music_cut_plan(np.zeros(8000), 8000, **({"duration": 1} | changes))
+
+
+def test_bursts_of_short_cuts_become_one_take_cut_up():
+    from majoor_videotools.core.music_cuts import burst_takes
+    lengths = [153, 19, 10, 5, 5, 38, 153, 10, 19, 5, 5, 19, 39]
+    plan = {"fps": 24, "shots": [{"duration_frames": n, "prompt": "", "notes": "pacing"} for n in lengths]}
+    takes = burst_takes(plan)["shots"]
+    assert [row["duration_frames"] for row in takes] == [153, 29, 48, 153, 29, 29, 39]       # every take is a generation H3 can make
+    assert [[cut["duration_frames"] for cut in row.get("sub_cuts", [])] for row in takes][1:3] == [[19, 10], [5, 5, 38]]
+    assert sum(row["duration_frames"] for row in takes) == sum(lengths) and takes[0]["notes"] == "pacing" and "sub_cuts" not in takes[0]
+

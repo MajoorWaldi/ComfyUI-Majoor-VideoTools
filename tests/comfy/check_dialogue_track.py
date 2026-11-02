@@ -103,9 +103,8 @@ def main():
         graph["3"]["inputs"].pop("dialogue")
         graph["3"]["inputs"].update(voice_shots=True, preserve_dialogue=True)
         del graph["4"]
-        failed = execute(args.server, graph, succeeds=False)
-        assert any(m[0] == "execution_error" and "beyond the video" in m[1].get("exception_message", "")
-                   for m in failed["status"]["messages"])
+        kept = execute(args.server, graph)  # each shot keeps the part of its take that it uses: no refusal for a take longer than its shot
+        assert kept["outputs"]["3"]["images"]
         graph["3"]["inputs"]["duration_policy"] = "use_generated_duration"
         full = execute(args.server, graph)
         preview = full["outputs"]["3"]["images"][0]

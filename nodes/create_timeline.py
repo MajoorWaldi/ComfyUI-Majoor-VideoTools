@@ -6,7 +6,7 @@ from comfy_api.latest import io
 from ..adapters.comfy_video import MajoorShotList, projects_root, video_file
 from ..core.beats import read_wav_mono, write_wav
 from ..core.errors import MajoorError
-from ..core.music_cuts import MODES, apply_music_timing, music_cut_plan
+from ..core.music_cuts import MODES, apply_music_timing, burst_takes, music_cut_plan
 from ..core.prompt_guard import clean_plan_text
 from ..core.template import ASPECTS, PROFILES, SNAP_MODES, create_template
 from ..core.timeline import format_timecode
@@ -82,7 +82,7 @@ class MajoorCreateTimeline(io.ComfyNode):
                 io.String.Input("skeleton_json", optional=True, force_input=True, tooltip="With source=json: the plan_json of another Create Timeline (music or video). Its shots, durations and the cuts inside them are kept; this plan only brings the prompts and the effects. Empty: ignored."),
                 io.Boolean.Input('rhythm_reference_only', default=False, optional=True, tooltip='Expose musical timing as a guide rather than a fixed shot-count contract. Existing fixed skeletons remain unchanged.'),
                 io.String.Input("project_root", default="", optional=True, force_input=True),
-                io.Combo.Input("music_edit_mode", options=list(MODES), default="legacy", optional=True, tooltip="For source=json with music: adaptive energy-aware cuts, seeded random musical cuts, a regular grid, or free narrative timing. Legacy preserves existing workflows."),
+                io.Combo.Input("music_edit_mode", options=list(MODES), default="legacy", optional=True, tooltip="For source=json with music: adaptive energy-aware cuts, seeded random musical cuts, a regular grid, or free narrative timing. With source=music, adaptive, random and phrases give long holds, short cuts and bursts instead of one cut per grid step. Legacy preserves existing workflows."),
                 io.Combo.Input("music_cut_density", options=["auto", "low", "medium", "high"], default="auto", optional=True),
                 io.Float.Input("music_cut_variation", default=0.5, min=0, max=1, step=0.01, optional=True),
                 io.Float.Input("music_cut_sync", default=1.0, min=0, max=1, step=0.01, optional=True),
@@ -144,9 +144,16 @@ class MajoorCreateTimeline(io.ComfyNode):
                 if wav is None:
                     raise MajoorError("source=music needs the music input")
                 samples, sample_rate = read_wav_mono(wav)
-                plan, info = plan_from_music(samples, sample_rate, cut_every=source["cut_every"], duration=source["duration"], bpm=source["bpm"],
-                                             beats_per_bar=source["beats_per_bar"], downbeat=source["downbeat"], shots=source["shots"], fps=rate)
-                text, extra = plan_text(plan), (f"{info['bpm']} BPM, one cut every {source['cut_every']}" if info['bpm'] else 'No reliable pulse; narrative timing without a measured beat grid')
+                if music_edit_mode in ("adaptive", "random", "phrases"):
+                    plan, info = music_cut_plan(samples, sample_rate, duration=source["duration"] or len(samples) / sample_rate, fps=rate, mode=music_edit_mode,
+                                                density=music_cut_density, variation=music_cut_variation, sync=music_cut_sync, seed=music_cut_seed,
+                                                cut_every=music_cut_every, mood=music_cut_mood, words=words_json if words_json and words_json.strip() else None)
+                    cuts, plan = len(plan["shots"]), burst_takes(plan)
+                    text, extra = plan_text(plan), f"{music_edit_mode} pacing: {cuts} cuts in {len(plan['shots'])} takes, long holds, short cuts and bursts that follow the music"
+                else:
+                    plan, info = plan_from_music(samples, sample_rate, cut_every=source["cut_every"], duration=source["duration"], bpm=source["bpm"],
+                                                 beats_per_bar=source["beats_per_bar"], downbeat=source["downbeat"], shots=source["shots"], fps=rate)
+                    text, extra = plan_text(plan), (f"{info['bpm']} BPM, one cut every {source['cut_every']}" if info['bpm'] else 'No reliable pulse; narrative timing without a measured beat grid')
             elif kind == "video":
                 if video is None:
                     raise MajoorError("source=video needs the video input")

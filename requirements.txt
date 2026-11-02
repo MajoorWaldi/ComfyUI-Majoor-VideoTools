@@ -3,3 +3,4 @@ filelock
 numpy
 Pillow
 opencv-python
+# optional, not installed by default: faster-whisper (words of a voice or a song); the README lists every optional dependency and what happens without it
