@@ -4,7 +4,7 @@ from comfy_api.latest import io
 
 from ..core.beats import detect_beats, read_wav_mono
 from ..core.music_cuts import vocal_phrases
-from ..core.music_structure import find_downbeats, track_sections
+from ..core.music_structure import find_downbeats, sections_text, track_sections
 from ..core.sync_score import sync_score
 from ..core.words import align_lyrics, mark_accents, parse_words
 from .create_timeline import audio_file
@@ -29,6 +29,7 @@ class MajoorMusicWords(io.ComfyNode):
                 io.String.Output(display_name="words_json", tooltip="The words with their times; accent true on the words that land on a beat. Empty without lyrics or words."),
                 io.String.Output(display_name="structure_json", tooltip="sections, drops, downbeats and, with words, the sync score of the words against the beats."),
                 io.String.Output(display_name="phrases_text", tooltip="The vocal phrases as a line for an LLM: VOCAL PHRASES (seconds): 0.0-2.7, 3.6-5.8. Empty when the music has no voice."),
+                io.String.Output(display_name="sections_text", tooltip="The sections as a line for an LLM: SECTIONS OF THE MUSIC (seconds): intro 0.0-6.4, build 6.4-9.6."),
             ],
         )
 
@@ -51,4 +52,4 @@ class MajoorMusicWords(io.ComfyNode):
             words = mark_accents(words, [float(b) for b in beats], accent_radius)
             structure["sync"] = sync_score([w["start"] for w in words], [float(b) for b in beats])
         line = "VOCAL PHRASES (seconds): " + ", ".join(f"{a:.1f}-{b:.1f}" for a, b in phrases) if phrases else ""
-        return io.NodeOutput(json.dumps(words) if words else "", json.dumps(structure), line, ui={"text": (f"{len(words)} words · " + ", ".join(f"{s['tag']} {s['start']:g}s" for s in sections),)})
+        return io.NodeOutput(json.dumps(words) if words else "", json.dumps(structure), line, sections_text(sections), ui={"text": (f"{len(words)} words · " + ", ".join(f"{s['tag']} {s['start']:g}s" for s in sections),)})

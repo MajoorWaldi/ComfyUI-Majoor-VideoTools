@@ -102,3 +102,84 @@ def test_references_energy_and_auto_sizes_reach_every_plan():
     assert done.shots[0].plan["cast"]["references"] == ["g1.png", "g2.png"]       # every shot of the ghoul carries its pictures
     assert all("references" not in s.plan["cast"] for s in done.shots if s.plan["cast"]["character_id"] == "witch")
     assert apply_casting(done, casting, references, {"SHOT_003": .9}) == done      # still repeatable
+
+
+def test_each_shot_gets_the_words_sung_in_it_and_applying_them_again_replaces_them():
+    from dataclasses import dataclass
+
+    @dataclass(frozen=True)
+    class Shot:
+        shot_id: str
+        start_frame: int
+        end_frame_exclusive: int
+        plan: dict | None = None
+
+    @dataclass(frozen=True)
+    class ShotList:
+        source: SimpleNamespace
+        shots: tuple
+
+    from majoor_videotools.core.casting import apply_casting, apply_lyrics
+    words = [{"word": "Frankenstein", "start": .1, "end": 1.0}, {"word": "woke", "start": 1.2, "end": 1.5}, {"word": "Dracula", "start": 2.5, "end": 3.0}]
+    shots = (Shot("SHOT_001", 0, 48, {"prompt": "he raps"}), Shot("SHOT_002", 48, 120, {"prompt": "she raps"}), Shot("SHOT_003", 120, 144, {"prompt": "silence"}))
+    done = apply_lyrics(ShotList(SimpleNamespace(fps=24), shots), words)
+    assert 'word for word: "Frankenstein woke"' in done.shots[0].plan["prompt"] and done.shots[0].plan["prompt"].startswith("he raps" + chr(10))
+    assert 'word for word: "Dracula"' in done.shots[1].plan["prompt"] and "0.5 s into the shot" in done.shots[1].plan["lyrics"]
+    assert done.shots[2].plan == {"prompt": "silence"}                       # no word starts in it
+    assert apply_lyrics(done, words) == done                                  # repeatable
+    assert apply_lyrics(done, words[:1]).shots[1].plan["prompt"] == "she raps"  # other words replace the earlier ones
+    cast = apply_lyrics(apply_casting(ShotList(SimpleNamespace(fps=24), shots), _casting()), words)
+    assert "grey ghoul" in cast.shots[0].plan["prompt"] and "Frankenstein woke" in cast.shots[0].plan["prompt"]
+
+
+def test_a_shot_goes_to_the_character_the_planner_named_whatever_the_seconds():
+    casting = _casting(shots={"SHOT_001": "witch", "SHOT_002": "Ghoul", "SHOT_003": "nobody", "SHOT_004": "witch", "bad": 5})
+    assert casting["shots"] == {"SHOT_001": "witch", "SHOT_002": "ghoul", "SHOT_004": "witch"}      # a name is understood, a character that does not exist is dropped
+    shots = [_shot(1, 0, 24), _shot(2, 24, 48), _shot(3, 48, 72), _shot(4, 72, 96)]
+    cast = cast_shots(casting, shots, 24)
+    assert [cast[f"SHOT_{i:03d}"]["character_id"] for i in range(1, 5)] == ["witch", "ghoul", "ghoul", "witch"]   # SHOT_003 names nobody: its seconds decide
+    assert cast["SHOT_001"]["name"] == "Witch" and _casting()["shots"] == {}
+
+
+def test_spoken_lines_are_written_as_spoken_not_sung():
+    from dataclasses import dataclass
+    from majoor_videotools.core.casting import apply_lyrics
+
+    @dataclass(frozen=True)
+    class Shot:
+        shot_id: str
+        start_frame: int
+        end_frame_exclusive: int
+        plan: dict | None = None
+
+    @dataclass(frozen=True)
+    class ShotList:
+        source: SimpleNamespace
+        shots: tuple
+
+    words = [{"word": "Buy", "start": .4, "end": .6}, {"word": "now", "start": .7, "end": 1.0}]
+    done = apply_lyrics(ShotList(SimpleNamespace(fps=24), (Shot("SHOT_001", 0, 48, {"prompt": "she smiles"}),)), words, spoken=True)
+    assert 'Spoken in this shot, word for word: "Buy now"' in done.shots[0].plan["prompt"] and "sung" not in done.shots[0].plan["prompt"]
+
+
+def test_the_words_replace_themselves_even_on_an_empty_prompt_and_shot_ids_may_be_in_any_case():
+    from dataclasses import dataclass
+    from majoor_videotools.core.casting import apply_lyrics
+
+    @dataclass(frozen=True)
+    class Shot:
+        shot_id: str
+        start_frame: int
+        end_frame_exclusive: int
+        plan: dict | None = None
+
+    @dataclass(frozen=True)
+    class ShotList:
+        source: SimpleNamespace
+        shots: tuple
+
+    words = [{"word": "Go", "start": .2, "end": .4}]
+    once = apply_lyrics(ShotList(SimpleNamespace(fps=24), (Shot("SHOT_001", 0, 48, {}),)), words)
+    assert apply_lyrics(once, words) == once and once.shots[0].plan["prompt"].count("word for word") == 1
+    casting = _casting(shots={"shot_001": "witch"})
+    assert cast_shots(casting, [_shot(1, 0, 24)], 24)["SHOT_001"]["character_id"] == "witch"

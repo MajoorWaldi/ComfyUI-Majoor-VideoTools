@@ -5,8 +5,8 @@ import json
 import logging
 import math
 import os
-import signal
 import re
+import signal
 import shutil
 import subprocess
 import time
@@ -201,7 +201,7 @@ def write_composition(project: Path, source: Path, info, direction: dict, cues: 
     duration, fps = float(info.duration), float(info.fps)
     cards = []
     for i, cue in enumerate(cues):
-        letters = ''.join('<span>' + html.escape(c) + '</span>' for c in cue['text'])
+        letters = ' '.join('<span class="w">' + ''.join('<span class="c">' + html.escape(c) + '</span>' for c in word) + '</span>' for word in cue['text'].split(' '))  # a word never breaks across two lines
         cards.append(f'<div id="title{i}" class="clip title {cue["position"]}" data-start="{cue["start"]}" data-duration="{cue["end"]-cue["start"]}" data-track-index="1"><div class="panel"><div class="words">{letters}</div><div class="rule"></div></div></div>')
     scene = Path(__file__).resolve().parents[1] / 'web/hyperframes_scene.html'
     config = {'duration': duration, 'fps': fps, 'cues': cues, 'audio': audio, 'layers': layers or [], 'layer_assets': layer_assets or {},

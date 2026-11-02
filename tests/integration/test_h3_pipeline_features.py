@@ -7,10 +7,9 @@ import pytest
 from majoor_videotools.core import casting as casting_mod
 from majoor_videotools.core.creative_director import choose_sizes
 from majoor_videotools.core.errors import MajoorError
-from majoor_videotools.core.lipsync import (lagged_correlation, lipsync_report, measure_video, mouth_motion, needs_retake, next_seed,
-                                            speech_envelope)
+from majoor_videotools.core.lipsync import (control_region, lagged_correlation, lipsync_report, measure_video, mouth_opening, needs_retake,
+                                            next_seed, speech_envelope)
 from majoor_videotools.core.music_cuts import music_cut_plan
-from majoor_videotools.core.orchestration import Cancelled, StageFailed, build_stages, retake_loop, run_pipeline
 
 FPS = 24.0
 
@@ -55,17 +54,43 @@ def test_frames_without_a_face_are_left_out_of_the_comparison():
     assert lipsync_report(mouth, voice, FPS)["status"] == "pass"
 
 
-def test_speech_envelope_and_mouth_motion_read_the_signals():
+def test_speech_envelope_and_mouth_opening_read_the_signals():
     rate = 8000
     samples = np.concatenate([np.zeros(rate), np.sin(np.linspace(0, 2000, rate)) * .5])
     env = speech_envelope(samples, rate, 24.0, 48)
     assert env[:20].max() == 0 and env[30:].min() > .5 and env.max() == 1
     assert speech_envelope(np.zeros(rate), rate, 24.0, 24).max() == 0
-    still = np.zeros((4, 4))
-    moving = mouth_motion([still, still, still + 8, None, still])
-    assert np.isnan(moving[0]) and moving[1] == 0 and moving[2] == 8 and np.isnan(moving[3]) and np.isnan(moving[4])  # no earlier frame: not measured
+    flat, striped = np.zeros((4, 4)), np.tile([0.0, 8.0], (4, 2))
+    opening = mouth_opening([flat, striped, None, flat])
+    assert opening[0] == 0 and opening[1] == 4 and np.isnan(opening[2]) and opening[3] == 0  # a frame without a face is not measured
     with pytest.raises(MajoorError):
         speech_envelope(np.array([np.nan]), rate, 24.0, 3)
+
+
+def test_what_the_rest_of_the_face_does_is_taken_away_from_the_mouth():
+    voice = speaking()
+    head = voice * 6 + 1  # the whole face changes with the voice: a head that bobs
+    stripes = np.tile([0.0, 8.0], (4, 2))
+    crops = [stripes * level for level in head]
+    controls = [stripes * level for level in head]
+    with_control = mouth_opening(crops, controls)
+    assert np.nanmax(np.abs(with_control)) < 1e-9
+    assert lipsync_report(with_control + np.random.default_rng(4).normal(0, .01, len(voice)), voice, FPS)["status"] == "fail"
+    own = mouth_opening([stripes * level for level in voice * 6 + 1], [stripes * 3 for _ in voice])
+    assert lipsync_report(own, voice, FPS)["status"] == "pass"
+
+
+def test_the_control_region_is_above_the_mouth_or_below_it_or_missing():
+    assert control_region((.3, .55, .4, .2)) == pytest.approx((.3, .05, .4, .2))
+    assert control_region((.3, .1, .4, .2)) == pytest.approx((.3, .6, .4, .2))
+    assert control_region((.3, .3, .4, .4)) is None
+
+
+def test_the_score_must_beat_what_chance_gives_on_this_voice():
+    voice = speaking()
+    report = lipsync_report(voice * 5 + .1, voice, FPS)
+    assert report["status"] == "pass" and report["chance"] < report["score"]
+    assert lipsync_report(voice[:25] * 5, voice[:25], FPS)["chance"] == 0.0  # too short to move the voice away from itself
 
 
 def test_lagged_correlation_sign_means_the_mouth_follows_the_voice():
@@ -102,25 +127,6 @@ def test_the_mouth_region_is_checked():
     for bad in ("1,2,3", "a,b,c,d", "0.8,0.5,0.5,0.2", "0,0,0,0.1", "nan,0,1,1"):
         with pytest.raises(MajoorError):
             parse_region(bad)
-
-
-# ---- retake loop -------------------------------------------------------------------------------------------------------
-
-def test_retake_loop_keeps_the_first_good_take_and_the_best_of_all_bad_ones():
-    made = []
-    def generate(seed):
-        made.append(seed)
-        return f"take-{seed}"
-    ok_after_two = iter([{"status": "fail", "score": .1}, {"status": "pass", "score": .8}])
-    take, report, history = retake_loop(generate, lambda t: next(ok_after_two), 42)
-    assert report["status"] == "pass" and len(history) == 2 and len(set(made)) == 2 and take == f"take-{made[1]}"
-    scores = iter([.2, .4, .1])
-    take, report, history = retake_loop(generate, lambda t: {"status": "fail", "score": next(scores)}, 7, max_attempts=3)
-    assert len(history) == 3 and report["score"] == .4
-    take, report, history = retake_loop(generate, lambda t: {"status": "unmeasured", "score": None}, 7)
-    assert len(history) == 1
-    with pytest.raises(MajoorError):
-        retake_loop(generate, lambda t: {}, 1, max_attempts=0)
 
 
 # ---- phrases from words ------------------------------------------------------------------------------------------------
@@ -177,57 +183,6 @@ def test_the_director_decides_from_duration_energy_and_place():
     assert all(not (same[str(i)] == same[str(i + 1)] == same[str(i + 2)]) for i in range(4))
     assert choose_sizes([{"id": "only", "duration": 5.0}], first_of_edit="only") == {"only": "wide"}
     assert choose_sizes([]) == {}
-
-
-# ---- stage runner ------------------------------------------------------------------------------------------------------
-
-def test_stages_run_in_order_and_hand_results_forward():
-    order = []
-    def handler(name, value=None):
-        def run(context):
-            order.append(name)
-            return value if value is not None else name
-        return run
-    stages = build_stages({name: handler(name) for name in ("plan", "casting", "shots", "assemble")})
-    context, report = run_pipeline(stages, {"prompt": "go"})
-    assert order == ["plan", "casting", "shots", "assemble"] and report.ok and context["shots"] == "shots" and context["prompt"] == "go"
-
-
-def test_an_optional_failure_skips_only_what_needs_it():
-    def boom(context):
-        raise ValueError("no face model")
-    handlers = {"plan": lambda c: 1, "shots": lambda c: 2, "casting": boom, "character_sheets": lambda c: 3, "lipsync": boom, "assemble": lambda c: 4}
-    context, report = run_pipeline(build_stages(handlers))
-    assert report.get("casting").status == "failed" and report.get("character_sheets").status == "skipped"
-    assert report.get("lipsync").status == "failed" and report.get("assemble").status == "done" and "assemble" in context
-
-
-def test_a_required_failure_stops_the_run_with_the_whole_report():
-    handlers = {"plan": lambda c: 1, "shots": lambda c: (_ for _ in ()).throw(RuntimeError("gpu lost")), "assemble": lambda c: 4}
-    with pytest.raises(StageFailed) as caught:
-        run_pipeline(build_stages(handlers))
-    assert caught.value.stage == "shots" and isinstance(caught.value.__cause__, RuntimeError)
-    assert [s.status for s in caught.value.report.stages] == ["done", "failed", "skipped"]
-
-
-def test_retries_cancellation_and_bad_wiring():
-    calls = []
-    def flaky(context):
-        calls.append(1)
-        if len(calls) < 3:
-            raise OSError("busy")
-        return "ok"
-    context, report = run_pipeline(build_stages({"plan": lambda c: 1, "shots": flaky}, retries={"shots": 2}))
-    assert report.get("shots").attempts == 3 and context["shots"] == "ok"
-    with pytest.raises(Cancelled):
-        run_pipeline(build_stages({"plan": lambda c: 1, "shots": lambda c: 2}), cancelled=lambda: True)
-    with pytest.raises(MajoorError):
-        build_stages({"plan": lambda c: 1})
-    with pytest.raises(MajoorError):
-        build_stages({"plan": lambda c: 1, "shots": lambda c: 1, "magic": lambda c: 1})
-    from majoor_videotools.core.orchestration import Stage
-    with pytest.raises(MajoorError):
-        run_pipeline([Stage("b", lambda c: 1, needs=("a",)), Stage("a", lambda c: 1)])
 
 
 def _talking_clip(tmp_path, follows: bool):

@@ -1,8 +1,8 @@
 """Character casting: the JSON of the casting_planner skill (one prompt, several characters), checked, and
 spread over the shots of a timeline. No model, no network, no GPU.
 
-A casting is {"style": str, "shot_sizes": [..], "characters": [{"id","name","look","location","start","end","performance"}]}.
-`start` and `end` are the seconds of the timeline this character performs. The bible text is what every shot
+A casting is {"style": str, "shot_sizes": [..], "characters": [{"id","name","look","location","start","end","performance"}], "shots": {shot id: character id}}.
+`start` and `end` are the seconds of the timeline this character performs; `shots`, when the planner wrote it, names the character of each shot and wins over the seconds. The bible text is what every shot
 prompt of that character repeats, so the identity stays the same from one take to the next."""
 import json
 import re
@@ -61,7 +61,16 @@ def parse_casting(text: str) -> dict:
                            "location": _text(item.get("location", ""), f"{cid}.location", required=False),
                            "performance": _text(item.get("performance", ""), f"{cid}.performance", required=False),
                            "start": float(start), "end": float(end)})
-    return {"style": _text(data.get("style", ""), "style", required=False), "shot_sizes": sizes, "characters": characters}
+    assigned = data.get("shots")
+    ids = {c["id"] for c in characters}
+    by_name = {c["name"].strip().lower(): c["id"] for c in characters}
+    shots = {}
+    for shot_id, who in (assigned.items() if isinstance(assigned, dict) else ()):
+        who = str(who).strip()
+        who = who if who in ids else by_name.get(who.lower(), re.sub(r"[^a-z0-9_]+", "_", who.lower()).strip("_"))
+        if who in ids:  # a character that does not exist is left to the seconds
+            shots[str(shot_id).strip().upper()] = who
+    return {"style": _text(data.get("style", ""), "style", required=False), "shot_sizes": sizes, "characters": characters, "shots": shots}
 
 
 def bible_text(casting: dict, character_id: str) -> str:
@@ -126,11 +135,13 @@ def cast_shots(casting: dict, shots, fps: float, energies: dict | None = None) -
     shots = list(shots)
     for shot in shots:
         middle = (shot.start_frame + shot.end_frame_exclusive) / 2 / fps
-        character = min(casting["characters"], key=lambda c: 0 if c["start"] <= middle < c["end"] else min(abs(middle - c["start"]), abs(middle - c["end"])))
+        named = casting.get("shots", {}).get(shot.shot_id.upper())
+        character = next((c for c in casting["characters"] if c["id"] == named), None) or min(
+            casting["characters"], key=lambda c: 0 if c["start"] <= middle < c["end"] else min(abs(middle - c["start"]), abs(middle - c["end"])))
         n = used[character["id"]] = used.get(character["id"], -1) + 1
         owned.setdefault(character["id"], []).append({"id": shot.shot_id, "duration": (shot.end_frame_exclusive - shot.start_frame) / fps,
                                                       "energy": (energies or {}).get(shot.shot_id)})
-        result[shot.shot_id] = {"character_id": character["id"], "location": character["location"],
+        result[shot.shot_id] = {"character_id": character["id"], "name": character["name"], "location": character["location"],
                                 "shot_size": sizes[n % len(sizes)] if sizes != "auto" else "medium", "performance": character["performance"]}
     if sizes == "auto":
         opening = shots[0].shot_id if shots else None
@@ -138,6 +149,27 @@ def cast_shots(casting: dict, shots, fps: float, energies: dict | None = None) -
             for shot_id, size in choose_sizes(rows, first_of_edit=opening).items():
                 result[shot_id]["shot_size"] = size
     return result
+
+
+def apply_lyrics(shot_list, words: list[dict], spoken: bool = False):
+    """The shot list with the words sung (or spoken) in each shot at the end of its prompt (and in `plan["lyrics"]`, so applying them again replaces them).
+
+    A shot gets the words that start inside it, with the seconds from its own start to the first of them; a shot without words is left as it is."""
+    fps = float(shot_list.source.fps)
+    shots = []
+    for shot in shot_list.shots:
+        plan = dict(shot.plan or {})
+        prompt = plan.get("prompt", "")
+        if old := plan.pop("lyrics", None):
+            prompt = prompt.removesuffix(old).removesuffix("\n")
+        start, end = shot.start_frame / fps, shot.end_frame_exclusive / fps
+        sung = [w for w in words if start <= w["start"] < end]
+        plan["prompt"] = prompt
+        if sung:
+            line = f'{"Spoken in this shot" if spoken else "Lyrics sung in this shot"}, word for word: "{" ".join(w["word"] for w in sung)}" (the first word comes {sung[0]["start"] - start:.1f} s into the shot).'
+            plan.update(prompt=f"{prompt}\n{line}".strip(), lyrics=line)
+        shots.append(replace(shot, plan=plan))
+    return replace(shot_list, shots=tuple(shots))
 
 
 def apply_casting(shot_list, casting: dict, references: dict | None = None, energies: dict | None = None):

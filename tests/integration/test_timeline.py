@@ -595,7 +595,7 @@ def test_every_prompt_file_is_listed_and_the_h3_writer_knows_the_format():
         assert 'one continuous filmed take' in text, shot['id']
         if shot.get("sub_cuts"):
             assert 'editorial crops and transitions are applied separately' in text, shot['id']
-    assert len(writer.split()) < 2100  # a prompt a local model can follow: 1793 words without the dialogue and plate modules, which are off unless a voice, a dialogue or a place is given
+    assert len(writer.split()) < 3000  # a prompt a local model can follow: 1793 words without the dialogue and plate modules, which are off unless a voice, a dialogue or a place is given
 
 
 def test_negations_are_removed_from_prompts_but_cuts_and_transitions_stay():

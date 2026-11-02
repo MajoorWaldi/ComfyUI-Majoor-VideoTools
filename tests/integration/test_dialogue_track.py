@@ -133,8 +133,8 @@ def test_end_overflow_is_never_silently_truncated_and_empty_track_mutes_takes(di
     assert np.max(abs(decode(empty.path))) < 1e-5
     with pytest.raises(AssemblyError, match="cannot retime"):
         assemble_shots(sl, root, AssemblyOptions(audio_policy="shot_audio", preserve_dialogue=True, duration_policy="retime_to_target"))
-    with pytest.raises(ManifestError, match="beyond the video"):
-        assemble_shots(sl, root, AssemblyOptions(audio_policy="shot_audio", preserve_dialogue=True))
+    kept = assemble_shots(sl, root, AssemblyOptions(audio_policy="shot_audio", preserve_dialogue=True))    # takes longer than their shots: each shot keeps the part it uses
+    assert kept.path.is_file() and np.max(abs(decode(kept.path))) > 1e-3
     with pytest.raises(MajoorError, match="escapes"):
         render_dialogue(store, [{"file": "../../outside", "start": 0, "duration": 1, "at": 0, "gain": 1}], 3)
 

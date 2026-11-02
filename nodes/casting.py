@@ -4,7 +4,8 @@ from ..adapters.comfy_video import MajoorShotList
 from ..core.errors import MajoorError
 import json
 
-from ..core.casting import apply_casting, parse_casting, parse_references, sheet_prompt
+from ..core.casting import apply_casting, apply_lyrics, parse_casting, parse_references, sheet_prompt
+from ..core.words import parse_words
 
 
 class MajoorApplyCasting(io.ComfyNode):
@@ -14,21 +15,24 @@ class MajoorApplyCasting(io.ComfyNode):
             node_id="MajoorApplyCasting",
             display_name="Apply Casting",
             category="Majoor/VideoTools",
-            description="Give each shot a character of the casting: its look, place, shot size and performance go into the plan, so Select Shot and Edit Skills carry the same identity from take to take.",
+            description="Give each shot a character of the casting: its look, place, shot size and performance go into the plan, so Select Shot and Edit Skills carry the same identity from take to take. With words_json, each shot also gets the words sung in it.",
             inputs=[
                 MajoorShotList.Input("shot_list"),
                 io.String.Input("casting_json", force_input=True, optional=True, tooltip="The answer of the LLM to the casting_planner skill. Not connected: the shot list passes unchanged."),
                 io.String.Input("references_json", default="", optional=True, force_input=True, tooltip='Reference pictures by character: {"ghoul": "ghoul.png", "witch": ["witch_a.png", "witch_b.png"]}. Each shot of a character carries its pictures in plan.cast.references, so every shot uses the same identity.'),
                 io.String.Input("shot_energy_json", default="", optional=True, force_input=True, tooltip='Optional {"SHOT_001": 0.8, ...} (0 to 1): with shot_sizes "auto", the Creative Director goes closer on energetic shots.'),
+                io.String.Input("words_json", default="", optional=True, force_input=True, tooltip="Words with times from Transcribe Voice or Music Words: each shot gets the words that start inside it, written at the end of its prompt."),
+                io.Boolean.Input("spoken", default=False, optional=True, tooltip="The words are spoken lines, not lyrics: the shot says them instead of singing them."),
             ],
             outputs=[MajoorShotList.Output(display_name="shot_list"),
                      io.String.Output(display_name="character_sheets_json", tooltip="{character id: prompt} to generate the reference picture of each character once.")],
         )
 
     @classmethod
-    def execute(cls, shot_list, casting_json=None, references_json="", shot_energy_json="") -> io.NodeOutput:
+    def execute(cls, shot_list, casting_json=None, references_json="", shot_energy_json="", words_json="", spoken=False) -> io.NodeOutput:
+        words = parse_words(words_json) if words_json and words_json.strip() else []
         if casting_json is None:
-            return io.NodeOutput(shot_list, "")
+            return io.NodeOutput(apply_lyrics(shot_list, words, spoken) if words else shot_list, "")
         casting = parse_casting(casting_json)
         references = parse_references(references_json, casting)
         try:
@@ -38,4 +42,5 @@ class MajoorApplyCasting(io.ComfyNode):
         if energies is not None and (not isinstance(energies, dict) or any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in energies.values())):
             raise MajoorError('shot_energy_json must be {"shot id": number}')
         sheets = {c["id"]: sheet_prompt(casting, c["id"]) for c in casting["characters"]}
-        return io.NodeOutput(apply_casting(shot_list, casting, references, energies), json.dumps(sheets), ui={"text": (", ".join(f"{c['name']} {c['start']:g}-{c['end']:g} s" for c in casting["characters"]),)})
+        cast_list = apply_casting(shot_list, casting, references, energies)
+        return io.NodeOutput(apply_lyrics(cast_list, words, spoken) if words else cast_list, json.dumps(sheets), ui={"text": (", ".join(f"{c['name']} {c['start']:g}-{c['end']:g} s" for c in casting["characters"]),)})

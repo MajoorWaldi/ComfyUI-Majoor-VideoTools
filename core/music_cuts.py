@@ -10,9 +10,10 @@ from .beats import detect_beats
 from .errors import MajoorError
 from .words import parse_words, phrase_groups
 from .template import MIN_SHOT_FRAMES, _find_shots, _json_text, parse_plan
-from .timeline_sources import _with_lengths, merge_plans, plan_from_music, plan_text, protected_action
+from .timeline_sources import _with_lengths, group_cuts, merge_plans, plan_from_music, plan_text, protected_action
 
 MODES = ("legacy", "adaptive", "random", "regular", "free", "phrases")
+MIN_TAKE_FRAMES = 22  # the shortest take H3 makes (the 17k+5 grid)
 
 
 def vocal_phrases(samples, rate, *, min_pause=.35, min_length=.6):
@@ -146,6 +147,18 @@ def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", densit
         "bpm": float(bpm) if bpm > 0 else None, "beat_times": [float(t) for t in beats] if bpm > 0 else [], "warnings": warnings,
         "timing_source": "measured_accents" if candidates else "narrative",
     }
+
+
+def burst_takes(plan: dict) -> dict:
+    """The plan with the cuts too short to be a generation of their own joined into takes of at least `MIN_TAKE_FRAMES`, their cuts kept as sub-cuts: a burst is one generation, cut up."""
+    rows, shots, at = plan["shots"], [], 0
+    for group in group_cuts([row["duration_frames"] for row in rows], MIN_TAKE_FRAMES):
+        row = {**rows[at], "duration_frames": sum(group)}
+        if len(group) > 1:
+            row["sub_cuts"] = [{"duration_frames": n} for n in group]
+        shots.append(row)
+        at += len(group)
+    return {**plan, "shots": shots}
 
 
 def apply_music_timing(text, timing, fps, aspect_ratio, resolution):

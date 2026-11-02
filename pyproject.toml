@@ -7,6 +7,9 @@ license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = ["scenedetect>=0.7", "filelock", "numpy", "Pillow", "opencv-python"]
 
+[project.optional-dependencies]
+transcribe = ["faster-whisper"]
+
 [tool.comfy]
 DisplayName = "Majoor VideoTools"
 requires-comfyui = ">=0.41.0"

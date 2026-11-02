@@ -10,11 +10,13 @@ The VideoTools pack provides shot detection, identified takes, metadata, assembl
 - Experimental unified HyperFrames graphics, word animation and audio-event timing.
 - Experimental opt-in style packs and subject-derived accent color in the Studio adapter; not universal automatic defaults.
 - Tone-generated optional SFX palette and explicit runtime installers.
+- Text and Music: story then casting, voice and lyric transcription (faster-whisper), visual memory, camera moves, best of two takes judged by the local vision model, kinetic lyrics, Pika H3 Flex option, three treatments of a brief.
 
 ## Improve and qualify
 
 - [ ] Qualify Lip Sync Check, Creative Director sizes and character references on real MiniMax H3 Ref2VA renders (the logic is tested on synthetic clips; no model-backed run yet).
-- [ ] Wire Music Words → Create Timeline `words_json` and the lip-sync retake switch into the maintained Studio workflows.
+- [ ] Wire the lip-sync retake switch into the maintained Studio workflows (Music Words → Create Timeline `words_json` is wired).
+- [ ] Measure the take judge against human choices, and qualify Pika H3 Flex quality (the Flex speed gain was seen on one run).
 
 - [ ] Clean-install model-backed workflows with pinned checkpoint revisions and authorized inputs.
 - [ ] Dense-edit narrative continuity, action/identity consistency and musical phrasing.
@@ -24,7 +26,7 @@ The VideoTools pack provides shot detection, identified takes, metadata, assembl
 
 ## Planned
 
-Continuous narration/transcription/subtitles; data-driven infographic layouts and numeric counters; semantic clipping; subject-aware reframing; additional selectable video backends; integrated 4K upscale; project ZIP import.
+Continuous narration and subtitles (the words of a voice or a song are already transcribed for prompts and kinetic lyrics); three simultaneous full treatments (only the briefs are made in three today); data-driven infographic layouts and numeric counters; semantic clipping; subject-aware reframing; additional selectable video backends; integrated 4K upscale; project ZIP import.
 
 Generated quality is model-dependent and needs human review. The local Studio expects shared media storage; public multi-user hosting and remote artifact transfer are not qualified. Model, dependency and media terms remain separate.
 

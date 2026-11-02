@@ -22,6 +22,8 @@ Install this folder under `ComfyUI/custom_nodes/ComfyUI-Majoor-VideoTools`, then
 
 For HyperKut's maintained API graphs, use recent native ComfyUI model nodes and `comfyui_controlnet_aux`. KJNodes and Easy-Use are additional visual-workflow editing dependencies. Model weights are downloaded separately; see [configured filenames and sources](docs/models-and-downloads.md).
 
+Optional: `pip install faster-whisper` (or `pip install .[transcribe]`) in ComfyUI's Python to read the words of a voice or a song. Nothing else in the pack needs it.
+
 The Studio has its own source repository and Python environment. Keep it adjacent to the pack modules as described in [Studio installation](docs/studio-installation.md).
 
 ## Ready visual workflows
@@ -35,6 +37,37 @@ The legacy `SECATOR` prefix is retained in these filenames for compatibility; th
 | `SECATOR Creative Music.json` | Supplied music, brief and references. |
 
 Open a workflow in ComfyUI and read its GUIDE, DEPENDENCIES and WIRING notes. Visual workflows and the Studio's exported API graphs are distinct entry points; their saved defaults can differ. The maintained Studio video path uses MiniMax H3, Gemma planning and YuE2 for newly generated music.
+
+## What the Text and Music workflows add
+
+Everything below is a node of this pack that the maintained Studio graphs use; each is off, or inert, when its input is missing.
+
+| Feature | Nodes and skills | Needs |
+|---|---|---|
+| Story, then casting | `story_planner` and `casting_planner` skills, `Apply Casting`: the story of the edit is written before the shots, each shot gets its character, place and look. | Gemma. |
+| Words of the music or of a voice | `Transcribe Voice`, `Music Words and Structure`: the sung or spoken words with their times reach the shot prompts, the phrase cuts and the casting. | `faster-whisper` and the `large-v3` folder, see [models](docs/models-and-downloads.md). Without them the nodes return empty text and the edit goes on. |
+| Visual memory | `Save Shot Memory`, `Shot Memory`: a character keeps the face, build and outfit of its earlier shots, not their pose or framing. | Nothing more. |
+| Camera moves | `Camera Moves`: every shot gets a move of twelve, none twice in a row; a brief asking for a fixed camera turns it off. | Nothing more. |
+| Best of two takes | `take_judge` skill: two takes with two seeds, six frames of each, the local vision model keeps one. | Gemma; the shots stage takes about twice as long. |
+| Kinetic lyrics | `Save Project Lyrics` and the `kinetic_lyrics` motion template: the words appear one at a time, a bigger one on the beats. | HyperFrames finishing and a voice in the music. |
+| Lip sync check | `Lip Sync Check`: the mouth against the voice of a take, with a chance level. Not wired into the Studio graphs yet. | OpenCV. |
+| Pika H3 Flex | A Studio option: six steps and the Flex LoRA instead of the turbo LoRA. | The LoRA file, see [models](docs/models-and-downloads.md). |
+
+### Optional dependencies
+
+| Optional dependency | What it adds | Without it |
+|---|---|---|
+| `faster-whisper` and the `large-v3` folder | The words of a voice or a song. | No words: the prompts have no lyrics, the cuts do not follow phrases, no kinetic lyrics. The edit goes on. |
+| Pika H3 Flex LoRA | The Flex option (six steps). | The turbo LoRA is used; the user is told when the option was on. |
+| FLUX files (`flux-2-klein-4b-fp8`, `qwen_3_4b`, `flux2-vae`) | Images of the places of the shots. | The shots are made without them; the user is told when the option was on. |
+| YuE2 music model | Music generated for a Text edit. | The edit is cut on a steady grid and has no generated music; the user is told. Music mode (your own track) never needs it. |
+| `comfyui_controlnet_aux`, DWPose and YOLOX files, the H3 pose patch, the Marigold node | Pose control. | Not needed by Text and Music shots: they are made without it. Only a Remix that asks for pose only needs them. |
+| HyperFrames (Node.js 22+, a browser) | Text, graphics, kinetic lyrics, effects. | The video is kept as assembled, with a warning. |
+| Tone bank (`install_tone.ps1`) | Generated sound effects. | No generated effects, with a warning. |
+| BiRefNet | Layers that need the subject cut out. | Those layers are skipped, with a warning. |
+| KJNodes, Easy-Use | Editing the visual workflows by hand. | The Studio graphs do not use them. |
+
+Required, and reported with a clear message when missing: ComfyUI with the native H3, Gemma and YuE2 nodes, Majoor VideoTools, the Gemma planner files, the H3 model, encoder, VAEs and turbo LoRA, FFmpeg. A missing optional dependency must never stop a generation or the final montage; if one ever does, it is a bug to report.
 
 ## Manual montage
 

@@ -13,6 +13,6 @@ The workflows of this pack do not paste prompts: **Edit Skills** loads them from
 
 The three skill copies are kept identical to what Edit Skills gives with its default settings by a test (`test_copies_in_examples_match_the_skills`): after editing a skill, regenerate the copy.
 
-The skills that have no copy here (`shot_reader`, `remix_shot_prompt`, `clip_judge`, `prompt_enhancer`, `music_brief_*`, the `profile_*` styles and the `mode_*` settings) are read from `../../skills/` only; the table of all the skills is in the main README.
+The skills that have no copy here (`shot_reader`, `remix_shot_prompt`, `clip_judge`, `take_judge`, `story_planner`, `casting_planner`, `prompt_enhancer`, `music_brief_*`, the `profile_*` styles and the `mode_*` settings) are read from `../../skills/` only; the table of all the skills is in the main README.
 
 **Feeding `h3_shot_prompt_from_plan.txt` by hand**: the prompt of the LLM chat is the brief of the shot, for example a StringConcatenate chain of Select Shot's `rhythm_text`, a line break, `prompt`, a line break, `fx_json`, and `TAKE LENGTH: <generation_seconds> s`. Use `format = text`, thinking off, and the character picture as the chat image.
