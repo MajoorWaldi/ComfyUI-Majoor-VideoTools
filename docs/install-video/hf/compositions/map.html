@@ -1,0 +1,67 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #0b0f17; font-family: Inter, sans-serif; color: #e6edf3; overflow: hidden; }
+    #root .stage { position: absolute; inset: 0; }
+    #root .kick { position: absolute; left: 150px; top: 96px; color: #6ea8ff; font-size: 28px; letter-spacing: 6px; font-weight: 700; }
+    #root .head { position: absolute; left: 150px; top: 140px; font-size: 64px; font-weight: 700; }
+    #root .box { position: absolute; border-radius: 22px; background: #121826; border: 3px solid #26324b; }
+    #root .box h3 { position: absolute; left: 28px; top: 20px; font-size: 38px; font-weight: 700; }
+    #root .box p { position: absolute; left: 28px; font-size: 28px; color: #8b98ad; }
+    #root .engine { left: 760px; top: 260px; width: 1010px; height: 720px; background: #0e1420; }
+    #root .pack { left: 800px; top: 385px; width: 930px; height: 270px; border-color: #3ddc97; }
+    #root .models { left: 800px; top: 675px; width: 930px; height: 285px; border-color: #ffb454; }
+    #root .studio { left: 150px; top: 380px; width: 450px; height: 360px; border-color: #6ea8ff; }
+    #root .tags { position: absolute; left: 28px; display: flex; gap: 12px; flex-wrap: wrap; width: 870px; }
+    #root .tag { font-family: "JetBrains Mono", monospace; font-size: 28px; padding: 6px 14px; border-radius: 10px; background: #1a2236; color: #e6edf3; }
+    #root .tag.g { color: #3ddc97; }
+    #root .link { position: absolute; left: 600px; top: 560px; width: 160px; height: 4px; background: #6ea8ff; }
+    #root .linkhead { position: absolute; left: 744px; top: 548px; width: 0; height: 0; border-left: 18px solid #6ea8ff; border-top: 14px solid transparent; border-bottom: 14px solid transparent; }
+    #root .linklbl { position: absolute; left: 596px; top: 590px; width: 170px; text-align: center; font-family: "JetBrains Mono", monospace; font-size: 28px; color: #6ea8ff; }
+    #root .order { position: absolute; left: 150px; top: 820px; width: 520px; font-size: 36px; font-weight: 600; line-height: 1.35; border-left: 6px solid #3ddc97; padding-left: 22px; }
+  </style>
+  <div data-hf-id="hf-jv7n" id="root" data-composition-id="map" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-66uz" class="stage" id="map-stage">
+      <div data-hf-id="hf-1c4h" class="kick">WHAT GOES WHERE</div>
+      <div data-hf-id="hf-5nyj" class="head">One engine, one pack, one Studio</div>
+
+      <div data-hf-id="hf-y8tc" class="box engine" id="map-engine"><h3 data-hf-id="hf-agza">ComfyUI &middot; the engine</h3><p data-hf-id="hf-t0dc" style="top:70px">Port 8188, with its own Python</p></div>
+
+      <div data-hf-id="hf-wc8s" class="box pack" id="map-pack">
+        <h3 data-hf-id="hf-a32v">Majoor VideoTools pack</h3>
+        <p data-hf-id="hf-0ej6" style="top:70px">custom_nodes/ComfyUI-Majoor-VideoTools</p>
+        <div data-hf-id="hf-1jah" class="tags" style="top:126px"><span data-hf-id="hf-2ukk" class="tag">nodes</span><span data-hf-id="hf-5fgl" class="tag">skills</span><span data-hf-id="hf-h5t6" class="tag">API graphs</span></div>
+        <div data-hf-id="hf-ss4d" class="tags" style="top:192px" id="map-runtime"><span data-hf-id="hf-ayp3" class="tag g">runtime/hyperframes</span><span data-hf-id="hf-tf22" class="tag g">runtime/tonejs</span></div>
+      </div>
+
+      <div data-hf-id="hf-ar3s" class="box models" id="map-models">
+        <h3 data-hf-id="hf-xlwm">Models</h3>
+        <p data-hf-id="hf-3gs4" style="top:72px">ComfyUI/models/&hellip;</p>
+        <div data-hf-id="hf-ym5j" class="tags" style="top:128px"><span data-hf-id="hf-heh0" class="tag">text_encoders</span><span data-hf-id="hf-944x" class="tag">diffusion_models</span><span data-hf-id="hf-s1oh" class="tag">vae</span><span data-hf-id="hf-tdj4" class="tag">loras</span><span data-hf-id="hf-hjsq" class="tag">checkpoints</span></div>
+      </div>
+
+      <div data-hf-id="hf-fzfg" class="box studio" id="map-studio">
+        <h3 data-hf-id="hf-xpyo">HyperKut Studio</h3>
+        <p data-hf-id="hf-asik" style="top:72px">The interface, port 8090</p>
+        <div data-hf-id="hf-oo25" class="tags" style="top:130px; width:390px"><span data-hf-id="hf-ax9n" class="tag">.venv (own Python)</span><span data-hf-id="hf-bbdw" class="tag">frontend/dist</span></div>
+      </div>
+      <div data-hf-id="hf-ictp" class="link" id="map-link"></div><div data-hf-id="hf-fxw5" class="linkhead" id="map-linkhead"></div>
+      <div data-hf-id="hf-17gj" class="linklbl" id="map-linklbl">via :8189</div>
+
+      <div data-hf-id="hf-hjax" class="order" id="map-order">Pack, finishing, models, Studio, start.</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const pop = (sel, at) => tl.fromTo(sel, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, at);
+    tl.fromTo(".kick, .head", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0.1);
+    pop("#map-engine", 0.6);
+    pop("#map-pack", 1.8);
+    tl.fromTo("#map-runtime", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 3.4);
+    pop("#map-models", 4.4);
+    pop("#map-studio", 5.8);
+    tl.fromTo("#map-link, #map-linkhead, #map-linklbl", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 6.8);
+    pop("#map-order", 8.0);
+    tl.to("#map-stage", { opacity: 0, filter: "blur(8px)", duration: 0.3, ease: "power3.in" }, 9.65);
+    window.__timelines["map"] = tl;
+  </script>
+</template>

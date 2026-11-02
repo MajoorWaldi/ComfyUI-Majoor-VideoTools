@@ -1,0 +1,39 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #0b0f17; font-family: Inter, sans-serif; color: #e6edf3; overflow: hidden; }
+    #root .stage { position: absolute; inset: 0; }
+    #root .glow { position: absolute; left: 50%; top: 44%; width: 1100px; height: 1100px; margin: -550px 0 0 -550px; background: radial-gradient(circle, rgba(110,168,255,.16), transparent 62%); }
+    #root .title { position: absolute; left: 0; right: 0; top: 320px; text-align: center; font-size: 150px; font-weight: 900; letter-spacing: -0.03em; }
+    #root .title .w { display: inline-block; margin: 0 .14em; }
+    #root .title .acc { color: #6ea8ff; }
+    #root .sub { position: absolute; left: 0; right: 0; top: 540px; text-align: center; font-size: 46px; color: #8b98ad; }
+    #root .steps { position: absolute; left: 0; right: 0; top: 740px; display: flex; justify-content: center; gap: 26px; }
+    #root .chip { display: flex; align-items: center; gap: 14px; padding: 16px 26px; border-radius: 14px; background: #121826; border: 2px solid #26324b; font-size: 32px; font-weight: 600; }
+    #root .chip b { font-family: "JetBrains Mono", monospace; color: #3ddc97; font-size: 30px; }
+  </style>
+  <div data-hf-id="hf-ypfn" id="root" data-composition-id="intro" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-d1h3" class="stage" id="intro-stage">
+      <div data-hf-id="hf-2s7n" class="glow"></div>
+      <div data-hf-id="hf-j8jm" class="title"><span data-hf-id="hf-55nz" class="w" id="intro-w1">HyperKut</span><span data-hf-id="hf-qxhf" class="w acc" id="intro-w2">Studio</span></div>
+      <div data-hf-id="hf-6fcm" class="sub" id="intro-sub">From a fresh ComfyUI to your first generation</div>
+      <div data-hf-id="hf-70xd" class="steps">
+        <div data-hf-id="hf-rg6a" class="chip" id="intro-c1"><b data-hf-id="hf-t4n0">1</b>Pack</div>
+        <div data-hf-id="hf-ehi5" class="chip" id="intro-c2"><b data-hf-id="hf-rxpx">2</b>Finishing</div>
+        <div data-hf-id="hf-hl7f" class="chip" id="intro-c3"><b data-hf-id="hf-sc0y">3</b>Models</div>
+        <div data-hf-id="hf-04cw" class="chip" id="intro-c4"><b data-hf-id="hf-ubk3">4</b>Studio</div>
+        <div data-hf-id="hf-gfwh" class="chip" id="intro-c5"><b data-hf-id="hf-upv4">5</b>Start</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#intro-w1", { opacity: 0.3, filter: "blur(12px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power4.out" }, 0);
+    tl.fromTo("#intro-w2", { opacity: 0.3, filter: "blur(12px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power4.out" }, 0.25);
+    tl.fromTo("#intro-sub", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 1.3);
+    ["c1", "c2", "c3", "c4", "c5"].forEach((c, i) => {
+      tl.fromTo("#intro-" + c, { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.45, ease: "expo.out" }, 2.1 + i * 0.28);
+    });
+    tl.to("#intro-stage", { opacity: 0, filter: "blur(8px)", duration: 0.3, ease: "power3.in" }, 5.65);
+    window.__timelines["intro"] = tl;
+  </script>
+</template>

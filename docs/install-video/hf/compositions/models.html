@@ -1,0 +1,40 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #0b0f17; font-family: Inter, sans-serif; color: #e6edf3; overflow: hidden; }
+    #root .stage { position: absolute; inset: 0; }
+    #root .kick { position: absolute; left: 150px; top: 96px; color: #6ea8ff; font-size: 28px; letter-spacing: 6px; font-weight: 700; }
+    #root .head { position: absolute; left: 150px; top: 140px; font-size: 64px; font-weight: 700; }
+    #root .rows { position: absolute; left: 150px; top: 270px; width: 1620px; }
+    #root .row { display: flex; align-items: center; gap: 30px; height: 70px; margin-bottom: 12px; padding: 0 26px; border-radius: 14px; background: #121826; }
+    #root .folder { width: 300px; font-family: "JetBrains Mono", monospace; font-size: 28px; color: #ffb454; }
+    #root .file { font-family: "JetBrains Mono", monospace; font-size: 29px; color: #e6edf3; }
+    #root .role { margin-left: auto; font-size: 28px; color: #8b98ad; }
+    #root .foot { position: absolute; left: 150px; top: 910px; width: 1620px; font-size: 34px; font-weight: 600; border-left: 6px solid #3ddc97; padding-left: 24px; line-height: 1.35; }
+  </style>
+  <div data-hf-id="hf-k8z1" id="root" data-composition-id="models" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-notz" class="stage" id="models-stage">
+      <div data-hf-id="hf-e0qx" class="kick">STEP 3</div>
+      <div data-hf-id="hf-pvsh" class="head">Download the models</div>
+      <div data-hf-id="hf-hnc7" class="rows">
+        <div data-hf-id="hf-q052" class="row" id="models-r1"><span data-hf-id="hf-oymb" class="folder">diffusion_models</span><span data-hf-id="hf-tzmi" class="file">minimax_h3_ref2va_pruned_int8_convrot</span><span data-hf-id="hf-ipxx" class="role">video model</span></div>
+        <div data-hf-id="hf-m211" class="row" id="models-r2"><span data-hf-id="hf-9l9u" class="folder">text_encoders</span><span data-hf-id="hf-73zm" class="file">qwen3vl_32b_minimax_h3_nvfp4_awq</span><span data-hf-id="hf-hrps" class="role">video encoder</span></div>
+        <div data-hf-id="hf-lad8" class="row" id="models-r3"><span data-hf-id="hf-dnzq" class="folder">text_encoders</span><span data-hf-id="hf-j1xm" class="file">gemma4_12b_int8_convrot</span><span data-hf-id="hf-qjr3" class="role">planner</span></div>
+        <div data-hf-id="hf-8rur" class="row" id="models-r4"><span data-hf-id="hf-e2ar" class="folder">text_encoders</span><span data-hf-id="hf-3f5q" class="file">gemma4_e4b_it_fp8_scaled</span><span data-hf-id="hf-jhod" class="role">audio planner</span></div>
+        <div data-hf-id="hf-4tqq" class="row" id="models-r5"><span data-hf-id="hf-rr8z" class="folder">vae</span><span data-hf-id="hf-mbjx" class="file">minimax_h3_video_vae_int8_convrot</span><span data-hf-id="hf-olnw" class="role">video VAE</span></div>
+        <div data-hf-id="hf-0vmp" class="row" id="models-r6"><span data-hf-id="hf-5yj7" class="folder">vae</span><span data-hf-id="hf-yt52" class="file">minimax_h3_audio_vae_fp32</span><span data-hf-id="hf-dk7t" class="role">audio VAE</span></div>
+        <div data-hf-id="hf-xwd4" class="row" id="models-r7"><span data-hf-id="hf-hr6q" class="folder">loras</span><span data-hf-id="hf-74ix" class="file">minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16</span><span data-hf-id="hf-2zl5" class="role">turbo LoRA</span></div>
+      </div>
+      <div data-hf-id="hf-3sr9" class="foot" id="models-foot">Sources and licenses: docs/models-and-downloads.md. Some need an account.</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(".kick, .head", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0.1);
+    for (let i = 1; i <= 7; i++) {
+      tl.fromTo("#models-r" + i, { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.5, ease: "expo.out" }, 0.7 + i * 0.95);
+    }
+    tl.fromTo("#models-foot", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 8.6);
+    tl.to("#models-stage", { opacity: 0, filter: "blur(8px)", duration: 0.3, ease: "power3.in" }, 11.65);
+    window.__timelines["models"] = tl;
+  </script>
+</template>

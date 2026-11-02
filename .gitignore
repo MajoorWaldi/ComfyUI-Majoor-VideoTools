@@ -30,3 +30,7 @@ desktop.ini
 
 # the app of the challenge: its own repository (see its README)
 HyperKut Studio
+
+# HyperFrames preview cache
+.thumbnails/
+.waveform-cache/
