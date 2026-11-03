@@ -235,7 +235,7 @@ def parse_plan(text: str, fps: float, aspect_ratio: str, resolution: int) -> Pla
             seconds=float(frames/rate)
             resolved,_=shot_layers(json.dumps(motion), '[]', seconds, float(rate))
             parse_layers(json.dumps(resolved),seconds)
-        shots.append(PlanShot(sid, frames, str(row.get("prompt", row.get("video_prompt", ""))).strip(), str(row.get("image_prompt", "")).strip(), str(row.get("notes", "")).strip(), color, _layers(row, sid), fx, places.get(str(row.get("location", "")).strip(), str(row.get("location", "")).strip()),parse_render_source(row.get('render_source')), story_fields(row.get('story')), motion))
+        shots.append(PlanShot(sid, frames, str(row.get("prompt", row.get("video_prompt", ""))).strip(), str(row.get("image_prompt", "")).strip(), str(row.get("notes", "")).strip(), color, _layers(row, sid), fx, places.get(str(row.get("location", "")).strip(), str(row.get("location", "")).strip()),_created_source(row.get('render_source')), story_fields(row.get('story')), motion))
     if len(shots) > MAX_SHOTS:
         raise MajoorError(f"{len(shots)} shots: a timeline holds at most {MAX_SHOTS}. Use fewer, longer shots and put the quick cuts in sub_cuts (or cut the music every bar instead of every beat).")
     if sum(len(shot.motion) for shot in shots)>120:
@@ -295,6 +295,12 @@ def _slate(plan: Plan, shot: PlanShot, tint: tuple[int, int, int], card: str | N
         head, _, rest = card.partition("\n")
         draw_card_text(image, [(head, 1.5, True), (rest, 1.0, False), ("PROMPT" if shot.prompt else "", 0.9, True), (shot.prompt, 1.0, False)])
     return image
+
+
+def _created_source(value) -> dict:
+    """The source of a shot of a created timeline: "original" only exists in a remix, a created shot has no source shot, so it is generated."""
+    spec = parse_render_source(value)
+    return {'kind': 'generated'} if spec['kind'] == 'original' else spec
 
 
 def _render_source(store: ProjectStore, plan: Plan, durations: list[int], audio: Path | None, out: Path, cards: list[str] | None = None) -> None:

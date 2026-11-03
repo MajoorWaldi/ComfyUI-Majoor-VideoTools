@@ -45,6 +45,7 @@ class MajoorShotMemory(io.ComfyNode):
                 MajoorShotMetadata.Input("metadata"),
                 io.Image.Input("references", optional=True, tooltip="The reference pictures sent to H3. Connected, the memory is not used: your references fix the look."),
                 io.Image.Input("plate", optional=True, tooltip="The empty place picture sent to H3 after the references, when there is one: the memory picture comes after it."),
+                io.Int.Input("pictures_before", default=0, min=0, max=5, optional=True, tooltip="How many reference pictures H3 gets before the plate and the memory (a remix keeps its references and still uses the memory, references not connected). 0: none."),
             ],
             outputs=[
                 io.Image.Output(display_name="image"),
@@ -54,12 +55,12 @@ class MajoorShotMemory(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, shot_list, metadata, references=None, plate=None) -> io.NodeOutput:
+    def execute(cls, shot_list, metadata, references=None, plate=None, pictures_before=0) -> io.NodeOutput:
         shot = shot_list.get_shot(metadata.shot_id)
         path = None if references is not None else recall(ProjectStore(projects_root(shot_list), shot_list.project_id), shot_list, shot)
         if path is None:
             return io.NodeOutput(torch.zeros((1, 64, 64, 3)), False, "")
         image = torch.from_numpy(np.asarray(Image.open(path).convert("RGB"), dtype=np.float32) / 255.0)[None]
-        number = 2 if plate is not None else 1
+        number = pictures_before + (2 if plate is not None else 1)
         line = f"<Picture {number}> only shows who this character is, from an earlier shot of this edit: keep its face, build and outfit. Its pose, framing, camera, movement and place do not carry over; this shot has its own."
         return io.NodeOutput(image, True, line, ui={"text": (f"memory from an earlier shot of {memory_key((shot.plan or {}).get('cast'))}",)})

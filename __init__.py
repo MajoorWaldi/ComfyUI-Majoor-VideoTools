@@ -24,6 +24,7 @@ if __package__:
     from .nodes.transcribe_voice import MajoorTranscribeVoice
     from .nodes.shot_memory import MajoorSaveShotMemory, MajoorShotMemory
     from .nodes.camera_moves import MajoorCameraMoves
+    from .nodes.remix_plan import MajoorRemixPlan
     from .nodes.check_plate import MajoorCheckPlate
     from .nodes.energy_report import MajoorEnergyReport
     from .nodes.shot_source import MajoorShotSource
@@ -50,7 +51,7 @@ if __package__:
         @override
         async def get_node_list(self) -> list[type[io.ComfyNode]]:
             return [MajoorSceneDetectSplit, MajoorSelectShot, MajoorApplyShotMetadata, MajoorShotAssemble, MajoorCompareVideo, MajoorPreviewVideo, MajoorLoadVideoAdvanced, MajoorAudioRhythm, MajoorMusicBrief, MajoorEditMode,
-                    MajoorCreateTimeline, MajoorEnsureBurst, MajoorCutMarkers, MajoorDeployShots, MajoorEditSkills, MajoorSelectEveryNFrames, MajoorGetVideoComponentsAdvanced, MajoorMotionGraphics, MajoorMusicFit, MajoorTakeCheck, MajoorSaveProjectInfo, MajoorLoadShotList, MajoorSaveProjectMusic, MajoorLoadProjectMusic,MajoorCheckPlate,MajoorEnergyReport,MajoorShotSource,MajoorMusicDirection,MajoorYuE2Style,MajoorYuE2Score,MajoorHyperFrames,MajoorTimelineEdit,MajoorApplyCasting,MajoorMusicWords,MajoorLipSyncCheck,MajoorTranscribeVoice,MajoorSaveShotMemory,MajoorShotMemory,MajoorCameraMoves,MajoorSaveProjectLyrics]
+                    MajoorCreateTimeline, MajoorEnsureBurst, MajoorCutMarkers, MajoorDeployShots, MajoorEditSkills, MajoorSelectEveryNFrames, MajoorGetVideoComponentsAdvanced, MajoorMotionGraphics, MajoorMusicFit, MajoorTakeCheck, MajoorSaveProjectInfo, MajoorLoadShotList, MajoorSaveProjectMusic, MajoorLoadProjectMusic,MajoorCheckPlate,MajoorEnergyReport,MajoorShotSource,MajoorMusicDirection,MajoorYuE2Style,MajoorYuE2Score,MajoorHyperFrames,MajoorTimelineEdit,MajoorApplyCasting,MajoorMusicWords,MajoorLipSyncCheck,MajoorTranscribeVoice,MajoorSaveShotMemory,MajoorShotMemory,MajoorCameraMoves,MajoorSaveProjectLyrics,MajoorRemixPlan]
 
     async def comfy_entrypoint() -> MajoorVideoToolsExtension:
         return MajoorVideoToolsExtension()
