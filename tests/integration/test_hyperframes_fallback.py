@@ -53,6 +53,29 @@ def test_invalid_inputs_are_not_converted_to_optional_fallback(tmp_path, monkeyp
         motion.render_motion(source, [], tmp_path / 'motion.mp4')
 
 
+def test_a_failed_render_leaves_no_decoded_frames_behind(tmp_path, monkeypatch, fixtures):
+    runtime = [tmp_path / name for name in ('node.exe', 'cli.js', 'gsap.min.js')]
+    for path in runtime:
+        path.write_bytes(b'stub')
+    monkeypatch.setattr(hyperframes, 'runtime_paths', lambda: runtime)
+    monkeypatch.setattr(hyperframes, 'read_score', lambda *args: None)
+
+    def decode(project, *args):
+        for scratch in ('assets/frames/000000.png', 'assets/masks/subject-000000.png', 'assets/source.mp4'):
+            (project / scratch).parent.mkdir(parents=True, exist_ok=True)
+            (project / scratch).write_bytes(b'decoded')
+        return {}
+    monkeypatch.setattr(hyperframes, 'prepare_layers', decode)
+    monkeypatch.setattr(hyperframes, 'write_composition', lambda *args, **kwargs: None)
+    monkeypatch.setattr(hyperframes, 'capture_previews', _raise(RuntimeError('Chrome crashed')))
+
+    with pytest.raises(RuntimeError, match='Chrome crashed'):
+        hyperframes.render_hyperframes(fixtures['one'], tmp_path / 'out')
+    project = next((tmp_path / 'out' / 'hyperframes').iterdir())
+    assert not (project / 'assets/frames').exists() and not (project / 'assets/masks').exists()
+    assert not (project / 'assets/source.mp4').exists()
+
+
 @pytest.mark.parametrize('error', [
     InterruptedError('stopped'),
     FFmpegError('Cancelled'),
