@@ -9,14 +9,14 @@ from .fingerprints import file_fingerprint,json_fingerprint
 from .fx import _font
 from .media_probe import probe
 
-KINDS=('generated','graphic','still','provided')
+KINDS=('generated','graphic','still','provided','original')  # original: the shot as the source of a remix has it
 
 
 def parse_render_source(value) -> dict:
     if value is None:return {'kind':'generated'}
     if isinstance(value,str):value={'kind':value}
     if not isinstance(value,dict) or value.get('kind') not in KINDS:
-        raise MajoorError('render_source.kind must be generated, graphic, still or provided')
+        raise MajoorError('render_source.kind must be generated, graphic, still, provided or original')
     spec=dict(value)
     if spec['kind']=='still' and spec.get('asset','ref1') not in tuple(f'ref{i}' for i in range(1,6)):
         raise MajoorError('A still source must name ref1 through ref5')
@@ -32,7 +32,7 @@ def parse_render_source(value) -> dict:
 def render_planned_source(store,shot,fps,width,height,image:Path|None=None,video:Path|None=None) -> Path:
     spec=parse_render_source((shot.plan or {}).get('render_source'))
     if spec['kind']=='generated':raise MajoorError('This shot requires video generation')
-    source=image if spec['kind']=='still' else video if spec['kind']=='provided' else None
+    source=image if spec['kind']=='still' else video if spec['kind'] in ('provided','original') else None
     if spec['kind']!='graphic' and (source is None or not source.is_file()):raise MajoorError('The selected source asset was not supplied')
     frames=round(shot.target_duration_seconds*float(fps))
     seconds=frames/float(fps)

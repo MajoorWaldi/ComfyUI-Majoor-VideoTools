@@ -59,3 +59,77 @@ def test_a_flash_is_not_a_cut_and_the_shot_gets_its_effects(video):
     shot = shots[0]  # what Select Shot does with the plan of a shot
     info, text = describe_shot(shot.shot_id, 0.0, float(shot.target_duration_seconds), shot.frame_count, shot.plan, 24.0)
     assert info["cut_count"] == 4 and "transition flash" in text
+
+
+def _look(seed, hue):
+    """A small BGR picture of one look: a texture in one hue."""
+    rng = np.random.default_rng(seed)
+    value = cv2.GaussianBlur(rng.integers(60, 230, (90, 160), dtype=np.uint8), (0, 0), 3)
+    hsv = np.dstack([np.full((90, 160), hue, np.uint8), np.full((90, 160), 170, np.uint8), value])
+    return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+
+
+def _clap(first, second, calm=10, cover=8):
+    """Calm frames of `first`, two hands closing over the lens and opening on `second`, calm frames of `second`."""
+    hand = np.empty((90, 160, 3), np.uint8)
+    hand[:] = (120, 150, 225)  # skin, in BGR
+    frames = [first] * calm
+    for k in range(cover):
+        width = int(80 * (k + 1) / (cover // 2)) if k < cover // 2 else int(80 * (cover - k - 1) / (cover // 2))
+        picture = (first if k < cover // 2 else second).copy()
+        picture[:, :width], picture[:, 160 - width:] = hand[:, :width], hand[:, 160 - width:]
+        frames.append(picture)
+    return np.stack(frames + [second] * calm)
+
+
+def test_a_cut_hidden_behind_hands_over_the_lens_is_found_on_its_most_covered_frame():
+    frames = _clap(_look(1, 10), _look(2, 110))
+    cuts = energy.covered_cuts(frames, [])
+    assert len(cuts) == 1 and 12 <= cuts[0] <= 15  # the hands cover the whole picture at frames 13 and 14
+    assert energy.covered_cuts(frames, [14]) == [14]  # a cut the detector found already is not doubled
+
+
+def test_a_cover_next_to_the_start_or_a_hard_cut_stays_on_the_edge_of_its_neighbour():
+    frames = _clap(_look(1, 10), _look(2, 110), calm=2)  # the video starts two frames before the hands
+    assert energy.covered_cuts(frames, []) == []
+    frames = _clap(_look(1, 10), _look(2, 110))
+    assert energy.covered_cuts(frames, [10]) == [10]  # a hard cut just before the hands: the hands stay at the start of the next shot
+
+
+def test_a_take_that_opens_on_a_copy_of_its_source_starts_after_the_copy():
+    gray = lambda look: cv2.cvtColor(look, cv2.COLOR_BGR2GRAY)
+    source = np.stack([gray(_look(1, 10))] * 12)
+    new = gray(_look(5, 60)) // 2 + 100  # what was asked: other content, far from the source
+    copied = np.stack([source[0]] * 5 + [new] * 17)
+    assert energy.copied_lead(copied, source, 12) == 5
+    assert energy.copied_lead(np.stack([new] * 22), source, 12) == 0  # a clean take keeps its start
+    assert energy.copied_lead(copied, source, 20) == 2  # the shot needs 20 of the 22 frames: only 2 of the copy go
+
+
+def test_a_take_that_repeats_its_source_stays_close_to_it():
+    gray = lambda look: cv2.cvtColor(look, cv2.COLOR_BGR2GRAY)
+    source = np.stack([gray(_look(1, 10))] * 12)
+    replaced = np.stack([gray(_look(5, 60)) // 2 + 100] * 13)
+    assert energy.source_likeness(source[:5], source) == 0.0
+    assert energy.source_likeness(replaced, source) > energy.COPY_NEAR > energy.source_likeness(np.concatenate([source[:10], replaced[:3]]), source)
+
+
+def test_hands_over_the_lens_on_the_same_look_are_not_a_cut():
+    look = _look(1, 10)
+    assert energy.covered_cuts(_clap(look, look), []) == []
+    calm = np.stack([look] * 30)
+    assert energy.covered_cuts(calm, []) == []
+
+
+def test_covered_transitions_give_a_new_project_only_when_they_are_used():
+    from majoor_videotools.core.scene_detection import project_id_for
+    assert project_id_for("f", "adaptive", .5, 2, "", "events", False) == project_id_for("f", "adaptive", .5, 2, "", "events")  # earlier projects keep their id
+    assert project_id_for("f", "adaptive", .5, 2, "", "events", True) != project_id_for("f", "adaptive", .5, 2, "", "events")
+    assert project_id_for("f", "manual", .5, 2, "12", "off", True) == project_id_for("f", "manual", .5, 2, "12")  # manual cuts are the cuts given
+
+
+def test_of_two_takes_the_one_much_closer_to_the_source_repeats_it():
+    assert energy.copying_takes([48.7, 19.5]) == [False, True]
+    assert energy.copying_takes([63.3, 34.2]) == [False, True]  # above COPY_NEAR, but 29 closer to the source than the other take
+    assert energy.copying_takes([48.0, 41.0]) == [False, False]  # two takes that both replaced the person
+    assert energy.copying_takes([22.0]) == [True]

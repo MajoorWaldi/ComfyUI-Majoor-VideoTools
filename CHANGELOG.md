@@ -2,6 +2,7 @@
 
 ## Current development version
 
+- Remix Plan node and remix_planner skill: the story line, the person, the place and the source of each shot laid on the detected shots of a remix, cuts unchanged. Planned Shot Source renders a shot kept as the source has it (render_source kind "original"); Shot Memory takes the number of reference pictures that come before it.
 - Shot identification, scene splitting, metadata and retained-take assembly.
 - Shared Timeline Edit editor and Studio adapter for frame-based manual montage.
 - Visual workflows and exported Studio API graphs for Remix, Text and Music.

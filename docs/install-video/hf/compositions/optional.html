@@ -1,0 +1,41 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #0b0f17; font-family: Inter, sans-serif; color: #e6edf3; overflow: hidden; }
+    #root .stage { position: absolute; inset: 0; }
+    #root .kick { position: absolute; left: 150px; top: 96px; color: #ffb454; font-size: 28px; letter-spacing: 6px; font-weight: 700; }
+    #root .head { position: absolute; left: 150px; top: 140px; font-size: 64px; font-weight: 700; }
+    #root .rows { position: absolute; left: 150px; top: 262px; width: 1620px; }
+    #root .row { display: flex; align-items: center; height: 70px; margin-bottom: 8px; padding: 0 26px; border-radius: 14px; background: #121826; }
+    #root .what { width: 640px; font-size: 30px; font-weight: 600; }
+    #root .arrow { width: 70px; color: #6ea8ff; font-size: 32px; }
+    #root .without { font-size: 28px; color: #3ddc97; }
+    #root .foot { position: absolute; left: 150px; top: 930px; width: 1620px; font-size: 36px; font-weight: 600; border-left: 6px solid #3ddc97; padding-left: 24px; line-height: 1.35; }
+  </style>
+  <div data-hf-id="hf-mxij" id="root" data-composition-id="optional" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-8ict" class="stage" id="optional-stage">
+      <div data-hf-id="hf-s63u" class="kick">OPTIONAL</div>
+      <div data-hf-id="hf-teei" class="head">Missing? The generation still runs</div>
+      <div data-hf-id="hf-hnc7" class="rows">
+        <div data-hf-id="hf-uyv4" class="row" id="optional-r1"><span data-hf-id="hf-hglp" class="what">faster-whisper + large-v3</span><span data-hf-id="hf-v68i" class="arrow">&rarr;</span><span data-hf-id="hf-b28h" class="without">no words from a voice or song; the edit goes on</span></div>
+        <div data-hf-id="hf-5ucr" class="row" id="optional-r2"><span data-hf-id="hf-k53s" class="what">Pika H3 Flex LoRA</span><span data-hf-id="hf-f1jq" class="arrow">&rarr;</span><span data-hf-id="hf-6w1z" class="without">the turbo LoRA is used</span></div>
+        <div data-hf-id="hf-1w8q" class="row" id="optional-r3"><span data-hf-id="hf-muh4" class="what">FLUX files for places</span><span data-hf-id="hf-ffur" class="arrow">&rarr;</span><span data-hf-id="hf-257q" class="without">shots are made without place images</span></div>
+        <div data-hf-id="hf-j4j1" class="row" id="optional-r4"><span data-hf-id="hf-4y3s" class="what">YuE2 music model</span><span data-hf-id="hf-fu5s" class="arrow">&rarr;</span><span data-hf-id="hf-6piy" class="without">cut on a steady grid, no generated music</span></div>
+        <div data-hf-id="hf-icv8" class="row" id="optional-r5"><span data-hf-id="hf-l606" class="what">HyperFrames (Node.js 22+)</span><span data-hf-id="hf-901h" class="arrow">&rarr;</span><span data-hf-id="hf-ouec" class="without">the video is kept as assembled, with a warning</span></div>
+        <div data-hf-id="hf-r0r3" class="row" id="optional-r6"><span data-hf-id="hf-lq9a" class="what">Tone sound bank</span><span data-hf-id="hf-9eci" class="arrow">&rarr;</span><span data-hf-id="hf-108k" class="without">no generated effects, with a warning</span></div>
+        <div data-hf-id="hf-n2n2" class="row" id="optional-r7"><span data-hf-id="hf-emb2" class="what">BiRefNet</span><span data-hf-id="hf-9snj" class="arrow">&rarr;</span><span data-hf-id="hf-lq0j" class="without">layers that cut the subject out are skipped</span></div>
+        <div data-hf-id="hf-pdq9" class="row" id="optional-r8"><span data-hf-id="hf-60z7" class="what">KJNodes, Easy-Use</span><span data-hf-id="hf-a6yk" class="arrow">&rarr;</span><span data-hf-id="hf-d6un" class="without">only for editing the visual workflows by hand</span></div>
+      </div>
+      <div data-hf-id="hf-k0w3" class="foot" id="optional-foot">A missing option never blocks a generation or the final montage.</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(".kick, .head", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0.1);
+    for (let i = 1; i <= 8; i++) {
+      tl.fromTo("#optional-r" + i, { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.5, ease: "expo.out" }, 0.6 + i * 0.85);
+    }
+    tl.fromTo("#optional-foot", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 8.7);
+    tl.to("#optional-stage", { opacity: 0, filter: "blur(8px)", duration: 0.3, ease: "power3.in" }, 11.65);
+    window.__timelines["optional"] = tl;
+  </script>
+</template>

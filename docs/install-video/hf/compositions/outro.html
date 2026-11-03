@@ -1,0 +1,38 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #0b0f17; font-family: Inter, sans-serif; color: #e6edf3; overflow: hidden; }
+    #root .stage { position: absolute; inset: 0; }
+    #root .glow { position: absolute; left: 50%; top: 42%; width: 1200px; height: 1200px; margin: -600px 0 0 -600px; background: radial-gradient(circle, rgba(61,220,151,.13), transparent 62%); }
+    #root .small { position: absolute; left: 0; right: 0; top: 250px; text-align: center; font-size: 40px; color: #8b98ad; }
+    #root .url { position: absolute; left: 0; right: 0; top: 330px; text-align: center; font-family: "JetBrains Mono", monospace; font-size: 112px; font-weight: 700; color: #3ddc97; }
+    #root .checks { position: absolute; left: 0; right: 0; top: 590px; display: flex; justify-content: center; gap: 22px; }
+    #root .chip { padding: 14px 24px; border-radius: 14px; background: #121826; border: 2px solid #26324b; font-size: 30px; font-weight: 600; }
+    #root .chip b { color: #3ddc97; margin-right: 10px; }
+    #root .last { position: absolute; left: 0; right: 0; top: 780px; text-align: center; font-size: 64px; font-weight: 700; }
+  </style>
+  <div data-hf-id="hf-x7nm" id="root" data-composition-id="outro" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-ism8" class="stage" id="outro-stage">
+      <div data-hf-id="hf-2s7n" class="glow"></div>
+      <div data-hf-id="hf-rcq1" class="small" id="outro-small">Open it in your browser</div>
+      <div data-hf-id="hf-z3fa" class="url" id="outro-url">127.0.0.1:8090</div>
+      <div data-hf-id="hf-jdor" class="checks">
+        <div data-hf-id="hf-76oz" class="chip" id="outro-c1"><b data-hf-id="hf-gl6q">&#10003;</b>Pack</div>
+        <div data-hf-id="hf-8nqi" class="chip" id="outro-c2"><b data-hf-id="hf-vgrq">&#10003;</b>Finishing</div>
+        <div data-hf-id="hf-3dsa" class="chip" id="outro-c3"><b data-hf-id="hf-vv2r">&#10003;</b>Models</div>
+        <div data-hf-id="hf-r5p1" class="chip" id="outro-c4"><b data-hf-id="hf-w9ds">&#10003;</b>Studio</div>
+        <div data-hf-id="hf-ow1q" class="chip" id="outro-c5"><b data-hf-id="hf-pf9h">&#10003;</b>Start</div>
+      </div>
+      <div data-hf-id="hf-qlga" class="last" id="outro-last">Now make your first video.</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#outro-small", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 0.2);
+    tl.fromTo("#outro-url", { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power4.out" }, 0.6);
+    ["c1", "c2", "c3", "c4", "c5"].forEach((c, i) => {
+      tl.fromTo("#outro-" + c, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 1.5 + i * 0.25);
+    });
+    tl.fromTo("#outro-last", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power4.out" }, 3.2);
+    window.__timelines["outro"] = tl;
+  </script>
+</template>

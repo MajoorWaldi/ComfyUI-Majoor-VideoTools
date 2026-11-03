@@ -27,6 +27,15 @@ PUNCH_STEP = 0.03       # scale change in one frame
 PUSH_STEP = 0.003       # scale change per frame, kept for PUSH_MIN frames
 PUSH_MIN = 8
 SAME_SHOT = 14.0        # mean difference (of 255) under which two frames show the same shot
+COVER_STEP = 20.0       # mean difference (of 255) between two frames that starts a covered transition (hands, a whip, a blur across the picture)
+COVER_KEEP = 10.0       # ... and keeps it going
+COVER_MIN = 3           # frames
+COVER_CHANGE = 0.25     # colour distance (Bhattacharyya, hue and saturation) between the calm frames on the two sides: another shot behind the cover
+COVER_PEAK = 0.22       # colour distance of the most covered frame from both sides: something crossed the picture, not a glitch on the same shot
+COVER_VERSION = 2       # in the id of a project: a project detected under other covered-cut rules keeps its own cuts
+COVER_SHOT = 8         # frames: a covered cut never leaves a shorter piece (the cover alone, at the start of the video or next to a hard cut)
+COPY_NEAR = 30.0        # mean difference (of 255) under which a frame of a take repeats a frame of its reference video
+COPY_JUMP = 15.0        # how much further from the reference the rest of the take must be: the copy ends on a cut to new content
 EVENT_TRANSITION = {"flash": "flash", "flash_black": "flash_black", "shake": "shake", "punch": "punch", "whip": "whip"}
 MIN_GAP = 3             # frames between two events of a shot (Shot Assemble sub-cuts have at least 3)
 
@@ -54,9 +63,11 @@ def compare_energy(reference, result) -> dict:
             'ratios':{k:result[k]/value if value else None for k,value in reference.items() if k.endswith('_rate') and k in result}}
 
 
-def read_gray(path: Path, fps: Fraction, limit: int | None = None) -> np.ndarray:
-    """Every frame of the video as a small gray image (N, 90, 160)."""
-    cmd = [find_binary('ffmpeg'), "-v", "error", "-i", str(path), "-an", "-vf", f"scale={SIZE[0]}:{SIZE[1]}:flags=area,format=gray", "-f", "rawvideo", "-pix_fmt", "gray"]
+def read_gray(path: Path, fps: Fraction, limit: int | None = None, color: bool = False, start: float = 0.0) -> np.ndarray:
+    """Every frame of the video as a small gray image (N, 90, 160), or with `color` a small BGR image (N, 90, 160, 3). `start`: seconds skipped first."""
+    fmt = "bgr24" if color else "gray"
+    seek = ["-ss", f"{start:.6f}"] if start > 0 else []
+    cmd = [find_binary('ffmpeg'), "-v", "error", *seek, "-i", str(path), "-an", "-vf", f"scale={SIZE[0]}:{SIZE[1]}:flags=area,format={fmt}", "-f", "rawvideo", "-pix_fmt", fmt]
     if limit:
         cmd += ["-frames:v", str(limit)]
     with tempfile.TemporaryFile() as stream:
@@ -66,11 +77,87 @@ def read_gray(path: Path, fps: Fraction, limit: int | None = None) -> np.ndarray
             raise MajoorError('ffmpeg exceeded its 600 second limit while reading the frames') from None
         if out.returncode:
             raise MajoorError(f'ffmpeg could not read the frames: {out.stderr.decode(errors="replace")[:300]}')
-        size=SIZE[0]*SIZE[1]
+        size=SIZE[0]*SIZE[1]*(3 if color else 1)
         count=stream.tell()//size
         if not count:
             raise MajoorError('The video contains no readable frames')
-        return np.memmap(stream,dtype=np.uint8,mode='r',shape=(count,SIZE[1],SIZE[0]))
+        return np.memmap(stream,dtype=np.uint8,mode='r',shape=(count,SIZE[1],SIZE[0],3) if color else (count,SIZE[1],SIZE[0]))
+
+
+def _nearest(take: np.ndarray, source: np.ndarray) -> list[float]:
+    """For each frame of a take, the mean difference (of 255) to the closest frame of its source."""
+    return [min(float(np.abs(t.astype(np.int16) - s.astype(np.int16)).mean()) for s in source) for t in take]
+
+
+def source_likeness(take: np.ndarray, source: np.ndarray) -> float:
+    """How far a take stays from its source shot, over the frames given (the part the edit keeps): the mean of the difference of each frame to
+    the closest source frame. Under COPY_NEAR the take mostly repeats the source (the person it was asked to replace); a take that replaced
+    the person stays far above it, the hands or the blur of a transition it shares with the source being only a few frames."""
+    return float(np.mean(_nearest(take, source))) if len(take) and len(source) else 255.0
+
+
+def copying_takes(distances: list[float]) -> list[bool]:
+    """Which takes of a shot repeat their source, from their source_likeness: under COPY_NEAR, or COPY_JUMP closer to the source than another take
+    (a take that replaced the person is far from the source; how far depends on the shot, so two takes are compared with each other)."""
+    return [d < COPY_NEAR or any(d < other - COPY_JUMP for other in distances) for d in distances]
+
+
+def copied_lead(take: np.ndarray, source: np.ndarray, needed: int) -> int:
+    """How many first frames of a generated take repeat its reference video before the take cuts to what was asked: a model given the source shot
+    as a reference sometimes opens on a copy of it (the person it was asked to replace) for a fraction of a second. `take` and `source` are small
+    gray frames (read_gray); `source` covers the shot and a little around it. 0 when the take does not open on a copy; never so many that fewer
+    than `needed` frames are left (a part of the copy then stays)."""
+    n = len(take)
+    if n < 2 or not len(source):
+        return 0
+    near = _nearest(take, source)
+    best, lead = COPY_JUMP, 0
+    for c in range(1, min(n // 2, n - needed) + 1):
+        before, after = float(np.mean(near[:c])), float(np.mean(near[c:]))
+        if before <= COPY_NEAR and after - before >= best:
+            best, lead = after - before, c
+    return lead
+
+
+def covered_cuts(frames: np.ndarray, cuts: list[int]) -> list[int]:
+    """The cuts hidden behind something that crosses the whole picture (hands clapping over the lens, a whip, a blur): a cut detector misses them,
+    the change being spread over several frames. A burst of motion between two calm frames is a cut when the colours of its two sides differ and its
+    most covered frame differs from both; the cut goes on that frame, so each shot keeps its half of the transition. `frames` are small BGR frames
+    (read_gray with color); the cuts already found are kept and a burst next to one of them adds nothing."""
+    n = len(frames)
+    def gray(k):  # one frame at a time: a long video is never held whole in memory
+        return cv2.cvtColor(np.asarray(frames[k]), cv2.COLOR_BGR2GRAY).astype(np.int16)
+    def far(a, b):
+        return float(np.abs(gray(a) - gray(b)).mean())
+    def colour(a, b):
+        ha, hb = (cv2.calcHist([cv2.cvtColor(np.asarray(frames[k]), cv2.COLOR_BGR2HSV)], [0, 1], None, [16, 8], [0, 180, 0, 256]) for k in (a, b))
+        return cv2.compareHist(cv2.normalize(ha, ha), cv2.normalize(hb, hb), cv2.HISTCMP_BHATTACHARYYA)
+    step, previous = np.zeros(n), gray(0) if n else None
+    for k in range(1, n):
+        current = gray(k)
+        step[k] = float(np.abs(current - previous).mean())
+        previous = current
+    found, i = [], 1
+    while i < n:
+        if step[i] < COVER_STEP:
+            i += 1
+            continue
+        j = i
+        while j + 1 < n and step[j + 1] >= COVER_KEEP:
+            j += 1
+        before, after = i - 1, j + 1
+        if j - i + 1 >= COVER_MIN and after < n and not any(before - 1 <= c <= after + 1 for c in cuts):
+            peak = max(range(i, j + 1), key=lambda k: min(far(k, before), far(k, after)))
+            if colour(before, after) >= COVER_CHANGE and min(colour(peak, before), colour(peak, after)) >= COVER_PEAK:
+                found.append(peak)
+        i = j + 1
+    kept, bounds = [], sorted({0, n, *cuts})
+    for peak in found:  # a piece shorter than COVER_SHOT is only the cover: it stays at the edge of its neighbour
+        previous = max([b for b in bounds if b < peak] + kept)
+        following = min(b for b in bounds if b > peak)
+        if peak - previous >= COVER_SHOT and following - peak >= COVER_SHOT:
+            kept.append(peak)
+    return sorted({*cuts, *kept})
 
 
 def global_motion(a: np.ndarray, b: np.ndarray) -> tuple[float, float, float]:

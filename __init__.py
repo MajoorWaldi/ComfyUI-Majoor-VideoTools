@@ -19,11 +19,12 @@ if __package__:
     from .nodes.motion_graphics import MajoorMotionGraphics
     from .nodes.hyperframes_motion import MajoorHyperFrames
     from .nodes.music_fit import MajoorMusicFit
-    from .nodes.take_check import MajoorTakeCheck
+    from .nodes.take_check import MajoorSourceCopy, MajoorTakeCheck
     from .nodes.lipsync_check import MajoorLipSyncCheck
     from .nodes.transcribe_voice import MajoorTranscribeVoice
     from .nodes.shot_memory import MajoorSaveShotMemory, MajoorShotMemory
     from .nodes.camera_moves import MajoorCameraMoves
+    from .nodes.remix_plan import MajoorRemixPlan
     from .nodes.check_plate import MajoorCheckPlate
     from .nodes.energy_report import MajoorEnergyReport
     from .nodes.shot_source import MajoorShotSource
@@ -33,7 +34,7 @@ if __package__:
     from .nodes.load_video_advanced import MajoorLoadVideoAdvanced, register_routes as register_video_routes
     from .nodes.preview_video import MajoorPreviewVideo
     from .nodes.scene_detect_split import MajoorSceneDetectSplit
-    from .nodes.select_frames import MajoorSelectEveryNFrames
+    from .nodes.select_frames import MajoorRetimeFrames, MajoorSelectEveryNFrames
     from .nodes.select_shot import MajoorSelectShot
     from .nodes.shot_assemble import MajoorShotAssemble
     from .nodes.timeline_edit import MajoorTimelineEdit
@@ -50,7 +51,7 @@ if __package__:
         @override
         async def get_node_list(self) -> list[type[io.ComfyNode]]:
             return [MajoorSceneDetectSplit, MajoorSelectShot, MajoorApplyShotMetadata, MajoorShotAssemble, MajoorCompareVideo, MajoorPreviewVideo, MajoorLoadVideoAdvanced, MajoorAudioRhythm, MajoorMusicBrief, MajoorEditMode,
-                    MajoorCreateTimeline, MajoorEnsureBurst, MajoorCutMarkers, MajoorDeployShots, MajoorEditSkills, MajoorSelectEveryNFrames, MajoorGetVideoComponentsAdvanced, MajoorMotionGraphics, MajoorMusicFit, MajoorTakeCheck, MajoorSaveProjectInfo, MajoorLoadShotList, MajoorSaveProjectMusic, MajoorLoadProjectMusic,MajoorCheckPlate,MajoorEnergyReport,MajoorShotSource,MajoorMusicDirection,MajoorYuE2Style,MajoorYuE2Score,MajoorHyperFrames,MajoorTimelineEdit,MajoorApplyCasting,MajoorMusicWords,MajoorLipSyncCheck,MajoorTranscribeVoice,MajoorSaveShotMemory,MajoorShotMemory,MajoorCameraMoves,MajoorSaveProjectLyrics]
+                    MajoorCreateTimeline, MajoorEnsureBurst, MajoorCutMarkers, MajoorDeployShots, MajoorEditSkills, MajoorSelectEveryNFrames, MajoorGetVideoComponentsAdvanced, MajoorMotionGraphics, MajoorMusicFit, MajoorTakeCheck, MajoorSaveProjectInfo, MajoorLoadShotList, MajoorSaveProjectMusic, MajoorLoadProjectMusic,MajoorCheckPlate,MajoorEnergyReport,MajoorShotSource,MajoorMusicDirection,MajoorYuE2Style,MajoorYuE2Score,MajoorHyperFrames,MajoorTimelineEdit,MajoorApplyCasting,MajoorMusicWords,MajoorLipSyncCheck,MajoorTranscribeVoice,MajoorSaveShotMemory,MajoorShotMemory,MajoorCameraMoves,MajoorSaveProjectLyrics,MajoorRemixPlan,MajoorRetimeFrames,MajoorSourceCopy]
 
     async def comfy_entrypoint() -> MajoorVideoToolsExtension:
         return MajoorVideoToolsExtension()

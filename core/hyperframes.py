@@ -393,12 +393,12 @@ def render_hyperframes(source: Path, output_root: Path, direction_text='', cues_
             resolved, alignment = shot_layers(layers_text, timeline, duration, fps, audio.get('onsets', audio['hits']))
         layers = parse_layers(json.dumps(resolved), duration)
         layout_review=readability(layers,*info.display_size,duration)
-        layer_assets = prepare_layers(project, source, info, layers, masks, cancelled)
-        display_audio = audio if direction['reactive'] else {'bands': [], 'hits': [], 'audio': audio['audio']}
-        write_composition(project, source, info, direction, cues, display_audio, gsap, layers, layer_assets)
         silent = project / 'render.partial.mp4'
         staged = project / 'motion.partial.mp4'
         try:
+            layer_assets = prepare_layers(project, source, info, layers, masks, cancelled)
+            display_audio = audio if direction['reactive'] else {'bands': [], 'hits': [], 'audio': audio['audio']}
+            write_composition(project, source, info, direction, cues, display_audio, gsap, layers, layer_assets)
             previews = capture_previews(node, cli, project, info, layers, cues, timeline, cancelled, masks=masks)
             silent.unlink(missing_ok=True)
             recovered_shutdown = _render_command([str(node), str(cli), 'render', str(project.resolve()), '--quality', 'looks', '--fps', str(info.fps), '--workers', '1', '--output', str(silent.resolve()), '--strict'], project, project / 'render.log', cancelled, progress,
@@ -420,10 +420,12 @@ def render_hyperframes(source: Path, output_root: Path, direction_text='', cues_
             report.update(build_id=VERSION, media_fingerprint=file_fingerprint(staged))
             staged.replace(result)
             atomic_json(project / 'report.json', report)
-            for scratch in ('assets/frames', 'assets/masks'):  # decoded pictures of the render only: the cache reuses motion.mp4 and report.json
+        finally:
+            # decoded pictures of the render only, kept by no outcome: the cache reuses motion.mp4 and report.json,
+            # and a failed, cancelled or timed-out render must not leave gigabytes of frames behind
+            for scratch in ('assets/frames', 'assets/masks'):
                 shutil.rmtree(project / scratch, ignore_errors=True)
             (project / 'assets/source.mp4').unlink(missing_ok=True)
-        finally:
             silent.unlink(missing_ok=True)
             staged.unlink(missing_ok=True)
         if progress:

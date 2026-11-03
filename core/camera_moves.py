@@ -34,10 +34,12 @@ def _kind(text: str) -> int | None:
     return next((i for i, (_, _, pattern) in enumerate(MOVES) if re.search(pattern, text, re.I)), None)
 
 
-def add_camera_moves(shot_list, brief: str = "", seed: int = 0):
-    """The shot list where every shot has a camera move, no two in a row alike; applying it again gives the same list."""
+def add_camera_moves(shot_list, brief: str = "", seed: int = 0, min_seconds: float = 0.0):
+    """The shot list where every shot has a camera move, no two in a row alike; applying it again gives the same list.
+    A shot shorter than `min_seconds` gets none: too short for a move to read, it keeps the movement of its source."""
     if _FIXED.search(brief or ""):
         return shot_list
+    fps = float(shot_list.source.fps)
     done, previous, recent = {}, None, []
     for shot in sorted(shot_list.shots, key=lambda s: s.start_frame):
         plan = dict(shot.plan or {})
@@ -45,7 +47,7 @@ def add_camera_moves(shot_list, brief: str = "", seed: int = 0):
             plan["prompt"] = "\n".join(line for line in str(plan.get("prompt", "")).splitlines() if not line.startswith(MARK))
         kind = _kind(_base(plan))
         if kind is None or kind == previous:
-            kind = (seed + len(done)) % len(MOVES)
+            kind = (seed + len(recent)) % len(MOVES)  # the shots that move: a short shot takes no turn
             while kind == previous or kind in recent[-3:]:
                 kind = (kind + 1) % len(MOVES)
             name, words, _ = MOVES[kind]

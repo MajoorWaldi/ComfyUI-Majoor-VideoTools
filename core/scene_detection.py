@@ -65,8 +65,9 @@ def merge_short_shots(cuts: list[int], frame_count: int, min_frames: int, warnin
     return bounds[1:-1]
 
 
-def project_id_for(source_fingerprint: str, mode: str, sensitivity: float, min_frames: int, cut_points: str, energy: str = "off") -> str:
-    params = {"mode": mode, "s": round(sensitivity, 4), "min": min_frames, "cuts": cut_points.strip() if mode == "manual" else "", **({"energy": energy} if energy != "off" else {})}
+def project_id_for(source_fingerprint: str, mode: str, sensitivity: float, min_frames: int, cut_points: str, energy: str = "off", covered: bool = False) -> str:
+    params = {"mode": mode, "s": round(sensitivity, 4), "min": min_frames, "cuts": cut_points.strip() if mode == "manual" else "", **({"energy": energy} if energy != "off" else {}),
+              **({"covered": energy_tools.COVER_VERSION} if covered and mode != "manual" else {})}  # a project detected before an option existed keeps its id and its cuts
     return "p_" + json_fingerprint([source_fingerprint, params])[:12]
 
 
@@ -152,13 +153,14 @@ def detect_scenes(
     thumbnails: bool = True,
     force_refresh: bool = False,
     energy: str = "off",
+    covered: bool = False,
 ) -> ShotList:
     if mode not in MODES:
         raise MajoorError(f"Unknown detection_mode '{mode}'. Available: {list(MODES)}")
     if energy not in ENERGY:
         raise MajoorError(f"Unknown energy '{energy}'. Available: {list(ENERGY)}")
     fingerprint = file_fingerprint(video_path)
-    project_id = project_id_for(fingerprint, mode, sensitivity, min_shot_frames, cut_points, energy)
+    project_id = project_id_for(fingerprint, mode, sensitivity, min_shot_frames, cut_points, energy, covered)
     store = ProjectStore(store_root, project_id)
 
     with store.lock():
@@ -185,6 +187,8 @@ def detect_scenes(
                 events = energy_tools.detect_events(energy_tools.measure(gray))
                 if mode != "manual":  # a flash is not a cut: the cuts that a detector puts on its frames go
                     cuts = energy_tools.clean_cuts(cuts, events, gray, warnings)
+            if covered and mode != "manual":  # the cuts hidden behind hands over the lens, a whip or a blur
+                cuts = energy_tools.covered_cuts(energy_tools.read_gray(source_path, info.fps, color=True), cuts)
             cuts = merge_short_shots(cuts, info.frame_count, min_shot_frames, warnings)
             if info.timing_mode == "VFR":
                 warnings.append("Variable frame rate source: shot bounds use PTS, frame indices are informative")

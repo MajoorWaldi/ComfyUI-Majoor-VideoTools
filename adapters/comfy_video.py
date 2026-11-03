@@ -4,6 +4,7 @@ import hashlib
 import io as py_io
 import math
 import os
+import re
 import shutil
 import uuid
 from pathlib import Path
@@ -289,6 +290,13 @@ def sample_video_components(video, frames: str):
                         "Audio duration cannot be estimated for this file; refusing an unbounded decode."
                     )
                 audio_bytes = _audio_memory_estimate(duration, rate, channels)
+        spread = re.fullmatch(r"\s*~\s*(\d+)\s*", frames or "")
+        if spread and selected_bytes + width * height * 16 + audio_bytes > VIDEO_COMPONENTS_MEMORY_BUDGET:
+            # "~N" asks for frames spread over the clip, not for N exactly: as many as the budget holds are spread the same way
+            room = (VIDEO_COMPONENTS_MEMORY_BUDGET - width * height * 16 - audio_bytes) // (width * height * 48)
+            if room >= 1:
+                indices = parse_frames(f"~{room}", frame_count)
+                selected_bytes = len(indices) * width * height * 48
         image_peak_bytes = selected_bytes + width * height * 16
         _check_component_memory(
             image_peak_bytes + audio_bytes,

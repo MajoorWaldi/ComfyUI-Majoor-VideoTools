@@ -45,6 +45,7 @@ class MajoorShotMemory(io.ComfyNode):
                 MajoorShotMetadata.Input("metadata"),
                 io.Image.Input("references", optional=True, tooltip="The reference pictures sent to H3. Connected, the memory is not used: your references fix the look."),
                 io.Image.Input("plate", optional=True, tooltip="The empty place picture sent to H3 after the references, when there is one: the memory picture comes after it."),
+                io.Int.Input("pictures_before", default=0, min=0, max=5, optional=True, tooltip="How many reference pictures H3 gets before the plate and the memory (a remix keeps its references and still uses the memory, references not connected). 0: none."),
             ],
             outputs=[
                 io.Image.Output(display_name="image"),
@@ -54,7 +55,7 @@ class MajoorShotMemory(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, shot_list, metadata, references=None, plate=None) -> io.NodeOutput:
+    def execute(cls, shot_list, metadata, references=None, plate=None, pictures_before=0) -> io.NodeOutput:
         shot = shot_list.get_shot(metadata.shot_id)
         path = None if references is not None else recall(ProjectStore(projects_root(shot_list), shot_list.project_id), shot_list, shot)
         if path is None:

@@ -16,6 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ..adapters.ffmpeg import CREATIONFLAGS
 from .errors import MajoorError
 
 MIN_SECONDS = 1.0       # shorter than this carries too little to correlate
@@ -237,7 +238,7 @@ def _read_audio(path: Path, binary: str) -> tuple[np.ndarray, int]:
     rate = 16000
     command = [binary, "-v", "error", "-nostdin", "-i", str(path), "-vn", "-ac", "1", "-ar", str(rate), "-f", "f32le", "-"]
     try:
-        result = subprocess.run(command, capture_output=True, timeout=120, check=False)
+        result = subprocess.run(command, capture_output=True, timeout=120, check=False, creationflags=CREATIONFLAGS)
     except subprocess.TimeoutExpired:
         raise MajoorError("ffmpeg took too long to read the sound of the take") from None
     except FileNotFoundError:

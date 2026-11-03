@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="assets/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0b0f17; }
+      #root { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: #0b0f17; }
+      .term { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-x1ms" id="root" data-composition-id="main" data-start="0" data-duration="95" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-ut5x" id="intro" data-composition-id="intro" data-composition-src="compositions/intro.html" data-start="0" data-duration="6" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-t8la" id="map" data-composition-id="map" data-composition-src="compositions/map.html" data-start="6" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+
+      <video data-hf-id="hf-icg6" id="v-pack" class="clip term" src="assets/pack.mp4" data-start="16" data-duration="15.5" data-track-index="2" muted playsinline></video>
+      <video data-hf-id="hf-m38j" id="v-finishing" class="clip term" src="assets/finishing.mp4" data-start="31.5" data-duration="11.6" data-track-index="2" muted playsinline></video>
+
+      <div data-hf-id="hf-c100" id="models" data-composition-id="models" data-composition-src="compositions/models.html" data-start="43.1" data-duration="12" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+
+      <video data-hf-id="hf-2mz1" id="v-studio" class="clip term" src="assets/studio.mp4" data-start="55.1" data-duration="15.4" data-track-index="2" muted playsinline></video>
+      <video data-hf-id="hf-57sx" id="v-start" class="clip term" src="assets/start.mp4" data-start="70.5" data-duration="6.3" data-track-index="2" muted playsinline></video>
+
+      <div data-hf-id="hf-hctb" id="optional" data-composition-id="optional" data-composition-src="compositions/optional.html" data-start="76.8" data-duration="12" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-65ci" id="outro" data-composition-id="outro" data-composition-src="compositions/outro.html" data-start="88.8" data-duration="6.2" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+
+      <audio data-hf-id="hf-9qqc" id="bed" src="assets/bed.mp3" data-start="0" data-duration="95" data-track-index="3" data-volume="0.6"></audio>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

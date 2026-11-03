@@ -53,6 +53,14 @@ def test_the_word_track_of_a_music_does_not_count_as_a_camera_move():
     assert _moves(add_camera_moves(_list("He raps on the beat of the track."))) == ["slow push-in"]
 
 
+def test_a_shot_too_short_for_a_move_keeps_the_movement_of_its_source():
+    shots = ShotList(SimpleNamespace(fps=24), (Shot("SHOT_001", 0, 48, {"prompt": "a"}), Shot("SHOT_002", 48, 60, {"prompt": "b"}), Shot("SHOT_003", 60, 108, {"prompt": "c"})))
+    once = add_camera_moves(shots, min_seconds=1.0)
+    assert _moves(once) == ["slow push-in", None, "pull-back reveal"] and once.shots[1].plan["prompt"] == "b"
+    assert add_camera_moves(once, min_seconds=1.0) == once
+    assert add_camera_moves(add_camera_moves(shots), min_seconds=1.0) == once  # a move written before on the short shot is taken off
+
+
 def test_an_empty_prompt_takes_and_loses_its_move_cleanly():
     once = add_camera_moves(_list(""))
     assert once.shots[0].plan["prompt"] == MARK + "a slow push-in toward the subject."
