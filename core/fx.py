@@ -669,7 +669,7 @@ def render_text(spec: dict, width: int, height: int, store_dir: Path) -> Path:
 ENTER_SECONDS, LEAVE_SECONDS = 0.35, 0.18  # an exit is about half an entrance
 
 
-from .text_timing import reading_seconds, reading_budget
+from .text_timing import reading_seconds, reading_budget  # noqa: F401 reading_seconds is re-exported for callers of fx
 
 
 def text_overlay_filters(spec: dict, offset: float, shot_seconds: float, height: int) -> tuple[str, str]:
