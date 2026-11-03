@@ -107,6 +107,8 @@ def test_the_message_announces_the_pictures_and_the_frames_of_each_video():
     assert "<Picture 1> <Picture 2> are the images of this chat" in text
     assert "<Video 1> = images 3 to 10 of this chat (8 frames in time order" in text and "<Video 2> = images 11 to 18" in text
     assert "VIDEOS" not in sk.user_message("a brief", "", 2)
+    shots = sk.user_message("a brief", "EDIT RHYTHM", 1, shot_frames=((2, "SHOT_001"), (3, "SHOT_002")))
+    assert "SHOT FRAMES" in shots and "image 2 = SHOT_001\nimage 3 = SHOT_002" in shots and "SHOT FRAMES" not in text
     writer = sk.load_skill("h3_shot_prompt_from_plan").body
     assert "VIDEOS block" in writer and "Never write a <Video k> that the VIDEOS block does not list" in writer
 

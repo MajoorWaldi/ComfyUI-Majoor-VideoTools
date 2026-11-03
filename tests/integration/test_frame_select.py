@@ -45,3 +45,10 @@ def test_select_shot_samples_every_n_to_the_end():
     assert sample_indices("every_n", 5, 48, 4, True) == [0, 12, 24, 36, 47]
     assert sample_indices("every_n", 4, 48, 4, False) == [0, 4, 8, 12]
     assert sample_indices("uniform", 3, 48) == [0, 24, 47]
+
+
+def test_a_clip_retimed_to_another_frame_rate_lasts_as_long():
+    from majoor_videotools.core.frame_select import retime_frames
+    assert retime_frames(15, 30, 24) == [0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 14]  # 0.5 s at 30 fps, 0.5 s at 24 fps
+    assert retime_frames(3, 24, 48) == [0, 0, 1, 2, 2, 2]  # each frame shown twice, the last clamped
+    assert retime_frames(1, 30, 24) == [0]

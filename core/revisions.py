@@ -1,5 +1,6 @@
 """Select a shot / take, and apply a new take to a collection (copy-on-write)."""
 import dataclasses
+import math
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -111,7 +112,9 @@ def apply_revision(
     activate: bool = True,
     duration_policy: str = "inherit_target",
     generation_prompt: str = "",
+    skip_copied_lead: bool = False,
 ) -> ShotList:
+    """`skip_copied_lead`: a take that opens on a copy of its reference video (the source shot) starts after it (source_start_seconds)."""
     shot = check_lineage(shot_list, metadata)
     if shot_list.storage_root is not None and Path(shot_list.storage_root).resolve() != Path(store_root).resolve():
         raise ManifestError('Take destination differs from its worker workspace')
@@ -154,6 +157,7 @@ def apply_revision(
             has_audio=info.has_audio,
             created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
             generation_prompt=generation_prompt,
+            source_start_seconds=_copied_lead_seconds(store, shot_list, shot, dest, info) if skip_copied_lead else 0.0,
         )
         patched = dataclasses.replace(
             shot,
@@ -163,6 +167,18 @@ def apply_revision(
         updated = shot_list.with_shot(patched)
         persist_manifest(store, updated)
         return updated
+
+
+def _copied_lead_seconds(store: ProjectStore, shot_list: ShotList, shot: Shot, take: Path, info) -> float:
+    """Seconds of the first frames of a take that repeat its source shot before the take cuts to what was asked."""
+    from . import energy
+
+    source, margin = shot_list.source, 20
+    first = max(0, shot.start_frame - margin)
+    window = energy.read_gray(store.resolve(source.uri), source.fps, limit=shot.end_frame_exclusive + margin - first, start=float(first / source.fps))
+    frames = energy.read_gray(take, info.fps)
+    lead = energy.copied_lead(frames, window, math.ceil(shot.target_duration_seconds * float(info.fps)))
+    return float(lead / info.fps)
 
 
 def _activated(store: ProjectStore, shot_list: ShotList, shot: Shot, revision_id: str, activate: bool) -> ShotList:

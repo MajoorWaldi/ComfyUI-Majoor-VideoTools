@@ -1,6 +1,6 @@
 from comfy_api.latest import io
 
-from ..core.frame_select import every_n_frames
+from ..core.frame_select import every_n_frames, retime_frames
 
 
 class MajoorSelectEveryNFrames(io.ComfyNode):
@@ -27,3 +27,26 @@ class MajoorSelectEveryNFrames(io.ComfyNode):
     def execute(cls, images, every_n, max_frames, spread_to_end) -> io.NodeOutput:
         indices = every_n_frames(images.shape[0], every_n, max_frames, spread_to_end)
         return io.NodeOutput(images[indices], ", ".join(map(str, indices)))
+
+
+class MajoorRetimeFrames(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="MajoorRetimeFrames",
+            display_name="Retime Frames",
+            category="Majoor/VideoTools",
+            description="Play an IMAGE batch taken at one frame rate at another in the same time: frames are dropped or repeated. A control video for a model that generates at 24 fps "
+                        "must have its frames at 24 fps, or the take plays the motion slower (or faster) than the source.",
+            inputs=[
+                io.Image.Input("images"),
+                io.Float.Input("fps_in", default=30.0, min=0.01, max=1000.0, step=0.001, tooltip="The frame rate of the images (the fps of Get Video Components)."),
+                io.Float.Input("fps_out", default=24.0, min=0.01, max=1000.0, step=0.001, tooltip="The frame rate the next node reads them at."),
+            ],
+            outputs=[io.Image.Output(display_name="images"), io.Int.Output(display_name="count")],
+        )
+
+    @classmethod
+    def execute(cls, images, fps_in, fps_out) -> io.NodeOutput:
+        indices = retime_frames(images.shape[0], fps_in, fps_out)
+        return io.NodeOutput(images[indices], len(indices))

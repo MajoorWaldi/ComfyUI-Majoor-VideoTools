@@ -91,6 +91,9 @@ def test_the_remix_graphs_plan_judge_remember_and_keep_shots():
     assert {'MajoorRemixPlan', 'MajoorTranscribeVoice', 'MajoorSaveProjectLyrics', 'MajoorCameraMoves'} <= kinds(stage1)
     assert stage1['RP']['inputs']['skill'] == 'remix_planner' and stage1['RM']['inputs']['plan_json'] == ['RS', 0]
     assert stage1['p1']['inputs']['shot_list'] == ['CV', 0]
+    assert stage1['68']['inputs']['covered_transitions'] is True  # a fashion edit cuts behind hands over the lens
+    assert stage1['RP']['inputs']['shot_list'] == ['68', 0] and 'video_1' not in stage1['RP']['inputs']  # the planner reads one frame per shot
+    assert stage1['CV']['inputs']['min_seconds'] == 1.0
     assert {'MajoorShotMemory', 'MajoorSaveShotMemory', 'MajoorTakeCheck', 'MajoorCheckPlate'} <= kinds(shot)
     assert shot['JS']['inputs']['skill'] == 'take_judge' and shot['116']['inputs']['on_false'] == ['J', 0]
     assert slots['shot']['seed'] == [['91:155', 'noise_seed']] and slots['shot']['seed_b'] == [['108:155', 'noise_seed']]  # take B has its own seed

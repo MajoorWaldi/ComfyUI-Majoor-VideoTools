@@ -1,17 +1,41 @@
 import math
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from aiohttp import web
 from comfy_api.latest import io
 
+from ..adapters.comfy_video import MajoorShotList, projects_root
 from ..core.errors import MajoorError
+from ..core.paths import ProjectStore
 from ..core.dialogue import lines_of_shot
 from ..core.profiles import DIALS, list_profiles, music_text, profile_text
 from ..core.skills import DEFAULTS, GENRES, compose, load_skill, module_states, prompt_skills, user_message
 
 
 RATIOS = ("9:16", "16:9", "1:1", "4:5", "21:9", "2:3", "3:2", "3:4", "4:3")
+MAX_SHOT_FRAMES = 40  # the frames a chat of a local LLM takes with the pictures; more shots are spread evenly
+
+
+def _shot_frames(shot_list) -> tuple[torch.Tensor | None, list[str]]:
+    """The thumbnail of each shot (Scene Detect takes it from the middle of the shot) as one batch, and the id of the shot of each frame."""
+    from PIL import Image
+
+    shots = [s for s in shot_list.shots if s.thumbnail_ref]
+    if len(shots) > MAX_SHOT_FRAMES:
+        shots = [shots[round(i * (len(shots) - 1) / (MAX_SHOT_FRAMES - 1))] for i in range(MAX_SHOT_FRAMES)]
+    store = ProjectStore(projects_root(shot_list), shot_list.project_id)
+    frames, ids = [], []
+    for shot in shots:
+        path = store.resolve(shot.thumbnail_ref)
+        if path.exists():
+            with Image.open(path) as picture:
+                frames.append(torch.from_numpy(np.asarray(picture.convert("RGB"), dtype=np.float32) / 255.0))
+            ids.append(shot.shot_id)
+    if not frames:
+        return None, []
+    return _stack([f[None] for f in frames]), ids
 
 
 def _build(skill_id, overlays_splits, text_overlays, reference_mode, genre, duration, fps, aspect_ratio, n_pictures, text_allowed, extra, profile="none", dials=None, dialogue=False, locations=False, plate=False):
@@ -64,6 +88,8 @@ class MajoorEditSkills(io.ComfyNode):
                 io.Image.Input("images", optional=True, tooltip="The reference pictures sent to the LLM, one per image of the batch. When connected, n_pictures is the size of the batch."),
                 io.Image.Input("video_1", optional=True, tooltip="Frames of <Video 1> (ref_video_0 of H3), sampled from the first to the last frame. The user message tells the LLM which images of the chat they are, and the images output carries them."),
                 io.Image.Input("video_2", optional=True, tooltip="Frames of <Video 2> (ref_video_1 of H3), as video_1."),
+                MajoorShotList.Input("shot_list", optional=True, tooltip="The shots of a source (Scene Detect & Split): the frame from the middle of each shot goes to the LLM after the videos, and the message says which shot each frame is. "
+                                     f"For a planner that writes a line per shot; at most {MAX_SHOT_FRAMES} frames, spread evenly over more shots."),
                 io.Image.Input("plate", optional=True, tooltip="The empty plate of the place of the shot (one image, the last picture: <Picture N>). The message announces it and the skill uses it for the place only; the images output carries it after the pictures."),
                 io.Audio.Input("voice", optional=True, tooltip="The voice sample of <Subject 1> (ref_audio_0 of H3). Connected, the message announces <Audio 1> and the skill speaks the dialogue in it."),
                 io.String.Input("extra_instructions", multiline=True, default="", tooltip="Added at the end of the system prompt."),
@@ -77,11 +103,11 @@ class MajoorEditSkills(io.ComfyNode):
                 io.Float.Input('shot_duration',default=0.0,min=0.0,max=3600.0,optional=True,tooltip='Numeric target duration of this shot for dialogue.'),
             ],
             outputs=[io.String.Output(display_name="system_prompt"), io.String.Output(display_name="user_message"), io.String.Output(display_name="info"),
-                     io.Image.Output(display_name="images", tooltip="The pictures, then the frames of <Video 1> and <Video 2>, in the order the user message announces: connect it to the LLM instead of the pictures alone. Empty when no image is connected.")],
+                     io.Image.Output(display_name="images", tooltip="The pictures, then the frames of <Video 1> and <Video 2>, then the frames of the shots, in the order the user message announces: connect it to the LLM instead of the pictures alone. Empty when no image is connected.")],
         )
 
     @classmethod
-    def execute(cls, skill, overlays_splits, text_overlays, reference_mode, genre, duration, fps, aspect_ratio, n_pictures, text_allowed, brief, extra_instructions, profile, cut_density, transition_intensity, creative_freedom, reference_fidelity, narrative_coherence, rhythm_text="", images=None, video_1=None, video_2=None, voice=None, dialogue="", plate=None, locations=False, width=0, height=0, shot_start=-1.0, shot_duration=0.0) -> io.NodeOutput:
+    def execute(cls, skill, overlays_splits, text_overlays, reference_mode, genre, duration, fps, aspect_ratio, n_pictures, text_allowed, brief, extra_instructions, profile, cut_density, transition_intensity, creative_freedom, reference_fidelity, narrative_coherence, rhythm_text="", images=None, video_1=None, video_2=None, voice=None, dialogue="", plate=None, locations=False, width=0, height=0, shot_start=-1.0, shot_duration=0.0, shot_list=None) -> io.NodeOutput:
         n_pictures = (images.shape[0] if images is not None else n_pictures) + (plate is not None)
         groups, videos, count = ([images] if images is not None else []), [], (images.shape[0] if images is not None else 0)
         if plate is not None:  # the empty plate of the place: the last picture
@@ -92,6 +118,13 @@ class MajoorEditSkills(io.ComfyNode):
                 videos.append((len(videos) + 1, count + 1, count + frames.shape[0]))
                 groups.append(frames)
                 count += frames.shape[0]
+        shot_frames = ()
+        if shot_list is not None:
+            frames, ids = _shot_frames(shot_list)
+            if frames is not None:
+                shot_frames = tuple((count + k + 1, shot_id) for k, shot_id in enumerate(ids))
+                groups.append(frames)
+                count += frames.shape[0]
         if width and height:
             aspect_ratio = min(RATIOS, key=lambda r: abs(math.log(width / height / (int(r.split(':')[0]) / int(r.split(':')[1])))))
         spoken = lines_of_shot(rhythm_text,dialogue,shot_start if shot_start>=0 and shot_duration>0 else None,shot_start+shot_duration if shot_start>=0 and shot_duration>0 else None)
@@ -99,7 +132,7 @@ class MajoorEditSkills(io.ComfyNode):
                                    dict(cut_density=cut_density, transition_intensity=transition_intensity, creative_freedom=creative_freedom, reference_fidelity=reference_fidelity, narrative_coherence=narrative_coherence),
                                    dialogue=voice is not None or bool(spoken), locations=locations, plate=plate is not None)
         info = f"{loaded.name} ({loaded.kind}): {len(text.split())} words; parts on: {', '.join(on) or 'none'}"
-        return io.NodeOutput(text, user_message(brief, rhythm_text, n_pictures, tuple(videos), voice is not None, spoken, plate is not None, shot_only=skill == 'h3_shot_prompt_from_plan'), info, _stack(groups) if groups else None)
+        return io.NodeOutput(text, user_message(brief, rhythm_text, n_pictures, tuple(videos), voice is not None, spoken, plate is not None, shot_only=skill == 'h3_shot_prompt_from_plan', shot_frames=shot_frames), info, _stack(groups) if groups else None)
 
 
 def register_routes() -> None:

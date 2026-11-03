@@ -182,8 +182,10 @@ def compose(skill: Skill, states: dict[str, bool] | None = None, variables: dict
     return text, list(dict.fromkeys(on))
 
 
-def user_message(brief: str = "", rhythm_text: str = "", n_pictures: int = 1, videos: tuple[tuple[int, int, int], ...] = (), voice: bool = False, dialogue: str = "", plate: bool = False, shot_only: bool = False) -> str:
-    """The message that goes with the skill: the brief, the pictures, the videos, the voice, the dialogue, the rhythm. videos: (number, first image, last image) of the frames of each <Video k> among the images of the chat."""
+def user_message(brief: str = "", rhythm_text: str = "", n_pictures: int = 1, videos: tuple[tuple[int, int, int], ...] = (), voice: bool = False, dialogue: str = "", plate: bool = False, shot_only: bool = False,
+                 shot_frames: tuple[tuple[int, str], ...] = ()) -> str:
+    """The message that goes with the skill: the brief, the pictures, the videos, the voice, the dialogue, the rhythm. videos: (number, first image, last image) of the frames of each <Video k> among the images of the chat.
+    shot_frames: (image, shot id) of the frame taken from the middle of each shot."""
     blocks = []
     if shot_only:
         blocks.append('H3 INPUT MODE: ' + ('Ref2VA' if n_pictures > 0 or videos or voice else 'T2VA'))
@@ -204,6 +206,9 @@ def user_message(brief: str = "", rhythm_text: str = "", n_pictures: int = 1, vi
         blocks.append(f"PLACE\n<Picture {n_pictures}> is the empty plate of the place of this shot: unoccupied but set-dressed, with its relevant furniture, mounted artwork, practical lights and fixed objects. Preserve their appearance and placement and name the elements useful to this shot in the prompt. It is an environment reference, never the actor identity. Static printed figures remain part of the artwork unless this shot explicitly animates them; movable/action props follow the current shot state.")
     if videos:
         blocks.append("VIDEOS\n" + "\n".join(f"<Video {k}> = images {a} to {b} of this chat ({b - a + 1} frames in time order, from the first to the last frame of the clip)." for k, a, b in videos))
+    if shot_frames:
+        blocks.append("SHOT FRAMES (one frame from the middle of each shot of the source: what this shot shows, its people, their clothes, the place)\n"
+                      + "\n".join(f"image {image} = {shot}" for image, shot in shot_frames))
     if voice:
         blocks.append("AUDIO\n<Audio 1> = the voice sample of <Subject 1>: H3 receives it and speaks the lines of the DIALOGUE in this voice.")
     if dialogue.strip():

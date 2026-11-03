@@ -146,6 +146,24 @@ def main():
         finally:
             comfy_video.VIDEO_COMPONENTS_MEMORY_BUDGET = original_budget
 
+        # "~N" spreads frames: when N does not fit, as many as the budget holds are spread; an explicit list is still refused
+        original_audio = comfy_video._audio_memory_estimate
+        comfy_video._audio_memory_estimate = lambda *_args: 0
+        comfy_video.VIDEO_COMPONENTS_MEMORY_BUDGET = 2 * 4 * 2 * 48 + 4 * 2 * 16 + 300  # two frames, and room for the few audio samples
+        try:
+            result = MajoorGetVideoComponentsAdvanced.execute(video, "~5")
+            args = result.args if hasattr(result, "args") else result
+            assert tuple(args[6].shape) == (2, 2, 4, 3) and args[8] == "0, 4"
+            try:
+                comfy_video.sample_video_components(video, "0-4")
+            except MajoorError as error:
+                assert "memory budget" in str(error)
+            else:
+                raise AssertionError("an explicit selection over the budget was not refused")
+        finally:
+            comfy_video.VIDEO_COMPONENTS_MEMORY_BUDGET = original_budget
+            comfy_video._audio_memory_estimate = original_audio
+
         try:
             comfy_video.sample_video_components(object(), "")
         except MajoorError as error:

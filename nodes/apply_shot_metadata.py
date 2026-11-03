@@ -22,13 +22,17 @@ class MajoorApplyShotMetadata(io.ComfyNode):
                 io.String.Input("generation_prompt", default="", optional=True, force_input=True, tooltip="Exact prompt used for this take, retained separately from the editable shot plan."),
                 io.Boolean.Input("activate_new_take", default=True),
                 io.Combo.Input("duration_policy", options=list(DURATION_POLICIES), default="inherit_target", tooltip="inherit_target keeps the original shot duration; keep_generated lets Shot Assemble use the generated duration."),
+                io.Boolean.Input("skip_copied_lead", default=False, optional=True, tooltip="A take generated with its source shot as reference video sometimes opens on a copy of it (the person it was asked to replace) "
+                                 "before it cuts to what was asked. On: the take starts after that copy (its frames stay in the file). For a remix."),
             ],
             outputs=[MajoorShotList.Output(display_name="updated_shot_list")],
         )
 
     @classmethod
-    def execute(cls, shot_list, metadata, video, activate_new_take, duration_policy, revision_label="", generation_prompt="") -> io.NodeOutput:
+    def execute(cls, shot_list, metadata, video, activate_new_take, duration_policy, revision_label="", generation_prompt="", skip_copied_lead=False) -> io.NodeOutput:
         with video_file(video) as path:
-            updated = apply_revision(shot_list, projects_root(shot_list), metadata, path, revision_label, activate_new_take, duration_policy, generation_prompt)
+            updated = apply_revision(shot_list, projects_root(shot_list), metadata, path, revision_label, activate_new_take, duration_policy, generation_prompt, skip_copied_lead)
         shot = updated.get_shot(metadata.shot_id)
-        return io.NodeOutput(updated, ui={"text": (f"{shot.shot_id} → {shot.active_revision_id} (revision {updated.project_revision})",), "majoor_shots": [shots_payload(updated)]})
+        skipped = next((r.source_start_seconds for r in shot.revisions if r.revision_id == shot.active_revision_id), 0.0)
+        note = f"; starts {skipped:.2f} s in, after a copy of the source" if skipped else ""
+        return io.NodeOutput(updated, ui={"text": (f"{shot.shot_id} → {shot.active_revision_id} (revision {updated.project_revision}){note}",), "majoor_shots": [shots_payload(updated)]})
