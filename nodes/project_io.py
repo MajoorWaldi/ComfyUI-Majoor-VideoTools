@@ -12,6 +12,7 @@ import torch
 from ..core.beats import read_wav, write_wav
 from ..core.paths import ProjectStore, sanitize_name
 from ..core.project import fork_shot_list, load_shot_list
+from ..core.revisions import MUSIC_FILE
 from .preview import shots_payload
 
 
@@ -68,8 +69,6 @@ class MajoorLoadShotList(io.ComfyNode):
     def execute(cls, project_id) -> io.NodeOutput:
         return io.NodeOutput(load_shot_list(projects_root(), project_id.strip()))
 
-
-MUSIC_FILE = "music/retained.wav"
 
 
 class MajoorSaveProjectMusic(io.ComfyNode):

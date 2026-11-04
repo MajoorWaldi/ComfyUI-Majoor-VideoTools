@@ -20,11 +20,12 @@ from PIL import Image, ImageColor, ImageDraw, ImageFilter, ImageFont
 from .errors import MajoorError
 from .fingerprints import file_fingerprint
 
-LOOKS = ("none", "mono", "contrast", "negative")
+LOOKS = ("none", "mono", "contrast", "negative", "grain", "riso", "duotone", "vhs")
 # default length in frames of each transition into a shot (at the start of the shot)
-TRANSITIONS = {"cut": 0, "flash": 4, "flash_black": 4, "fade_black": 6, "fade_white": 10, "whip": 4, "whip_v": 4, "blur": 4, "punch": 6, "glitch": 6, "shake": 8, "strobe": 6, "invert": 3}
+TRANSITIONS = {"cut": 0, "flash": 4, "flash_black": 4, "fade_black": 6, "fade_white": 10, "whip": 4, "whip_v": 4, "blur": 4, "punch": 6, "glitch": 6, "shake": 8, "strobe": 6, "invert": 3, "iris": 8, "blinds": 8}
 # the names an LLM writes for them
-TRANSITION_ALIASES = {"flash_white": "flash", "white_flash": "flash", "black_flash": "flash_black", "dip_to_black": "fade_black", "fade": "fade_black", "fade_in": "fade_black", "dip_to_white": "fade_white",
+WHIP_DIRECTIONS = {"whip_left": "left", "whip_right": "right", "whip_up": "up", "whip_down": "down"}  # the way the picture travels in
+TRANSITION_ALIASES = {"whip_left": "whip", "whip_right": "whip", "whip_up": "whip_v", "whip_down": "whip_v", "flash_white": "flash", "white_flash": "flash", "black_flash": "flash_black", "dip_to_black": "fade_black", "fade": "fade_black", "fade_in": "fade_black", "dip_to_white": "fade_white",
                       "whip_pan": "whip", "whip_horizontal": "whip", "whip_vertical": "whip_v", "defocus": "blur", "dissolve": "blur", "cross_dissolve": "blur", "crossfade": "blur",
                       "zoom": "punch", "punch_in": "punch", "rgb_split": "glitch", "glitch_rgb": "glitch", "camera_shake": "shake", "negative": "invert", "flicker": "strobe"}
 LOOK_ALIASES = {"bw": "mono", "b&w": "mono", "black_and_white": "mono", "grayscale": "mono", "greyscale": "mono", "noir": "mono", "monochrome": "mono",
@@ -40,7 +41,16 @@ BLENDS = {"normal": "normal", "screen": "screen", "multiply": "multiply", "overl
           "difference": "difference", "softlight": "softlight"}
 SPLIT_LAYOUTS = {"left_right": 2, "top_bottom": 2, "columns_3": 3, "rows_3": 3, "grid_4": 4}  # layout -> number of panels
 MAX_OVERLAYS = 3
-COMMON = ("speed", "speed_ramp", "zoom", "focus", "flip", "look", "overlay", "split")
+COMMON = ("speed", "speed_ramp", "zoom", "focus", "flip", "look", "overlay", "split", "time")
+TIME_EFFECTS = ("stutter", "freeze", "echo")  # stutter: the first frames played three times; freeze: the cut stops on a frame past its middle; echo: trails of the frames before
+TIME_ALIASES = {"repeat": "stutter", "stutter_hit": "stutter", "freeze_frame": "freeze", "hold": "freeze", "trails": "echo", "ghost": "echo", "motion_trails": "echo"}
+# Every effect a plan can ask for, with the energy it carries: a planner keeps the strong ones for the hits and the openings of sections,
+# and does not use the same one twice in a row.
+TECHNIQUES = {
+    "calm": {"transitions": ("fade_black", "fade_white", "blur", "iris"), "looks": ("mono", "duotone", "grain"), "time": (), "moves": ("slow zoom", "focus shift")},
+    "medium": {"transitions": ("whip", "whip_v", "blinds", "flash"), "looks": ("contrast", "riso", "vhs"), "time": ("echo", "freeze"), "moves": ("zoom", "flip", "speed ramp")},
+    "strong": {"transitions": ("punch", "flash_black", "glitch", "shake", "strobe", "invert"), "looks": ("negative",), "time": ("stutter",), "moves": ("speed ramp", "split screen")},
+}
 # the look of a text: the first font that the machine has, in order
 TEXT_FONTS = {
     "impact": ["impact.ttf", "Impact.ttf", "arialbd.ttf", "Arial Bold.ttf", "DejaVuSans-Bold.ttf", "LiberationSans-Bold.ttf"],
@@ -107,6 +117,11 @@ def _transition(value, where: str, fps: Fraction) -> dict | None:
     if kind not in TRANSITIONS or kind == "cut":  # a name that no transition has is a plain cut: the plan still runs
         return None
     out = {'type':kind,'frames':max(1,frames or TRANSITIONS[kind])}
+    direction = _key(value.get("direction", "")) if isinstance(value, dict) else ""
+    direction = WHIP_DIRECTIONS.get(requested, direction)
+    if kind in ("whip", "whip_v") and direction in ("left", "right", "up", "down"):
+        out["type"] = "whip" if direction in ("left", "right") else "whip_v"  # the direction decides the axis
+        out["direction"] = direction
     if requested in ('dissolve','cross_dissolve','crossfade'):
         out['approximation'] = f'{requested} rendered as blur (not a crossfade between takes)'
     return out
@@ -224,6 +239,12 @@ def _common(item: dict, where: str, fps: Fraction, ignored: list | None = None) 
             out["look"] = _look(item["look"])
         elif ignored is not None and _key(item["look"]) not in ("", "none"):
             ignored.append(f"{where}: look '{item['look']}' does not exist")
+    if "time" in item:
+        effect = TIME_ALIASES.get(_key(item["time"]), _key(item["time"]))
+        if effect in TIME_EFFECTS:
+            out["time"] = effect
+        elif ignored is not None and effect not in ("", "none"):
+            ignored.append(f"{where}: time effect '{item['time']}' does not exist")
     transition = item.get("transition", item.get("transition_in"))
     if transition is not None:
         keep(lambda: out.__setitem__("transition", _transition(transition, where, fps)))
@@ -349,6 +370,8 @@ def _effects_words(spec: dict) -> list[str]:
         words.append("flip")
     if spec.get("look", "none") != "none":
         words.append(f"look {spec['look']}")
+    if spec.get("time"):
+        words.append(spec["time"])
     split = spec.get("split")
     if split:
         words.append(f"split {split['layout']} (" + ", ".join(p["source"] for p in split["panels"]) + ")")
@@ -374,7 +397,7 @@ def describe_fx(fx: dict | None, fps: float, frames: int) -> tuple[dict, str]:
         cuts.append(cut)
     info["cut_count"] = max(len(cuts), 1)
     info["sub_cuts"] = cuts
-    lines = [f"transition in: {transition['type']} ({transition['frames']} frames)" if transition else "transition in: cut"]
+    lines = [f"transition in: {transition['type']}" + (f" {transition['direction']}" if transition.get("direction") else "") + f" ({transition['frames']} frames)" if transition else "transition in: cut"]
     if transition and transition.get('approximation'):
         lines.append(transition['approximation'])
     if cuts:
@@ -474,10 +497,21 @@ def transition_filters(transition: dict | None, frames: int, fps: Fraction, widt
         f.append(f"crop={width}:{height}:x='(iw-{width})/2*(1+if(lt(n,{n}),random(0)*2-1,0))':y='(ih-{height})/2*(1+if(lt(n,{n}),random(1)*2-1,0))',setsar=1")
     elif kind in ("whip", "whip_v", "blur"):
         first, second = max(n // 2, 1), n
+        direction = transition.get("direction")
+        if direction:  # the picture slides in the way it travels, fast then settling, under the blur
+            sx = {"left": -1, "right": 1}.get(direction, 0)
+            sy = {"up": -1, "down": 1}.get(direction, 0)
+            ease = f"pow(max(0,1-n/{n}),2)"
+            f.append("scale=w='trunc(iw*1.25/2)*2':h='trunc(ih*1.25/2)*2':flags=bicubic")
+            f.append(f"crop={width}:{height}:x='(iw-{width})/2*(1+{sx}*{ease})':y='(ih-{height})/2*(1+{sy}*{ease})',setsar=1")
         for lo, hi, scale in ((0, first, 0.08), (first, second, 0.03)):
             sigma = max(width if kind != "whip_v" else height, 1) * scale
             axes = {"whip": f"sigma={sigma:.1f}:sigmaV=0.1", "whip_v": f"sigma=0.1:sigmaV={sigma:.1f}", "blur": f"sigma={sigma:.1f}"}[kind]
             f.append(f"gblur={axes}:steps=2:enable='between(n,{lo},{hi - 1})'")
+    elif kind in ("iris", "blinds"):  # the picture opens from black: a circle from the middle, or eight stripes
+        reach = f"min(1,(N+1)/{n})"
+        inside = f"lt(hypot(X-W/2,Y-H/2),hypot(W,H)/2*{reach})" if kind == "iris" else f"lt(mod(Y,H/8),H/8*{reach})"
+        f.append(f"format=yuv420p,geq=lum='if({inside},p(X,Y),0)':cb='if({inside},p(X,Y),128)':cr='if({inside},p(X,Y),128)':enable='lt(n,{n})'")
     elif kind == "punch" and include_punch:
         zoom = f"(1+0.35*pow(max(0,1-n/{n}),2))"
         f.append(f"scale=w='trunc(iw*{zoom}/2)*2':h='trunc(ih*{zoom}/2)*2':eval=frame:flags=bicubic")
@@ -501,7 +535,16 @@ def segment_chain(spec: dict, frames: int, fps: Fraction, width: int, height: in
             f.append(f"setpts='(sqrt(max(0,{a:.6f}*{a:.6f}+2*{k:.6f}*PTS*TB))-{a:.6f})/{k:.6f}/TB'")
     elif abs(spec.get("speed", 1.0) - 1.0) > 1e-6:
         f.append(f"setpts=PTS/{spec['speed']:.6f}")
-    f += [f"fps={rate}", "tpad=stop_mode=clone:stop=-1", f"trim=end_frame={frames}", "setpts=PTS-STARTPTS"]
+    f.append(f"fps={rate}")
+    time = spec.get("time")
+    if time == "stutter":  # the first frames, played three times: a hit that catches
+        f.append(f"loop=loop=2:size={max(1, min(3, frames // 3))}:start=0")
+    f += ["tpad=stop_mode=clone:stop=-1", f"trim=end_frame={frames}", "setpts=PTS-STARTPTS"]
+    if time == "freeze":  # the cut stops on a frame past its middle and holds it to the end
+        hold = max(1, round(frames * .55))
+        f += [f"loop=loop={frames - hold}:size=1:start={hold - 1}", f"setpts=N/({fps.numerator}/{fps.denominator})/TB", f"trim=end_frame={frames}"]
+    elif time == "echo":
+        f.append("tmix=frames=4:weights='4 3 2 1'")
 
     if spec.get("flip"):
         f.append("hflip")
@@ -521,6 +564,14 @@ def segment_chain(spec: dict, frames: int, fps: Fraction, width: int, height: in
         f.append("eq=contrast=1.35:saturation=1.15")
     elif look == "negative":
         f.append("negate")
+    elif look == "grain":
+        f.append("noise=alls=18:allf=t")
+    elif look == "riso":  # few inks, a little misregistered, on paper grain
+        f.append("eq=contrast=1.25:saturation=1.4,lutrgb=r='round(val/64)*64':g='round(val/64)*64':b='round(val/64)*64',chromashift=crh=2:cbh=-2,noise=alls=10:allf=t")
+    elif look == "duotone":  # the brightness carried by two inks: deep blue shadows, warm highlights
+        f.append("hue=s=0,curves=r='0/0.08 1/1':g='0/0.06 1/0.86':b='0/0.28 1/0.62'")
+    elif look == "vhs":
+        f.append("chromashift=crh=4:cbh=-4,eq=saturation=1.2:contrast=1.1,gblur=sigma=0.6,noise=alls=12:allf=t")
 
     f += transition_filters(transition, frames, fps, width, height)
     return ",".join(f)

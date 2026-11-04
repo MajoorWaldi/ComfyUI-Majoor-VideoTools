@@ -31,9 +31,10 @@ from .motion import LOTTIE_DIR, needs_mask, parse_layers
 from .motion_scenes import readability
 from .motion_score import read_score
 from .motion_timing import preview_times, shot_layers
+from .palette import video_palette
 from .text_timing import TEXT_TIMING
 
-VERSION = '10'
+VERSION = '11'  # in the cache key: raised when the layers or the accent come out differently from the same inputs
 CLI_VERSION = '0.8.201'
 PRESETS = ('editorial', 'minimal', 'energetic')
 OPTIONAL_HYPERFRAMES_WARNING = 'optional:hyperframes:unavailable'
@@ -82,6 +83,7 @@ def parse_direction(text: str) -> dict:
         color = re.search(r'#[0-9a-fA-F]{6}\b', text)
         data = {'preset': preset, 'accent': color.group() if color else '#e4c081'}
     defaults = {'reactive': False, 'intensity': 0.18} if data.get('preset') == 'minimal' else {}
+    given = 'accent' in data if text.lstrip().startswith('{') else color is not None
     out = {'preset': 'editorial', 'accent': '#e4c081', 'reactive': True, 'title': '', 'intensity': 0.6, **defaults, **data}
     if out['preset'] not in PRESETS or not re.fullmatch(r'#[0-9a-fA-F]{6}', str(out['accent'])):
         raise ValueError('Use preset editorial/minimal/energetic and an accent in #RRGGBB format')
@@ -89,6 +91,7 @@ def parse_direction(text: str) -> dict:
         raise ValueError('reactive must be boolean; title must be text (120 characters maximum)')
     if isinstance(out['intensity'], bool) or not isinstance(out['intensity'], (int, float)) or not math.isfinite(out['intensity']) or not 0 <= out['intensity'] <= 1:
         raise ValueError('intensity must be between 0 and 1')
+    out['accent_source'] = 'given' if given else 'default'  # a default accent is replaced by the accent of the film when it has one
     return out
 
 
@@ -348,6 +351,13 @@ def render_hyperframes(source: Path, output_root: Path, direction_text='', cues_
     if needs_mask(layers) and masks is None:
         raise ValueError('These layers require a subject mask (BiRefNet or equivalent)')
     direction = parse_direction(direction_text)
+    if direction['accent_source'] == 'default':
+        try:
+            accent = video_palette(source)['accent']
+        except (OSError, ValueError, MajoorError):
+            accent = None
+        if accent:
+            direction.update(accent=accent, accent_source='film')
     cues = resolve_cues(cues_text, timeline, duration, fps)
     if direction['title'] and not cues:
         cues = resolve_cues(json.dumps([{'text': direction['title'], 'start': min(.25, duration * .1), 'end': min(2.65, duration)}]), '[]', duration, fps)

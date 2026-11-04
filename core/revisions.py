@@ -14,6 +14,8 @@ from .models import ORIGINAL, Revision, Shot, ShotList, ShotMetadata
 from .paths import ProjectStore
 from .scene_detection import persist_manifest
 
+MUSIC_FILE = "music/retained.wav"  # the music of the project, as Save Project Music keeps it
+
 TAKES = ("active", "original", "revision_id")
 DURATION_POLICIES = ("inherit_target", "keep_generated")
 
@@ -113,8 +115,10 @@ def apply_revision(
     duration_policy: str = "inherit_target",
     generation_prompt: str = "",
     skip_copied_lead: bool = False,
+    align_to_music: bool = False,
 ) -> ShotList:
-    """`skip_copied_lead`: a take that opens on a copy of its reference video (the source shot) starts after it (source_start_seconds)."""
+    """`skip_copied_lead`: a take that opens on a copy of its reference video (the source shot) starts after it (source_start_seconds).
+    `align_to_music`: the take starts where its motion peaks land best on the attacks of the music of the project (at most half a second in)."""
     shot = check_lineage(shot_list, metadata)
     if shot_list.storage_root is not None and Path(shot_list.storage_root).resolve() != Path(store_root).resolve():
         raise ManifestError('Take destination differs from its worker workspace')
@@ -157,7 +161,7 @@ def apply_revision(
             has_audio=info.has_audio,
             created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
             generation_prompt=generation_prompt,
-            source_start_seconds=_copied_lead_seconds(store, shot_list, shot, dest, info) if skip_copied_lead else 0.0,
+            source_start_seconds=_take_start(store, shot_list, shot, dest, info, skip_copied_lead, align_to_music),
         )
         patched = dataclasses.replace(
             shot,
@@ -167,6 +171,35 @@ def apply_revision(
         updated = shot_list.with_shot(patched)
         persist_manifest(store, updated)
         return updated
+
+
+def _take_start(store: ProjectStore, shot_list: ShotList, shot: Shot, take: Path, info, skip_copied_lead: bool, align_to_music: bool) -> float:
+    """Where the edit starts reading a new take: after an opening copy of its source, then where its motion meets the music."""
+    lead = _copied_lead_seconds(store, shot_list, shot, take, info) if skip_copied_lead else 0.0
+    return lead + (_music_slip_seconds(store, shot_list, shot, take, info, lead) if align_to_music else 0.0)
+
+
+def _music_slip_seconds(store: ProjectStore, shot_list: ShotList, shot: Shot, take: Path, info, lead: float) -> float:
+    """Seconds to skip so that the motion peaks of the take land on the attacks of the music under the shot. 0 without the music of the project,
+    for a shot cut inside (its sub-cuts already read chosen parts of the take) and for a shot whose words are sung or spoken (the mouth follows
+    the sound from the first frame of the take)."""
+    from . import energy, motion_sync
+    from .beats import read_wav_mono, strong_accents
+    from .timeline import shot_start
+
+    plan = shot.plan or {}
+    music = store.resolve(MUSIC_FILE)
+    if not music.exists() or (plan.get("fx") or {}).get("sub_cuts") or any(
+            marker in str(plan.get("prompt", "")) for marker in ("Lyrics sung in this shot", "Spoken in this shot")):
+        return 0.0
+    samples, rate = read_wav_mono(music)
+    start = float(shot_start(shot_list.source, shot))
+    times, strength = strong_accents(samples, rate)
+    accents = [(float(t) - start, float(w)) for t, w in zip(times, strength) if start <= t < start + shot.target_duration_seconds and w >= .5]
+    fps = float(info.fps)
+    frames = energy.read_gray(take, info.fps)[round(lead * fps):]
+    slip, _, _ = motion_sync.best_slip(frames, fps, accents, math.ceil(shot.target_duration_seconds * fps))
+    return slip / fps
 
 
 def _copied_lead_seconds(store: ProjectStore, shot_list: ShotList, shot: Shot, take: Path, info) -> float:

@@ -13,8 +13,8 @@ PROJECT SETTINGS (set by the user): length {{DURATION}} s, {{FPS}} fps, format {
 
 WHAT THE ENGINE CAN DO (use these, never invent other effects)
 - Cuts inside a shot (`sub_cuts`): several pieces from ONE take, each with its own zoom, focus, flip, speed, look, transition. Cuts are free: they cost no extra generation.
-- Zoom 1 to 4 with a focus point, flip (mirror), speed 0.1 to 8 and speed ramps, looks (mono, contrast, negative).
-- Transitions into a shot or a cut: flash, flash_black, fade_black, fade_white, whip, whip_v, blur, punch, glitch, shake, strobe, invert.
+- Zoom 1 to 4 with a focus point, flip (mirror), speed 0.1 to 8 and speed ramps, looks (mono, contrast, negative, grain, riso, duotone, vhs), time effects (stutter, freeze, echo).
+- Transitions into a shot or a cut: flash, flash_black, fade_black, fade_white, whip, whip_v, blur, punch, glitch, shake, strobe, invert, iris, blinds.
 <<module text_overlays>>
 - Text drawn by the engine (`text`): a title, a product name, a tag, a pattern of repeated words.
 <<end>>
@@ -55,8 +55,8 @@ FIELDS OF A SHOT
 - duration: seconds in the final edit (at least 0.5, normally 0.75 to 2.5). With sub_cuts, their durations add up to it.
 - color: a CSS color that only color-codes the timeline by role. refs: the picture numbers shown in the shot, for example [1] or [1, 2].
 - prompt: the generation prompt of the shot, English, see PROMPTS. image_prompt: the first frame of the shot as a still, English, one sentence. notes: one line, the role of the shot ("Hook: ...", "Burst: ...", "Hold: ...", "Payoff: ...").
-- transition: how the shot starts: "cut", "flash", "flash_black", "fade_black", "fade_white", "whip", "whip_v", "blur", "punch", "glitch", "shake", "strobe", "invert", or {"type": "whip", "frames": 5}.
-- zoom (1-4 or [from, to]) with focus [x, y] (0-1; [0.5, 0.2] is the face of a standing person), flip (true/false), speed (0.1-8) or speed_ramp [from, to], look ("mono", "contrast", "negative").
+- transition: how the shot starts: "cut", "flash", "flash_black", "fade_black", "fade_white", "whip", "whip_v", "blur", "punch", "glitch", "shake", "strobe", "invert", "iris", "blinds", or {"type": "whip", "frames": 5, "direction": "left"}.
+- zoom (1-4 or [from, to]) with focus [x, y] (0-1; [0.5, 0.2] is the face of a standing person), flip (true/false), speed (0.1-8) or speed_ramp [from, to], look ("mono", "contrast", "negative", "grain", "riso", "duotone", "vhs"), time ("stutter", "freeze", "echo").
 <<module text_overlays>>
 - text: {"content", "position": top|bottom|left|right|center|top_left|top_right|bottom_left|bottom_right, "size": 0.03-0.2, "color", "background", "repeat": 1-12, "rotate": -45..45}. Only text the user gave; at most 3 per edit, 1 to 3 words.
 <<end>>

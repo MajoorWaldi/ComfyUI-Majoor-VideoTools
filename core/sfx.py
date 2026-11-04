@@ -8,7 +8,8 @@ from .errors import MajoorError
 RATE = 48000
 # the transition into a cut -> the sound under it; a plain cut that opens a shot is a soft "hit"
 CUES = {"flash": "shutter", "flash_black": "impact", "fade_black": "swell", "fade_white": "swell", "whip": "whoosh", "whip_v": "whoosh", "blur": "whoosh",
-        "punch": "hit", "glitch": "glitch", "shake": "hit", "strobe": "glitch", "invert": "impact"}
+        "punch": "hit", "glitch": "glitch", "shake": "hit", "strobe": "glitch", "invert": "impact", "iris": "swell", "blinds": "shutter"}
+TIME_CUES = {"stutter": "glitch", "freeze": "impact", "echo": "whoosh"}  # the sound of a time effect, at the start of its cut when no transition already sounds there
 GAINS = {"shutter": 0.55, "impact": 0.85, "swell": 0.4, "whoosh": 0.6, "hit": 0.5, "glitch": 0.45}
 # seconds before the cut where each sound starts, so that its weight lands on the cut: a whoosh peaks in the middle of its length, a swell near its end
 LEAD = {"whoosh": 0.27, "swell": 0.72}

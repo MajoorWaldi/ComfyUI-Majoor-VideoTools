@@ -39,7 +39,7 @@ def kinetic_lyrics(start, end, words, accent_color="#ffd60a", position="bottom")
             continue
         accent = word.get("accent", False)
         rows.append(_text(word["word"], a, b, position=position, size=.11 if accent else .07, font="impact",
-                          color=accent_color if accent else "white", animation="pop" if accent else "fade", out="fade"))
+                          color=accent_color if accent else "white", animation="pop" if accent else "fade", out="fade", reading="exact"))  # a word lasts as long as it is sung
     return rows
 
 
@@ -112,11 +112,22 @@ def title_behind(start, end, title, size=.2, color="white"):
     return [_text(title.upper(), start, end, position="center", size=size, font="impact", color=color, animation="fade", behind=True, safe=False)]
 
 
+def title_through(start, end, title, size=.2, color="white"):
+    """A big title in front of the picture, then the subject passes in front of it. Needs the subject mask."""
+    return [_text(title.upper(), start, end, position="center", size=size, font="impact", color=color, animation="scale_pop", behind="through", safe=False)]
+
+
+def title_emerge(start, end, title, size=.2, color="white"):
+    """A big title hidden behind the subject that comes out in front of it. Needs the subject mask."""
+    return [_text(title.upper(), start, end, position="center", size=size, font="impact", color=color, animation="fade", behind="emerge", safe=False)]
+
+
 TEMPLATES = {"end_card": end_card, "rec_hud": rec_hud, "caption_mono": caption_mono, "punch_word": punch_word, "kinetic_lyrics": kinetic_lyrics,
              "flash_hit": flash_hit, "whip_wipe": whip_wipe, "letterbox": letterbox, "polaroid_frame": polaroid_frame,
              "glitch_hit": glitch_hit, "zoom_punch": zoom_punch, "split_diagonal": split_diagonal, "split_stack": split_stack, "circle_mask": circle_mask,
              "picture_in_picture": picture_in_picture, "cutout_echo": cutout_echo, "sticker": sticker,
-             "tiles_grid": tiles_grid, "particles": particles, "title_behind": title_behind}
+             "tiles_grid": tiles_grid, "particles": particles, "title_behind": title_behind,
+             "title_through": title_through, "title_emerge": title_emerge}
 SHARED = ("shot_id", "scene", "event_role", "sfx", "sync")  # keys of a row that belong to every layer of its template
 
 
