@@ -17,7 +17,7 @@ Source: the audit document "HyperKut Studio — Audit & plan créatif" of 2026-1
 - [x] Accent words get a bigger size and a color (`kinetic_lyrics` template)
 - [x] 11 fonts: `impact`, `clean`, `serif`, `mono`, `garamond`, `code`, `league`, `archivo`, `montserrat`, `poppins`, `space` (SIL OFL, resolved by the HyperFrames compiler; the first render of a family needs the network). The frame renderer uses system fonts
 - [x] New animations `scale_pop`, `blur_in`, `wiggle`, `mask_reveal`, `scramble`, `split_letters`, `karaoke_fill` (HyperFrames compositor; the frame renderer of `core/motion.py` approximates them: letters appear, no blur)
-- [x] Text behind the subject (`behind: true`, template `title_behind`; both renderers, needs the subject mask)
+- [x] Text behind the subject (`behind: true`, or `"through"` / `"emerge"` to pass behind or come out halfway; templates `title_behind`, `title_through`, `title_emerge`; both renderers, needs the subject mask)
 - [x] Particles: Lottie stickers (`burst`, `sparkle`) and the parametric `particles` effect (count, speed, size, color; fixed formula, repeatable)
 
 ## P2 Motion library

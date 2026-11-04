@@ -57,7 +57,7 @@ def readability(layers, width, height, duration):
         length=float(row.get('end') or duration)-float(row.get('start',0))
         required = animated_reading_budget(str(row.get('content', '')), row.get('animation','none'),
                                            float(row.get('in_time',.25)),row.get('out','none'),row.get('repeat',1))
-        if length + 1e-6 < required:
+        if length + 1e-6 < required and row.get('reading') not in ('texture', 'exact'):  # a texture is not meant to be read; the words of a lyric last as long as they are sung
             warnings.append({'layer':index,'kind':'short_reading_window'})
         if height*row.get('size',.08)<18:
             warnings.append({'layer':index,'kind':'small_text'})
@@ -67,7 +67,26 @@ def readability(layers, width, height, duration):
             x,y=row['x']+motion.get('x',0),row.get('y',0)+motion.get('y',0)
             if x<0 or x>.92 or y<0 or y+row.get('size',.08)>.95:
                 warnings.append({'layer':index,'kind':'possible_clipping'})
+    warnings += competing(layers, duration)
     return {'warnings':warnings,'method':'timing, nominal text size and explicit final placement; no semantic or face analysis'}
+
+
+def competing(layers, duration):
+    """Layers that fight for the same moment: two effects of one kind at once (the second one hides the first), or two texts at one place at once."""
+    found = []
+    def window(row):
+        return float(row.get('start', 0)), float(row.get('end') or duration)
+    for i, row in enumerate(layers):
+        for j in range(i):
+            other = layers[j]
+            (a, b), (c, d) = window(row), window(other)
+            if min(b, d) - max(a, c) <= 1e-6:
+                continue
+            if row['type'] == other['type'] == 'effect' and row.get('kind') == other.get('kind'):
+                found.append({'layer': i, 'with': j, 'kind': 'competing_effects'})
+            elif row['type'] == other['type'] == 'text' and 'x' not in row and 'x' not in other and row.get('position') == other.get('position'):
+                found.append({'layer': i, 'with': j, 'kind': 'competing_texts'})
+    return found
 
 
 def sound_events(rows, timeline, duration, fps, hits=()):

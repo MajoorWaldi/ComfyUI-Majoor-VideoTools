@@ -16,6 +16,24 @@ def _local_seconds(value, length):
     return number * length / 100 if percent else number
 
 
+def readable_hold(row, high, fps):
+    """A text is either a message, held long enough to be read, or a texture, a flash of a word that is not meant to be read.
+    A text shorter than its reading time is lengthened inside its shot; when the shot is too short to read it, it becomes a texture:
+    it keeps its entrance (words or letters may still come one by one), loses its fade out and stays to the end of the shot.
+    Returns the fields to change (none for a readable text)."""
+    from .text_timing import animated_reading_budget
+
+    if row.get('reading') == 'exact':  # words of a lyric: each leaves when the next one comes, a longer hold would pile them up
+        return {}
+    start, end = row['start'], row['end']
+    required = animated_reading_budget(str(row['content']), row.get('animation', 'none'), float(row.get('in_time', .25)), row.get('out', 'none'), row.get('repeat', 1))
+    if end - start + 1e-6 >= required:
+        return {}
+    if start + required <= high + 1e-6:
+        return {'end': min(high, math.ceil((start + required) * fps) / fps), 'reading': 'lengthened'}
+    return {'end': high, 'out': 'none', 'reading': 'texture'}
+
+
 def shot_layers(text, timeline, duration, fps, hits=()):
     data = json.loads(text or '[]')
     rows = data.get('layers', []) if isinstance(data, dict) else data
@@ -111,6 +129,8 @@ def shot_layers(text, timeline, duration, fps, hits=()):
             alignment.append({'layer': index, 'shot_id': sid, 'requested': before, 'start': start,
                               'matched': bool(candidates)})
         row.update(start=start, end=end)
+        if row.get('type') == 'text' and str(row.get('content', '')).strip():
+            row.update(readable_hold(row, high, fps))
         for name in ('id','after','after_phase','delay','duration','design'):
             row.pop(name,None)
         resolved.append(row)

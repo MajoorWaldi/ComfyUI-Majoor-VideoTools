@@ -37,6 +37,7 @@ FONTS = ("impact", "clean", "serif", "mono", "garamond", "code", "league", "arch
 LOTTIE_DIR = Path(__file__).resolve().parents[1] / "web/lottie"
 LETTER_REVEALS = ("mask_reveal", "scramble", "split_letters", "karaoke_fill")  # the frame renderer shows these as letters appearing; HyperFrames draws each one
 OUTLINES = ("solid", "double", "dashed", "neon")
+REVEALS = ("through", "emerge")
 ANCHORS = ("subject_top", "subject_center", "subject_bottom", "subject_left", "subject_right")
 SHAPES = ("none", "dot", "ring", "cross")
 MAX_LAYERS = 120
@@ -118,7 +119,12 @@ def _layer(row, where: str, length: float) -> dict:
         layer["font"] = str(row.get("font", "impact")) if row.get("font", "impact") in FONTS else "impact"
         layer["safe"] = bool(row.get("safe", True))
         layer['accent_last'] = bool(row.get('accent_last', True))
-        layer['behind'] = layer['needs_mask'] = bool(row.get('behind', False)) and kind == 'text'  # behind the subject: the subject mask cuts it out of the picture
+        if row.get('reading') in ('lengthened', 'texture', 'exact'):  # set when the layer was timed in its shot (motion_timing.readable_hold)
+            layer['reading'] = row['reading']
+        reveal = row.get('behind', False)
+        reveal = reveal if reveal in REVEALS else bool(reveal)  # through: in front, then the subject passes in front of it; emerge: behind, then in front
+        layer['behind'] = reveal if kind == 'text' else False  # behind the subject: the subject mask cuts it out of the picture
+        layer['needs_mask'] = bool(layer['behind'])
         times = row.get('word_times')
         if times is not None:
             if isinstance(times, list) and len(times) <= 120 and not any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v < 0 for v in times) and times == sorted(times):
@@ -193,6 +199,17 @@ def parse_layers(text: str, length: float, skipped: list | None = None) -> list[
             if skipped is not None:
                 skipped.append(str(error))
     return layers
+
+
+def behind_at(layer: dict, t: float, length: float) -> bool:
+    """Whether a text is behind the subject at the time t: always for behind=True, after the middle of the layer for "through", before it for "emerge"."""
+    mode = layer.get("behind")
+    if mode in (None, False):
+        return False
+    if mode is True:
+        return True
+    middle = (layer["start"] + (layer["end"] if layer["end"] is not None else length)) / 2
+    return t >= middle if mode == "through" else t < middle
 
 
 def needs_mask(layers: list[dict]) -> bool:
@@ -636,7 +653,7 @@ def draw_layers(frame: np.ndarray, layers: list[dict], t: float, length: float, 
     margin = int(min(width, height) * 0.05)
     if tracker is not None:
         tracker.update(layers, cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY), t, subject)
-    untouched = frame.copy() if subject is not None and any(x.get("behind") for x in layers) else None
+    untouched = frame.copy() if subject is not None and any(behind_at(x, t, length) for x in layers) else None
     for n, layer in enumerate(layers):
         state = _state(layer, t, length, index * 31 + n)
         if state is None:
@@ -663,7 +680,7 @@ def draw_layers(frame: np.ndarray, layers: list[dict], t: float, length: float, 
             grown = state["scale"] != 1.0  # a text that pops grows around its center
             x, y = x + int(state["dx"] * width) + ((full.width - sprite.width) // 2 if grown else 0), y + int(state["dy"] * height) + ((full.height - sprite.height) // 2 if grown else 0)
             _paste(frame, sprite, x, y, state["alpha"])
-            if layer.get("behind") and untouched is not None:
+            if behind_at(layer, t, length) and untouched is not None:
                 keep = subject[..., None]
                 frame[:] = (frame * (1 - keep) + untouched * keep).astype(np.uint8)
         else:

@@ -18,13 +18,13 @@ from .delivery_profiles import get_profile, output_options, qualify_inputs, vali
 from .editorial_graph import compile_project
 from .export_transaction import export_lock, durable_audio
 from .beats import read_wav_mono, strong_accents, write_wav
-from .errors import AssemblyError, MediaError, ShotNotFoundError
+from .errors import AssemblyError, MajoorError, MediaError, ShotNotFoundError
 from .fingerprints import file_fingerprint, json_fingerprint
 from .fx import validate_stored_fx, merged, overlay_filters, render_text, segment_chain, source_seconds, split_filters, split_frames, text_overlay_filters, transition_filters
 from .media_probe import probe
 from .models import ORIGINAL, Shot, ShotList
 from .paths import ProjectStore, sanitize_name
-from .sfx import CUES, RATE as SFX_RATE, plan_cues, render_track
+from .sfx import CUES, RATE as SFX_RATE, TIME_CUES, plan_cues, render_track
 from .sfx_library import load_library
 from .timeline import shot_duration
 from .timeline_edit import EDIT_KEY, MUSIC_GAIN_KEY, take_bounds
@@ -196,6 +196,8 @@ def _fx_segments(shot: Shot, revision_id: str, path: Path, actual: Fraction, fx:
         start = bounded_start(start, need, available, "sub-cut")
         offset = start + need
         transition = (sub or {}).get("transition") if sub and "transition" in sub else (fx.get("transition") if i == 0 else None)
+        if transition and transition["type"] in ("whip", "whip_v") and "direction" not in transition:
+            transition = _directed_whip(transition, path, start + source_offset)
         chain = segment_chain(spec, n, fps, width, height, transition, apply_transition=not composing)
         seek = ["-ss", f"{start + source_offset:.6f}"] if start + source_offset > 0 else []
 
@@ -214,7 +216,7 @@ def _fx_segments(shot: Shot, revision_id: str, path: Path, actual: Fraction, fx:
             layer_spec = {k: spec[k] for k in ("speed", "speed_ramp") if k in spec} | {k: entry[k] for k in ("zoom", "focus", "flip", "look") if k in entry}
             return Layer(source_path, ["-ss", f"{at + layer_offset:.6f}"] if at + layer_offset > 0 else [], segment_chain(layer_spec, n, fps, width, height, None), kind, entry)
 
-        segment = Segment(shot, revision_id, path, seek, has_audio, False, n, Fraction(n) / fps, chain, overlay, overlay_spec=fx.get("text"), overlay_offset=float(elapsed), shot_seconds=target_frames / float(fps), cue=CUES.get(transition["type"], "") if transition else ("hit" if i == 0 else ""),
+        segment = Segment(shot, revision_id, path, seek, has_audio, False, n, Fraction(n) / fps, chain, overlay, overlay_spec=fx.get("text"), overlay_offset=float(elapsed), shot_seconds=target_frames / float(fps), cue=CUES.get(transition["type"], "") if transition else TIME_CUES.get(spec.get("time"), "hit" if i == 0 else ""),
                           audio_speed=float(spec.get("speed", 1.0)), audio_ramp="speed_ramp" in spec)
         if split:
             segment.compose, segment.layout = "split", split["layout"]
@@ -227,6 +229,19 @@ def _fx_segments(shot: Shot, revision_id: str, path: Path, actual: Fraction, fx:
         segments.append(segment)
         elapsed += Fraction(n) / fps
     return segments
+
+
+def _directed_whip(transition: dict, path: Path, start: float) -> dict:
+    """A whip that names no direction travels the way the incoming take moves, so the cut carries its motion on; a still take keeps the plain whip."""
+    from .motion_sync import take_drift, whip_direction
+
+    try:
+        direction = whip_direction(*take_drift(path, start))
+    except (MajoorError, OSError, ValueError):
+        return transition
+    if direction is None:
+        return transition
+    return {**transition, "type": "whip" if direction in ("left", "right") else "whip_v", "direction": direction}
 
 
 def _source_offset(revision, actual):

@@ -45,7 +45,7 @@ def add_camera_moves(shot_list, brief: str = "", seed: int = 0, min_seconds: flo
         plan = dict(shot.plan or {})
         if plan.pop("camera_move", None) is not None:  # the line an earlier run added goes, wherever later steps moved it in the prompt
             plan["prompt"] = "\n".join(line for line in str(plan.get("prompt", "")).splitlines() if not line.startswith(MARK))
-        if (shot.end_frame_exclusive - shot.start_frame) / fps < min_seconds:  # too short for a move to read: it keeps the movement of its source
+        if (shot.end_frame_exclusive - shot.start_frame) / fps < min_seconds:
             previous = None
             done[shot.shot_id] = replace(shot, plan=plan) if shot.plan is not None else shot
             continue

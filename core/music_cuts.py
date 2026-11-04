@@ -6,14 +6,67 @@ from dataclasses import replace
 
 import numpy as np
 
-from .beats import detect_beats
+from .beats import detect_beats, onset_envelope, strong_accents
 from .errors import MajoorError
+from .music_structure import find_downbeats, track_sections
 from .words import parse_words, phrase_groups
 from .template import MIN_SHOT_FRAMES, _find_shots, _json_text, parse_plan
 from .timeline_sources import _with_lengths, group_cuts, merge_plans, plan_from_music, plan_text, protected_action
 
 MODES = ("legacy", "adaptive", "random", "regular", "free", "phrases")
 MIN_TAKE_FRAMES = 22  # the shortest take H3 makes (the 17k+5 grid)
+PULSE_MIN = 0.3  # pulse of a section (autocorrelation of its attacks at the tempo) under which its beats are a metronome the tracker imposed
+SYNCOPATION = 0.15  # share of cuts, at full variation, that land on purpose between two beats in a section cut on the beat
+PHRASE_HOLD = 1.6  # a section cut by phrases holds its shots this much longer
+CHAPTER_SECONDS = 2.0  # a section shorter than this (a lead-in before the first attack) does not open a chapter
+BURST_ACTIVITY = 0.25  # activity from which an adaptive edit may burst: calm intros sit near 0.2, rhythmic verses near 0.3 to 0.45, drops above 0.5
+HIT = 0.7  # strength of an attack that a cut can underline (a flash, a punch); weaker ones only carry the cut
+
+
+def pulse_confidence(samples, rate, bpm):
+    """How regular the attacks of a stretch are at `bpm` (0 to 1), or None when the stretch is too short or silent to tell."""
+    if bpm <= 0 or len(samples) < 2 * rate:
+        return None
+    env, hop = onset_envelope(np.asarray(samples), rate)
+    centered = env - env.mean()
+    power = float(np.dot(centered, centered))
+    lag = max(1, round(60.0 / bpm / hop))
+    if float(np.max(env)) <= 1e-4 or power <= 1e-8 or lag >= len(centered):
+        return None
+    return float(np.clip(np.dot(centered[:-lag], centered[lag:]) / power, 0, 1))
+
+
+def grid_contrast(beats, accents, start, end, bpm):
+    """How much better the beats of a stretch fall on its strong attacks (within 60 ms) than the same grid moved a third of a beat: a real pulse
+    puts its attacks on the grid, a metronome laid on free music does not. The grid is first moved, by at most 0.1 s, to where it meets the most
+    attacks. None with fewer than four beats or no attack."""
+    grid = np.asarray([b for b in beats if start <= b < end])
+    if len(grid) < 4 or not len(accents) or bpm <= 0:
+        return None
+    hit = lambda times: float(np.mean([np.min(np.abs(accents - t)) <= .06 for t in times]))
+    shift = max(np.arange(-.1, .101, .01), key=lambda d: hit(grid + d))  # the grid of the whole track drifts: each section finds its own phase
+    return max(0.0, hit(grid + shift) - hit(grid + shift + 20.0 / bpm))
+
+
+def section_pacing(samples, rate, bpm, duration, beats=()):
+    """The sections of the music, each cut "beat" (on a pulse the tracker can trust) or "phrase" (on phrases and changes of energy: on calm or free
+    music the beat grid is a metronome the tracker invents). The pulse of a section is the stronger of two measures: the regularity of its attacks
+    at the tempo (which dense hi-hats and rolls dilute) and how much its beats fall on its strong attacks (which dense music blurs). A section too
+    short or too quiet to measure takes the pacing of the next one."""
+    samples = np.asarray(samples)[:max(1, math.ceil(duration * rate))]
+    sections = [dict(s) for s in track_sections(samples, rate)] or [{"tag": "intro", "start": 0.0, "end": duration}]
+    times, strength = strong_accents(samples, rate) if bpm > 0 and len(beats) else (np.zeros(0), np.zeros(0))
+    accents = times[strength >= .5]
+    for section in sections:
+        measures = [pulse_confidence(samples[round(section["start"] * rate):round(section["end"] * rate)], rate, bpm),
+                    grid_contrast(beats, accents, section["start"], section["end"], bpm)]
+        known = [m for m in measures if m is not None]
+        section["pulse"] = round(max(known), 3) if known else None
+    measured = [s["pulse"] for s in sections]
+    for i, section in enumerate(sections):
+        pulse = next((m for m in measured[i:] if m is not None), next((m for m in reversed(measured[:i]) if m is not None), None))
+        section["pacing"] = "beat" if bpm > 0 and (pulse is None or pulse >= PULSE_MIN) else "phrase"
+    return sections
 
 
 def vocal_phrases(samples, rate, *, min_pause=.35, min_length=.6):
@@ -80,40 +133,55 @@ def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", densit
 
     bpm, beats = detect_beats(samples, rate)
     hits = band_hits(samples, rate)
-    candidates = {}
+    candidates, kinds = {}, {}
+
+    def candidate(frame, strength, kind):
+        if strength > candidates.get(frame, -1):
+            candidates[frame], kinds[frame] = strength, kind
+
     for band in ("kick", "snare"):
         for seconds, strength in hits[band]:
-            frame = round(seconds * fps)
-            candidates[frame] = max(candidates.get(frame, 0), strength)
+            candidate(round(seconds * fps), strength, "hit" if strength >= HIT else "accent")
     for seconds in beats if bpm > 0 else []:
-        frame = round(float(seconds) * fps)
-        candidates[frame] = max(candidates.get(frame, 0), .25)
+        candidate(round(float(seconds) * fps), .25, "beat")
     if bpm > 0:
+        for seconds in find_downbeats(samples, rate, beats):  # the first beat of a bar weighs more than the others
+            candidate(round(float(seconds) * fps), .5, "downbeat")
         for left, right in zip(beats, beats[1:]):
-            frame = round(float(left + right) / 2 * fps)
-            candidates[frame] = max(candidates.get(frame, 0), .25)
+            candidate(round(float(left + right) / 2 * fps), .25, "offbeat")
+    sections = section_pacing(samples, rate, bpm, duration, beats if bpm > 0 else ())
+    voice = vocal_phrases(samples, rate)
+    for (_, end), (start, _) in zip(voice, voice[1:]):  # the pause between two phrases of the voice
+        candidate(round((end + start) / 2 * fps), .6, "phrase pause")
     candidates = {f: score for f, score in candidates.items() if MIN_SHOT_FRAMES <= f <= total - MIN_SHOT_FRAMES}
+    starts = sorted(round(s["start"] * fps) for before, s in zip(sections, sections[1:])  # a chapter: both sections last long enough to be heard as one
+                    if min(before["end"] - before["start"], s["end"] - s["start"]) >= CHAPTER_SECONDS and MIN_SHOT_FRAMES <= round(s["start"] * fps) <= total - MIN_SHOT_FRAMES)
     # Local RMS and its change describe acoustic pacing, not a guessed emotion.
     hop = max(1, round(rate / 4))
     levels = np.array([np.sqrt(np.mean(chunk.astype(np.float64) ** 2))
                        for start in range(0, min(len(samples), math.ceil(duration * rate)), hop)
                        if len(chunk := samples[start:start + hop])])
-    peak = float(np.max(levels)) if len(levels) else 0
-    levels = levels / peak if peak > 0 else levels
+    peak = float(np.percentile(levels, 95)) if len(levels) else 0  # the loud part of the track, not its single loudest moment
+    levels = np.minimum(levels / peak, 1.0) if peak > 0 else levels
     rng = random.Random(seed)
     baseline = {"auto": 2.5, "low": 4.0, "medium": 2.5, "high": 1.25}[density]
     baseline *= {"calm": 1.35, "dreamy": 1.25, "intense": .8}.get(mood, 1)
-    cuts, position = [], 0
+    cuts, notes, position = [], [], 0
     phrase = []
     while total - position >= 2 * MIN_SHOT_FRAMES:
+        section = next((s for s in reversed(sections) if s["start"] * fps <= position), sections[0])
+        by_phrase = section["pacing"] == "phrase"
         i = min(len(levels) - 1, max(0, round(position / fps * rate / hop)))
-        level = float(levels[i]) if len(levels) else 0
-        previous = float(levels[max(0, i - 4)]) if len(levels) else 0
+        level = float(np.mean(levels[i:i + 4])) if len(levels) else 0  # the second ahead: one quarter of a second is too noisy to judge a passage
+        previous = float(np.mean(levels[max(0, i - 4):i + 1])) if len(levels) else 0
         activity = min(1.0, .7 * level + .3 * abs(level - previous))
         target_seconds = baseline * (1.7 - 1.1 * activity if mode == "adaptive" else 1)
         target_seconds *= math.exp(rng.uniform(-1, 1) * variation * .8)
-        if (not phrase and bpm > 0 and variation > 0
-                and (mode == "random" or activity >= .3)
+        if by_phrase:  # no bursts on an invented grid: longer shots, cut where the music or the voice turns
+            target_seconds *= PHRASE_HOLD
+            phrase = []
+        if (not by_phrase and not phrase and bpm > 0 and variation > 0
+                and (mode == "random" or activity >= BURST_ACTIVITY)
                 and rng.random() < min(1, variation * 2)):
             period = 60.0 / bpm
             hold = max(2, 2 ** round(math.log2(max(1, target_seconds / period * 1.5))))
@@ -131,22 +199,49 @@ def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", densit
         if phrased:
             # Keep accent snapping from turning a half-beat burst into a hold.
             radius = max(1, round(60.0 / bpm * fps * .2))
-        eligible = [(f, strength) for f, strength in candidates.items()
-                    if f >= position + MIN_SHOT_FRAMES and total - f >= MIN_SHOT_FRAMES
-                    and abs(f - target) <= radius]
-        if eligible and sync > 0:
-            target = max(eligible, key=lambda item: sync * item[1] - abs(item[0] - target) / radius)[0]
+        turn = next((f for f in starts if position + MIN_SHOT_FRAMES <= f <= target + 2 * MIN_SHOT_FRAMES), None)  # never step over a section start, never swallow a cut to reach it
+        if turn is not None:  # a new section opens a new chapter: its first frame is a cut
+            opened = next(s for s in sections if round(s["start"] * fps) == turn)
+            target, kind = turn, "start of the " + opened["tag"]
+            if opened["pacing"] == "phrase":  # the rest of a burst carries on into a section cut on the beat, not into one cut by phrases
+                phrase = []
+        else:
+            eligible = [(f, strength) for f, strength in candidates.items()
+                        if f >= position + MIN_SHOT_FRAMES and total - f >= MIN_SHOT_FRAMES
+                        and abs(f - target) <= radius and (not by_phrase or strength >= .5)]
+            offbeats = [item for item in eligible if kinds[item[0]] == "offbeat"]
+            kind = "free"
+            if offbeats and not by_phrase and not phrased and sync > 0 and rng.random() < SYNCOPATION * variation:
+                target = min(offbeats, key=lambda item: abs(item[0] - target))[0]  # a syncopation, on purpose
+                kind = "offbeat"
+            elif eligible and sync > 0:
+                target = max(eligible, key=lambda item: sync * item[1] - abs(item[0] - target) / radius)[0]
+                kind = kinds[target]
         cuts.append(target)
+        notes.append(_pacing_note(next((s for s in reversed(sections) if s["start"] * fps <= target), sections[0]), kind))
         position = target
     warnings = []
     if not candidates:
         warnings.append("No reliable musical accents; using varied narrative timing without a beat grid")
     bounds = [0, *cuts, total]
-    return {"fps": fps, "shots": [{"duration_frames": b - a, "prompt": "",
-                                  "notes": f"{mode} music pacing"} for a, b in zip(bounds, bounds[1:])]}, {
+    # each shot says where it sits in the music and what its first frame lands on, for the planner: a hit is worth a flash or a punch, a pulse only a cut
+    opening = [_pacing_note(sections[0], "free"), *notes]
+    return {"fps": fps, "shots": [{"duration_frames": b - a, "prompt": "", "notes": f"{mode} music pacing; {note}"}
+                                  for (a, b), note in zip(zip(bounds, bounds[1:]), opening)]}, {
         "bpm": float(bpm) if bpm > 0 else None, "beat_times": [float(t) for t in beats] if bpm > 0 else [], "warnings": warnings,
         "timing_source": "measured_accents" if candidates else "narrative",
+        "sections": [{k: s[k] for k in ("tag", "start", "end", "pacing", "pulse")} for s in sections],
     }
+
+
+def _pacing_note(section, kind):
+    """The note of a shot: the section it opens in, how that section is cut, and what its first frame lands on."""
+    pacing = "cut by phrases" if section["pacing"] == "phrase" else "cut on the beat"
+    if kind == "free":
+        return f"{section['tag']}, {pacing}"
+    if kind.startswith("start"):
+        return f"{section['tag']}, {pacing}; opens the {section['tag']}"
+    return f"{section['tag']}, {pacing}; starts on {'an' if kind[0] in 'aeiou' else 'a'} {kind}"
 
 
 def burst_takes(plan: dict) -> dict:

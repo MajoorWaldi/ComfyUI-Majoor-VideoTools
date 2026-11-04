@@ -66,6 +66,10 @@ window.__majoorLayers = {
         const wrap=()=>String(l.content).split('\n').flatMap(line=>{const lines=[];let current='';for(const word of line.split(/\s+/)){const next=current?current+' '+word:word;if(current&&ctx.measureText(next).width>maxWidth){lines.push(current);current=word;}else current=next;}lines.push(current);return lines;});
         rows=wrap();const needed=px*1.15*rows.length*(l.repeat||1);
         if(needed>boxHeight*.96){px=Math.max(1,px*boxHeight*.96/needed);font();rows=wrap();}
+      } else if(l.behind){
+        // a title behind or through the subject stays whole inside the frame, as big as the width allows
+        const widest=Math.max(1,...rows.map(v=>ctx.measureText(v).width)),room=W-2*margin;
+        if(widest>room){px=Math.max(1,px*room/widest);font();}
       }
       const fullWidth=Math.max(...rows.map(v=>ctx.measureText(v).width));
       const totalHeight=px*1.15*rows.length*(l.repeat||1),pos=positions[l.position]||positions.center;
@@ -214,7 +218,8 @@ window.__majoorLayers = {
       const index=clamp(Math.floor(t*config.fps+1e-5),0,(assets.count||Math.round(config.duration*config.fps))-1);
       ctx.clearRect(0,0,W,H);
       if(assets.footage){const path=assets.frame_paths?assets.frame_paths[index]:assets.frame_pattern+String(index).padStart(6,'0')+'.png';if(path){const frame=await image(path);ctx.drawImage(frame,0,0,W,H);}}
-      const behind=layers.map((l,n)=>[l,n]).filter(([l])=>l.type==='text'&&l.behind);
+      const behindAt=l=>{if(l.type!=='text'||!l.behind)return false;if(l.behind===true)return true;const mid=(l.start+(l.end==null?config.duration:l.end))/2;return l.behind==='through'?t>=mid:t<mid;};
+      const behind=layers.map((l,n)=>[l,n]).filter(([l])=>behindAt(l));
       let drawn=false;
       for(const [l,n] of behind){const s=state(l,t,index,n);if(!s)continue;text(l,s);drawn=true;}
       if(drawn&&assets.footage&&assets.masks&&assets.masks[index]){
@@ -223,7 +228,7 @@ window.__majoorLayers = {
           mc.globalCompositeOperation='source-in';mc.drawImage(base,0,0,W,H);mc.globalCompositeOperation='source-over';ctx.drawImage(maskCanvas,0,0);}
       }
       for(let n=0;n<layers.length;n++){
-        const l=layers[n],s=state(l,t,index,n);if(!s||(l.type==='text'&&l.behind))continue;
+        const l=layers[n],s=state(l,t,index,n);if(!s||behindAt(l))continue;
         if(l.type==='effect'){await effect(l,s,t,index);continue;}
         if(l.type==='lottie'){
           const {player}=lottiePlayer(n,l);
