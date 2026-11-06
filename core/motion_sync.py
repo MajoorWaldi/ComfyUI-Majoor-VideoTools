@@ -9,6 +9,7 @@ import numpy as np
 
 SPREAD = 0.06       # seconds: how far a motion peak may sit from an attack and still count as on it
 MAX_SLIP = 0.5      # seconds: the take never starts later than this, so the action it was asked for stays in the shot
+SHORT_CUT = 22      # frames: a cut shorter than this was generated longer (H3's minimum), so any part of that take may be shown
 MIN_GAIN = 0.25     # a later start must line up this much more attack weight than the start of the take, or the take keeps its start
 
 
@@ -49,7 +50,8 @@ def best_slip(frames: np.ndarray, fps: float, accents, needed: int) -> tuple[int
         return 0, 0.0, 0.0
     base = alignment(peaks, accents, fps, 0, needed)
     best, score = 0, base
-    for slip in range(1, min(round(MAX_SLIP * fps), len(frames) - needed) + 1):
+    reach = len(frames) - needed if needed < SHORT_CUT else round(MAX_SLIP * fps)  # the judge's pick: the window of a short cut is free inside its longer take
+    for slip in range(1, min(reach, len(frames) - needed) + 1):
         value = alignment(peaks, accents, fps, slip, needed)
         if value > score + 1e-9:
             best, score = slip, value

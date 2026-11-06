@@ -62,11 +62,15 @@ def every_n_frames(count: int, every: int, max_frames: int = 0, to_end: bool = T
     return indices
 
 
-def retime_frames(count: int, fps_in: float, fps_out: float) -> list[int]:
-    """The frames that play a clip of `count` frames at `fps_in` in the same time at `fps_out`: frame i of the result shows the moment i / fps_out of the clip."""
+def retime_frames(count: int, fps_in: float, fps_out: float, min_frames: int = 1) -> list[int]:
+    """The frames that play a clip of `count` frames at `fps_in` in the same time at `fps_out`: frame i of the result shows the moment i / fps_out of the clip.
+    A result shorter than `min_frames` is held out to that length (the frames spread evenly, the last one repeats): a model that refuses a reference of fewer frames still gets the shot."""
     if count < 1:
         raise MajoorError("There is no frame to retime.")
     if fps_in <= 0 or fps_out <= 0:
         raise MajoorError("Both frame rates must be positive.")
     out = max(1, round(count * fps_out / fps_in))
-    return [min(count - 1, round(i * fps_in / fps_out)) for i in range(out)]
+    indices = [min(count - 1, round(i * fps_in / fps_out)) for i in range(out)]
+    if len(indices) < min_frames:
+        indices += [indices[-1]] * (min_frames - len(indices))
+    return indices

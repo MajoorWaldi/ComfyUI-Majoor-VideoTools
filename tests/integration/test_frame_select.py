@@ -52,3 +52,6 @@ def test_a_clip_retimed_to_another_frame_rate_lasts_as_long():
     assert retime_frames(15, 30, 24) == [0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 14]  # 0.5 s at 30 fps, 0.5 s at 24 fps
     assert retime_frames(3, 24, 48) == [0, 0, 1, 2, 2, 2]  # each frame shown twice, the last clamped
     assert retime_frames(1, 30, 24) == [0]
+    assert retime_frames(4, 24, 24, min_frames=5) == [0, 1, 2, 3, 3]  # a shot of 4 frames: H3 refuses a reference of fewer than 5, the last frame is held
+    assert retime_frames(1, 30, 24, min_frames=5) == [0] * 5
+    assert retime_frames(12, 24, 24, min_frames=5) == list(range(12))  # a longer clip is left as it is

@@ -6,7 +6,7 @@ from comfy_api.latest import io
 from ..adapters.comfy_video import MajoorShotList, projects_root, video_file
 from ..core.beats import read_wav_mono, write_wav
 from ..core.errors import MajoorError
-from ..core.music_cuts import MODES, apply_music_timing, burst_takes, music_cut_plan
+from ..core.music_cuts import MODES, apply_music_timing, music_cut_plan
 from ..core.prompt_guard import clean_plan_text
 from ..core.template import ASPECTS, PROFILES, SNAP_MODES, create_template
 from ..core.timeline import format_timecode
@@ -144,12 +144,11 @@ class MajoorCreateTimeline(io.ComfyNode):
                 if wav is None:
                     raise MajoorError("source=music needs the music input")
                 samples, sample_rate = read_wav_mono(wav)
-                if music_edit_mode in ("adaptive", "random", "phrases"):
+                if music_edit_mode in ("adaptive", "random", "phrases", "hits"):
                     plan, info = music_cut_plan(samples, sample_rate, duration=source["duration"] or len(samples) / sample_rate, fps=rate, mode=music_edit_mode,
                                                 density=music_cut_density, variation=music_cut_variation, sync=music_cut_sync, seed=music_cut_seed,
                                                 cut_every=music_cut_every, mood=music_cut_mood, words=words_json if words_json and words_json.strip() else None)
-                    cuts, plan = len(plan["shots"]), burst_takes(plan)
-                    text, extra = plan_text(plan), f"{music_edit_mode} pacing: {cuts} cuts in {len(plan['shots'])} takes, long holds, short cuts and bursts that follow the music"
+                    text, extra = plan_text(plan), f"{music_edit_mode} pacing: {len(plan['shots'])} cuts, each its own shot at its own length (a short one is generated longer and shows its best moment)"
                 else:
                     plan, info = plan_from_music(samples, sample_rate, cut_every=source["cut_every"], duration=source["duration"], bpm=source["bpm"],
                                                  beats_per_bar=source["beats_per_bar"], downbeat=source["downbeat"], shots=source["shots"], fps=rate)

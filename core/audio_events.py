@@ -63,6 +63,52 @@ def band_hits(samples: np.ndarray, rate: int, sensitivity: float = 0.5) -> dict[
     return out
 
 
+BASS_HZ = (25.0, 120.0)
+BASS_FRAME, BASS_HOP = 2048, 512
+
+
+def bass_hits(samples: np.ndarray, rate: int, sensitivity: float = 0.5) -> list[tuple[float, float]]:
+    """(time in seconds, strength 0..1) of each entry of the bass: a note or a drop that rises in the low band within about a tenth of a second.
+    The kick band only sees sharp attacks; a bass that comes in smoothly, or a sub drop, has none. Here the level of the band is followed and its rises are picked."""
+    if not 0.0 <= sensitivity <= 1.0:
+        raise MajoorError("sensitivity must be between 0 and 1")
+    samples = np.asarray(samples, dtype=np.float32)
+    if len(samples) < BASS_FRAME + BASS_HOP:
+        return []
+    window = np.hanning(BASS_FRAME).astype(np.float32)
+    columns = (np.fft.rfftfreq(BASS_FRAME, 1.0 / rate) >= BASS_HZ[0]) & (np.fft.rfftfreq(BASS_FRAME, 1.0 / rate) < BASS_HZ[1])
+    if not columns.any():
+        return []
+    frames = np.lib.stride_tricks.sliding_window_view(samples, BASS_FRAME)[::BASS_HOP]
+    level = np.empty(len(frames), dtype=np.float32)
+    for offset in range(0, len(frames), 512):
+        spectrum = np.abs(np.fft.rfft(frames[offset:offset + 512] * window, axis=1))
+        level[offset:offset + 512] = np.log1p(30 * spectrum[:, columns]).sum(axis=1)
+    hop_seconds = BASS_HOP / rate
+    ahead = max(2, round(0.1 / hop_seconds))
+    smooth = np.convolve(level, np.ones(3) / 3, mode="same")
+    if len(smooth) <= ahead + 2:
+        return []
+    rise = np.zeros(len(smooth), dtype=np.float32)
+    rise[:-ahead] = smooth[ahead:] - smooth[:-ahead]
+    rise = np.maximum(rise, 0)
+    peak = float(rise.max())
+    if peak <= 0:
+        return []
+    rise /= peak
+    floor = 0.45 - 0.3 * sensitivity
+    gap = max(1, round(0.15 / hop_seconds))
+    found: list[list[float]] = []
+    for i in range(1, len(rise) - 1):
+        if rise[i] >= rise[i - 1] and rise[i] > rise[i + 1] and rise[i] >= floor:
+            if found and i - found[-1][0] < gap:
+                if rise[i] > found[-1][1]:
+                    found[-1] = [i, float(rise[i])]
+                continue
+            found.append([i, float(rise[i])])
+    return [((i * BASS_HOP + BASS_FRAME / 2) / rate + ahead * hop_seconds / 2, strength) for i, strength in found]  # the middle of the rise, not its start
+
+
 def _listing(times: list[float]) -> str:
     """'every 0.50 s (x4)' for a regular pulse, else the times (relative to the shot start)."""
     if len(times) >= 3:

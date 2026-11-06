@@ -2,6 +2,8 @@
 
 ## Current development version
 
+- Music and Hit sync cuts are no longer joined into bursts: every cut is its own shot at its own length. H3 generates at least 22 frames for it (Text and Music workflows), and Apply Shot Metadata with `align_to_music` shows the part of that longer take whose motion lands on the music, anywhere in the take for a cut shorter than 22 frames.
+- Hit sync, a new editing rhythm of Create Timeline (`music_edit_mode` = `hits`): a cut on the kicks, the snares, the entries of the bass (new `bass_hits`, which follows the level of the low band, so a smooth bass or a sub drop is heard) and the start of each word or burst of voice, the cut pace deciding how many are kept. Dense hits become a burst inside one take. Remix retime: a short reference is held to 5 frames, which MiniMax H3 requires.
 - Remix Plan node and remix_planner skill: the story line, the person, the place and the source of each shot laid on the detected shots of a remix, cuts unchanged. Planned Shot Source renders a shot kept as the source has it (render_source kind "original"); Shot Memory takes the number of reference pictures that come before it.
 - Shot identification, scene splitting, metadata and retained-take assembly.
 - Shared Timeline Edit editor and Studio adapter for frame-based manual montage.

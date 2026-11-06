@@ -233,3 +233,76 @@ def test_bursts_of_short_cuts_become_one_take_cut_up():
     assert [[cut["duration_frames"] for cut in row.get("sub_cuts", [])] for row in takes][1:3] == [[19, 10], [5, 5, 38]]
     assert sum(row["duration_frames"] for row in takes) == sum(lengths) and takes[0]["notes"] == "pacing" and "sub_cuts" not in takes[0]
 
+
+
+def _kicks_and_bass(at_kicks, at_bass, seconds=10, rate=8000):
+    t = np.arange(round(seconds * rate)) / rate
+    wave = np.zeros(len(t))
+    for at in at_kicks:  # a short sharp kick
+        i, n = round(at * rate), round(.06 * rate)
+        wave[i:i + n] += .8 * np.sin(2 * np.pi * 70 * t[:n]) * np.exp(-t[:n] * 70)
+    for at in at_bass:  # a bass that comes in smoothly and holds
+        i, n = round(at * rate), round(.5 * rate)
+        wave[i:i + n] += .6 * np.sin(2 * np.pi * 55 * t[:n]) * np.minimum(1, t[:n] / .08)
+    return wave, rate
+
+
+def _cut_seconds(plan):
+    at, cuts = 0, []
+    for row in plan["shots"][:-1]:
+        at += row["duration_frames"]
+        cuts.append(at / plan["fps"])
+    return cuts
+
+
+def test_hit_sync_cuts_on_every_kick_and_on_the_entry_of_the_bass():
+    kicks, bass = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0], [7.0, 8.5]
+    samples, rate = _kicks_and_bass(kicks, bass)
+    plan, info = music_cut_plan(samples, rate, duration=10, mode="hits", density="high")
+    cuts = _cut_seconds(plan)
+    for hit in [*kicks, *bass]:
+        assert any(abs(c - hit) <= 3 / 24 for c in cuts), hit  # within three frames of each hit
+    assert sum(lengths(plan)) == 240 and min(lengths(plan)) >= 5
+    assert info["timing_source"] == "hits"
+
+
+def test_hit_sync_takes_the_starts_of_words_when_there_are_some():
+    samples, rate = _kicks_and_bass([], [])
+    words = json.dumps([{"word": w, "start": s, "end": s + .15} for w, s in (("cut", 2.0), ("cut", 2.5), ("cut", 3.0), ("go", 6.0))])
+    plan, _ = music_cut_plan(samples, rate, duration=10, mode="hits", density="high", words=words)
+    cuts = _cut_seconds(plan)
+    for at in (2.0, 2.5, 3.0, 6.0):
+        assert any(abs(c - at) <= 1 / 24 for c in cuts), at
+
+
+def test_hit_sync_pace_keeps_fewer_hits_when_slower():
+    samples, rate = _kicks_and_bass([1 + .25 * i for i in range(20)], [])
+    fast = len(music_cut_plan(samples, rate, duration=10, mode="hits", density="high")[0]["shots"])
+    slow = len(music_cut_plan(samples, rate, duration=10, mode="hits", density="low")[0]["shots"])
+    assert fast > slow
+
+
+def test_hit_sync_without_any_hit_is_one_shot():
+    plan, info = music_cut_plan(np.zeros(80000), 8000, duration=10, mode="hits")
+    assert len(plan["shots"]) == 1 and info["warnings"]
+
+
+def test_hit_sync_voice_never_takes_the_place_of_a_kick():
+    kicks = [1.0, 2.0, 3.0, 4.0]
+    samples, rate = _kicks_and_bass(kicks, [])
+    words = json.dumps([{"word": "x", "start": at + .09, "end": at + .2} for at in kicks])  # a word starting just after each kick
+    plan, _ = music_cut_plan(samples, rate, duration=10, mode="hits", density="auto", words=words)
+    cuts = _cut_seconds(plan)
+    for at in kicks:
+        assert any(abs(c - at) <= 2 / 24 for c in cuts), at  # the cut is on the kick, not on the word
+
+
+def test_a_short_cut_may_show_any_part_of_its_longer_take():
+    import numpy as np
+    from majoor_videotools.core.motion_sync import best_slip
+
+    frames = np.zeros((22, 16, 16), dtype=np.uint8)
+    for i in range(22):  # the picture sits still, then jumps at frame 15
+        frames[i] = 0 if i < 15 else 200
+    slip, score, base = best_slip(frames, 24.0, [(0.0, 1.0)], 5)
+    assert 13 <= slip <= 17, slip

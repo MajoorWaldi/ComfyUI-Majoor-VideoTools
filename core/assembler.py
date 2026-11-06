@@ -152,6 +152,19 @@ def ordered_shots(shot_list: ShotList, opts: AssemblyOptions) -> list[Shot]:
     return sorted(shot_list.shots, key=lambda s: s.timeline_index)
 
 
+def plain_cuts(cuts: list[dict], available: float, fps) -> list[dict]:
+    """The cuts of a take with no effect: only their lengths and, where the plan gives none, a start of their own. Cuts that played one after the other from the same take
+    would make no visible cut, so each one without a start reads another part of the take (a fixed spread, so the same plan always gives the same edit)."""
+    out = []
+    for i, cut in enumerate(cuts):
+        item = {k: v for k, v in cut.items() if k in ("frames", "start")}
+        if i and "start" not in item:
+            room = max(0.0, available - item["frames"] / float(fps))
+            item["start"] = round(((i * 0.381966) % 1) * room, 3)
+        out.append(item)
+    return out
+
+
 def _fx_segments(shot: Shot, revision_id: str, path: Path, actual: Fraction, fx: dict, target_frames: int, fps: Fraction, width: int, height: int, store: ProjectStore,
                  use_sub_cuts: bool = True, resolve_take: Callable[[str], tuple[Path, Fraction] | tuple[Path, Fraction, float] | None] | None = None, warnings: list[str] | None = None,
                  has_audio: bool = False, source_offset: float = 0.0, allow_padding: bool = False) -> list[Segment]:
@@ -345,8 +358,10 @@ def _plan(shot_list: ShotList, store: ProjectStore, opts: AssemblyOptions, fps: 
             transitions=[fx.get('transition'),*(c.get('transition') for c in fx.get('sub_cuts',[]))]
             warnings.extend(f'{shot.shot_id}: {t["approximation"]}' for t in transitions if t and t.get('approximation'))
             warnings.extend(f'{shot.shot_id}: effect left out: {note}' for note in fx.get('ignored', []))
-        if fx and not keep and opts.effects:  # effects of a timeline plan: sub-cuts, speed, zoom, transition, text
-            segments += _fx_segments(shot, revision.revision_id, path, generated.duration, fx if opts.text else {k: v for k, v in fx.items() if k != "text"}, target_frames, fps, width, height, store, opts.sub_cuts, resolve_take, warnings,
+        cuts_only = bool(fx and not opts.effects and opts.sub_cuts and fx.get("sub_cuts"))  # the cuts of the music are not an effect: with the effects off they still cut the take, plainly
+        if fx and not keep and (opts.effects or cuts_only):  # effects of a timeline plan: sub-cuts, speed, zoom, transition, text
+            plan_fx = fx if opts.effects else {"sub_cuts": plain_cuts(fx["sub_cuts"], float(actual), fps)}
+            segments += _fx_segments(shot, revision.revision_id, path, generated.duration, plan_fx if opts.text else {k: v for k, v in plan_fx.items() if k != "text"}, target_frames, fps, width, height, store, opts.sub_cuts, resolve_take, warnings,
                                      generated.has_audio, source_offset, opts.duration_policy == "trim_or_pad_last_frame")
             continue
         fps_filter = f"fps={fps.numerator}/{fps.denominator}"

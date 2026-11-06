@@ -32,6 +32,7 @@ def punch_word(start, end, word, color="white"):
 def kinetic_lyrics(start, end, words, accent_color="#ffd60a", position="bottom"):
     """One layer per word, each shown from its own start to the end of its run; words flagged `accent` are bigger and colored."""
     rows = []
+    words = [{**w, "word": shown} for w in words if (shown := w["word"].replace(",", "").replace("，", "").replace("،", "").strip())]  # a lyric never shows its commas
     for i, word in enumerate(words):
         following = words[i + 1]["start"] if i + 1 < len(words) else word.get("end", end) + .3  # a word leaves when the next one comes
         a, b = max(word["start"], start), min(following, end)
