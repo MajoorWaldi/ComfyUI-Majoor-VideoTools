@@ -72,7 +72,7 @@ class MajoorCreateTimeline(io.ComfyNode):
                 io.Float.Input("fps", default=0.0, min=0.0, max=240.0, step=0.001, tooltip="0: automatic (the JSON's fps, the video's fps, or 24)."),
                 io.Combo.Input("aspect_ratio", options=["auto", *ASPECTS], default="auto", tooltip="auto: the JSON's, the video's, or 16:9."),
                 io.Int.Input("resolution", default=768, min=64, max=4096, tooltip="Longest side of the placeholder video."),
-                io.Combo.Input("generation_profile", options=list(PROFILES), default="minimax_h3", tooltip="minimax_h3 asks generators for at least 124 frames, on the 17k+5 grid. generation_frames of Select Shot gives the number to request."),
+                io.Combo.Input("generation_profile", options=list(PROFILES), default="minimax_h3", tooltip="The video generator the shots are planned for (the files of the generators folder): none asks for the length of the shot as it is, minimax_h3 for at least 124 frames on the 17k+5 grid, an API model such as seedance_2_5 or wan_3_0 for whole seconds within what it can make. generation_frames of Select Shot gives the number to request; a shot the generator cannot make is reported in the warnings."),
                 io.Audio.Input("music", optional=True, tooltip="Required by source=music. With json it is the master audio of the timeline (cut_snap uses it). Keep it with audio_policy=source_master in Shot Assemble."),
                 io.Video.Input("video", optional=True, tooltip="Required by source=video."),
                 io.Boolean.Input("preview_thumbnails", default=True, optional=True),

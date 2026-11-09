@@ -1,0 +1,25 @@
+{
+  "id": "wan_3_0",
+  "kind": "video",
+  "title": "Wan 3.0 (API)",
+  "source": "api",
+  "node": "Wan3ReferenceToVideoApi",
+  "model": "wan3.0-video",
+  "cost": "credits",
+  "duration": {
+    "mode": "seconds",
+    "min": 2,
+    "max": 30,
+    "step": 1
+  },
+  "inputs": {
+    "images": 10,
+    "videos": 5,
+    "audios": 5,
+    "first_frame": false,
+    "last_frame": false
+  },
+  "audio": "native",
+  "prompt_skill": "",
+  "notes": "Reference to Video; the reference videos and the output together must not exceed 30 s. Image-to-video with first and last frame is Wan3ImageToVideoApi."
+}

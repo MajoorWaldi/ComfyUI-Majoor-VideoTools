@@ -17,6 +17,7 @@ from ..adapters.ffmpeg import run_ffmpeg
 from .beats import accent_candidates, accent_strength, align_grid_to_onsets, detect_beats, read_wav_mono, strong_accents
 from .errors import MajoorError
 from .card_text import draw_card_text
+from .generators import check_shot, generation_frames_for, list_generators
 from .fx import SUB_MIN_FRAMES, describe_shot, parse_fx, split_frames
 from .fingerprints import file_fingerprint, json_fingerprint
 from .media_probe import probe
@@ -27,7 +28,7 @@ from .story import story_fields, story_warnings
 from .scene_detection import _with_thumbnail, build_shots, build_source, persist_manifest
 
 ASPECTS = {"16:9": (16, 9), "9:16": (9, 16), "1:1": (1, 1)}
-PROFILES = ("none", "minimax_h3")
+PROFILES = ("none", *list_generators("video"))  # a generator of the generators/ folder; none asks for the length of the shot as it is
 SNAP_MODES = ("off", "half_beat", "beat", "bar")
 H3_MIN_FRAMES = 124
 H3_STEP = 17  # valid lengths are 17k + 5
@@ -76,11 +77,11 @@ class Plan:
     shots: tuple[PlanShot, ...]
 
 
-def generation_frames(target_frames: int, profile: str) -> int:
-    """Frames to ask a generator for so that trimming to target_frames is possible."""
-    if profile == "minimax_h3":
-        return max(H3_MIN_FRAMES, 5 + H3_STEP * math.ceil(max(target_frames - 5, 0) / H3_STEP))
-    return target_frames
+def generation_frames(target_frames: int, profile: str, fps=None) -> int:
+    """Frames to ask a generator for so that trimming to target_frames is possible. fps: needed by a generator that works in seconds."""
+    if profile == "none":
+        return target_frames
+    return generation_frames_for(profile, target_frames, fps)
 
 
 def parse_duration(value, fps: Fraction) -> int:
@@ -447,6 +448,10 @@ def create_template(
 
     warnings.extend(story_warnings(plan.shots))
     _check_sources(plan.shots, warnings)
+    if profile != "none":
+        for shot_plan, frames in zip(plan.shots, durations):
+            if not shot_plan.render_source or shot_plan.render_source.get('kind', 'generated') == 'generated':
+                warnings.extend(check_shot(profile, shot_plan.shot_id, frames, plan.fps))
     with store.lock():
         source_path = store.dir / "sources" / "source.mp4"
         music = None
@@ -470,7 +475,7 @@ def create_template(
         shots = []
         for shot, spec, frames in zip(build_shots(source, info, edges), plan.shots, durations):
             source_spec=spec.render_source or {'kind':'generated'}
-            data = {"prompt": spec.prompt, "image_prompt": spec.image_prompt, "notes": spec.notes, "generation_frames": generation_frames(frames, profile) if source_spec['kind']=='generated' else 0,'render_source':source_spec}
+            data = {"prompt": spec.prompt, "image_prompt": spec.image_prompt, "notes": spec.notes, "generation_frames": generation_frames(frames, profile, plan.fps) if source_spec['kind']=='generated' else 0, "generator": profile,'render_source':source_spec}
             if spec.story:
                 data["story"] = dict(spec.story)
             if spec.motion:

@@ -1,0 +1,39 @@
+{
+  "id": "ltx_2_5_fast",
+  "kind": "video",
+  "title": "LTX 2.5 Fast (API)",
+  "source": "api",
+  "node": "LtxApi25ImageToVideo",
+  "model": "LTX-2.5 (Fast)",
+  "cost": "credits",
+  "duration": {
+    "mode": "seconds",
+    "min": 2,
+    "max": 20,
+    "step": 2,
+    "values": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16,
+      18,
+      20
+    ]
+  },
+  "inputs": {
+    "images": 1,
+    "videos": 0,
+    "audios": 0,
+    "first_frame": true,
+    "last_frame": true
+  },
+  "audio": "native",
+  "prompt_skill": "",
+  "notes": "Image to Video (first and last frame); LtxApi25TextToVideo takes text only, LtxApi25AudioToVideo a 2-20 s audio track. Over 10 s needs 720p/1080p and 24/25 fps."
+}
