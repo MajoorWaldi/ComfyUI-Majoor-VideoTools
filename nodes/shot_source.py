@@ -31,7 +31,7 @@ class MajoorShotSource(io.ComfyNode):
         spec=parse_render_source((shot.plan or {}).get('render_source'))
         if spec['kind']=='generated':return io.NodeOutput(True,None)
         store=ProjectStore(projects_root(shot_list),shot_list.project_id)
-        with tempfile.TemporaryDirectory(dir=store.dir/'cache') as temp:
+        with tempfile.TemporaryDirectory(dir=store.resolve('cache')) as temp:
             image_path=None
             if spec['kind']=='still':
                 image=images.get('image'+spec.get('asset','ref1')[3:])
