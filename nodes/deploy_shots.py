@@ -3,6 +3,7 @@ from comfy_api.latest import io
 from server import PromptServer
 
 from ..adapters.comfy_video import MajoorShotList
+from ..core.cost_guard import deploy_notes
 from ..core.deploy import deploy, list_recipes, load_recipe, pick_recipe
 from ..core.errors import MajoorError
 
@@ -56,6 +57,11 @@ def register_routes() -> None:
                 include_finale=bool(body.get("include_finale", True)),
                 replace_existing=bool(body.get("replace_existing", True)),
             )
+            wanted = {str(s) for s in body.get("shots", [])}
+            made = [(str(i["id"]), int(i["frames"])) for i in body.get("shots_info", []) if str(i.get("id")) in wanted and int(i.get("frames", 0)) > 0]
+            notes, questions = deploy_notes(workflow, made, float(body.get("fps", 0)))  # what an API model will cost, before the deployment is kept
+            report.warnings += notes
+            report.confirm += questions
         except MajoorError as e:
             return web.json_response({"error": str(e)}, status=400)
         except (KeyError, TypeError, ValueError) as e:

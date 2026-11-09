@@ -445,10 +445,11 @@ class Report:
     created: list[str] = field(default_factory=list)
     replaced: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    confirm: list[str] = field(default_factory=list)  # questions to ask the user before the deployment is kept (the cost of the edit)
     nodes_added: int = 0
 
     def to_dict(self) -> dict:
-        return {"created": self.created, "replaced": self.replaced, "warnings": self.warnings, "nodes_added": self.nodes_added}
+        return {"created": self.created, "replaced": self.replaced, "warnings": self.warnings, "confirm": self.confirm, "nodes_added": self.nodes_added}
 
 
 def _finale(recipe: dict, template: Block) -> list[dict]:

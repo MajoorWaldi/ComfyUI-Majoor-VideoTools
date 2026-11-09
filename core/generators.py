@@ -6,7 +6,8 @@ hard-coded where a shot is planned. Adding a model is adding a file.
 
 Fields of a file: id, kind (video), title, source (local | api), node (ComfyUI node), model (option of that node), family (h3 | seedance | wan | ltx: which request builder talks to it), cost (free | credits),
 duration ({mode: frames_grid, min_frames, step, offset} or {mode: seconds, min, max, step, values?}),
-inputs ({images, videos, audios: how many, null when unknown; first_frame, last_frame}), audio (native | none), prompt_skill, notes."""
+inputs ({images, videos, audios: how many, null when unknown; first_frame, last_frame}), audio (native | none), prompt_skill, notes,
+price_per_second and price_unit (optional, see cost_guard.py)."""
 import json
 import math
 import re
@@ -37,6 +38,8 @@ class Generator:
     audio: str
     prompt_skill: str
     notes: str
+    price_per_second: float | None = None  # credits (or the unit below) for a second of video; not shipped: the partner nodes show their own price
+    price_unit: str = ""
 
     @property
     def seconds_based(self) -> bool:
@@ -58,6 +61,7 @@ def _parse(path: Path) -> Generator:
             id=str(raw["id"]), kind=str(raw["kind"]), title=str(raw["title"]), source=str(raw["source"]), node=str(raw["node"]),
             model=str(raw.get("model", "")), family=str(raw.get("family", "")), cost=str(raw.get("cost", "free")), duration=dict(raw["duration"]), inputs=dict(raw.get("inputs", {})),
             audio=str(raw.get("audio", "none")), prompt_skill=str(raw.get("prompt_skill", "")), notes=str(raw.get("notes", "")),
+            price_per_second=None if raw.get("price_per_second") is None else float(raw["price_per_second"]), price_unit=str(raw.get("price_unit", "")),
         )
     except (KeyError, TypeError, ValueError) as e:
         raise MajoorError(f"Generator '{path.stem}' is incomplete: {e!r}") from e
@@ -143,4 +147,5 @@ def describe(generator_id: str) -> dict:
     """The file as plain data, for the frontend."""
     gen = load_generator(generator_id)
     return {"id": gen.id, "kind": gen.kind, "title": gen.title, "source": gen.source, "node": gen.node, "model": gen.model, "family": gen.family, "cost": gen.cost,
-            "duration": gen.duration, "inputs": gen.inputs, "audio": gen.audio, "prompt_skill": gen.prompt_skill, "notes": gen.notes}
+            "duration": gen.duration, "inputs": gen.inputs, "audio": gen.audio, "prompt_skill": gen.prompt_skill, "notes": gen.notes,
+            "price_per_second": gen.price_per_second, "price_unit": gen.price_unit}

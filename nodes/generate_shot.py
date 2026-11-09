@@ -1,12 +1,26 @@
 from comfy_api.latest import io
 from comfy_execution.graph_utils import GraphBuilder, is_link
 
+from server import PromptServer
+
 from ..core.api_request import ASPECTS, RESOLUTIONS, build_request
+from ..core.cost_guard import DEFAULT_BUDGET_SECONDS, Ledger
 from ..core.errors import MajoorError
 from ..core.generators import list_generators, load_generator
 
 API = [g for g in list_generators("video") if load_generator(g).source == "api"]
 N_IMAGES = 9
+LEDGER = Ledger()
+
+
+def api_budget(dynprompt) -> int:
+    """MAX API SECONDS of the Generator Select of the graph being run (the default when the graph has none or it is wired to something)."""
+    for node_id in dynprompt.all_node_ids():
+        node = dynprompt.get_node(node_id)
+        if node.get("class_type") == "MajoorGeneratorSelect":
+            value = node.get("inputs", {}).get("max_api_seconds", DEFAULT_BUDGET_SECONDS)
+            return DEFAULT_BUDGET_SECONDS if is_link(value) else int(value)
+    return DEFAULT_BUDGET_SECONDS
 
 
 class MajoorGenerateShot(io.ComfyNode):
@@ -39,6 +53,7 @@ class MajoorGenerateShot(io.ComfyNode):
                 io.Float.Output(display_name="fps"),
             ],
             enable_expand=True,
+            hidden=[io.Hidden.dynprompt],
         )
 
     @classmethod
@@ -57,6 +72,10 @@ class MajoorGenerateShot(io.ComfyNode):
             generator, prompt=prompt, seconds=seconds, aspect=aspect_ratio, resolution=resolution, audio=generate_audio, seed=seed,
             images=[h for h in images if is_link(h)], videos=videos, audios=[audio] if is_link(audio) else [],
         )
+        try:  # the budget of the run: the seconds of this take are counted before the model is called
+            LEDGER.charge(str(getattr(PromptServer.instance, "last_prompt_id", "") or "run"), float(request.inputs["model.duration"]), api_budget(cls.hidden.dynprompt))
+        except ValueError as e:
+            raise MajoorError(str(e)) from e
         for note in request.notes:
             print(f"[Majoor] Generate Shot: {note}")
         api = graph.node(request.class_type, **request.inputs)

@@ -6988,7 +6988,7 @@
       ],
       "size": [
         640,
-        770
+        830
       ],
       "flags": {},
       "order": 0,
@@ -7000,7 +7000,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## SECATOR · Creative Music\n\nDrop **your music** and an idea: the edit is cut on its beats (the cuts on the bars, the effects on the kick and the snare).\nPictures: up to 5 (REF 1 is the hero, kept exactly as shown) and/or one reference video.\n\n1. **YOUR MUSIC**, **REF 1** and **YOUR IDEA**. Set the **EDIT LENGTH**.\n2. Run once: the idea is enhanced, the beats are read, the plan is written (**CREATE TIMELINE**). Press **Create shots** in Deploy Shots (one block per shot appears below).\n3. Run again: each shot gets its H3 prompt (and, with **PLACES**, the empty plate of its place as the last picture) and is generated; **SHOT ASSEMBLE** puts shots, effects and sound together.\n\n**Sound**: your music. With **VOICE ON** (+ the VOICE sample and the DIALOGUE) H3 speaks the lines and the music is mixed under the voices.\n**Music Fit** cuts the strongest window of your music (a drop, starting on a downbeat) to the length of the edit, so a song of three minutes is fine; **MUSIC START** forces the start (seconds). The cuts then follow the beats of that window.\n**Style**: the `profile` of **Skill · timeline_planner** (viral_aura_farming by default; glow_up, outfit_change, beauty_premium, product_advertising, narrative_cinematic, music_video). **CAMERA LOOK**: paste a look of the note.\n**Reference video** (bypassed): its motion guides H3 (`<Video 1>`) and the enhancer ends with the TRICK of the video.\n**Switches** (controls, top): **EFFECTS** (zoom, speed, flip, look, transitions and sub-cuts of the plan, drawn by Shot Assemble), **TEXT** (the planner stops writing text and the assembly draws none) and **MOTION GRAPHICS ON** (the layers of the control; off: the node does not run). **SUBJECT MASK** is only needed by the layers that use the subject.\n**Sound of the shots**: H3 makes a sound with every shot (ambiences, foley, hits). **SOUND DESIGN** keeps it and mixes it with the music, whose volume gives way to it (a compressor keyed by the shots); **SOUND OF THE SHOTS VOLUME** sets its level (0.8). **SOUND EFFECTS** adds a whoosh under a whip, a camera shutter under a flash, an impact, a hit or a glitch under the other cuts of the plan (made by the code, the same every time). With **VOICE ON** the sound of the shots is the voice and the sound design at once.\n**Effects on the beat**: the cuts of the plan, the cuts inside a shot (where the punch-ins, the flips, the flashes and the speed ramps start) and so the sound effects under them snap to the half beats of the music (the `cut_snap` of **CREATE TIMELINE**, `half_beat`; `beat` or `bar` for fewer, `off` to leave them where the planner put them). The beat grid follows the kick.\n**MUSIC SYNC** (off by default): H3 hears the slice of the music under each shot (the reference audio of H3, the same seconds as the shot in the edit) and the prompt says the movement lands on its beats, so the shot moves with the rhythm. H3 may let some of the music into the sound of the shot, which the sound design then mixes under the music. Ignored when a voice sample is given (VOICE ON).\n**Bad takes**: every take is looked at (**Take Check**: eight frames; black or white from start to end, or only noise, is bad; a dark, busy or still shot is not; a smeared face is not caught). With **RETRY BAD TAKES** a bad take is generated again once with another seed, and only then (a second H3 that does not run otherwise).\n**Format and quality**: **FORMAT AND QUALITY** is ComfyUI's Resolution Selector (multiple of 32): the ratio and the megapixels of the video. 0.35 MP (the default, about 448 x 800 for 9:16) is the draft; 0.6 MP is 576 x 1024; 0.98 MP is 768 x 1344, what H3 is made for: measured on a 24 GB GPU, a shot takes about 112 s instead of 48 s (82 s of sampling instead of 21 s) and the card holds it. H3 generates at that size and never above 0.98 MP; the planner is told the ratio.\n**PLACES**: the planner gives each shot a place; the empty plate of a place is made once (FLUX.2 klein) and is the last picture of every shot in that place.\n**Motion graphics**: the control **MOTION GRAPHICS** takes a list of layers (animated texts, boxes, corner brackets, emojis, glitch / chromatic aberration / grid / dots, a contour around the subject, points that follow it) that the **Motion Graphics** node draws over the finished edit; `[]` means none. The contour, the effects aimed at the subject or the background and the points anchored on the subject need **SUBJECT MASK** on (BiRefNet reads about 48 frames of the edit). Example: `[{\"type\": \"text\", \"content\": \"NEW DROP\", \"position\": \"top_left\", \"size\": 0.09, \"color\": \"white\", \"start\": \"0%\", \"end\": \"30%\", \"animation\": \"typewriter\", \"out\": \"fade\"}]`. Hover the control for every field.\n**Video model** (VIDEO MODEL in the controls): `minimax_h3` generates the takes locally with H3; `seedance_2_5`, `wan_3_0`, `ltx_2_5_fast` and `ltx_2_5_pro` call the Comfy API (sign in; each take spends credits, so keep RETRY BAD TAKES off while you try). The plan, the length asked and the take follow the choice and only the chosen branch runs. The API branch of a shot block (**Generate Shot (API)**) has its own aspect ratio and resolution: set them like CREATE TIMELINE (LTX makes 16:9 and 9:16 only; Seedance needs a reference picture or video, so keep one REF on). The prompt of each shot is written by the skill of the model (`seedance_shot_prompt`, `wan_shot_prompt`, `ltx_shot_prompt`; `h3_shot_prompt_from_plan` for H3): Edit Skills in the Shot sub-graph reads the generator and swaps the writer, so the LLM writes @Image / @Video tags for Seedance and Wan, a single flowing paragraph for LTX.\nOptional loaders are bypassed (purple): select one and press Ctrl+B to use it."
+        "## SECATOR · Creative Music\n\nDrop **your music** and an idea: the edit is cut on its beats (the cuts on the bars, the effects on the kick and the snare).\nPictures: up to 5 (REF 1 is the hero, kept exactly as shown) and/or one reference video.\n\n1. **YOUR MUSIC**, **REF 1** and **YOUR IDEA**. Set the **EDIT LENGTH**.\n2. Run once: the idea is enhanced, the beats are read, the plan is written (**CREATE TIMELINE**). Press **Create shots** in Deploy Shots (one block per shot appears below).\n3. Run again: each shot gets its H3 prompt (and, with **PLACES**, the empty plate of its place as the last picture) and is generated; **SHOT ASSEMBLE** puts shots, effects and sound together.\n\n**Sound**: your music. With **VOICE ON** (+ the VOICE sample and the DIALOGUE) H3 speaks the lines and the music is mixed under the voices.\n**Music Fit** cuts the strongest window of your music (a drop, starting on a downbeat) to the length of the edit, so a song of three minutes is fine; **MUSIC START** forces the start (seconds). The cuts then follow the beats of that window.\n**Style**: the `profile` of **Skill · timeline_planner** (viral_aura_farming by default; glow_up, outfit_change, beauty_premium, product_advertising, narrative_cinematic, music_video). **CAMERA LOOK**: paste a look of the note.\n**Reference video** (bypassed): its motion guides H3 (`<Video 1>`) and the enhancer ends with the TRICK of the video.\n**Switches** (controls, top): **EFFECTS** (zoom, speed, flip, look, transitions and sub-cuts of the plan, drawn by Shot Assemble), **TEXT** (the planner stops writing text and the assembly draws none) and **MOTION GRAPHICS ON** (the layers of the control; off: the node does not run). **SUBJECT MASK** is only needed by the layers that use the subject.\n**Sound of the shots**: H3 makes a sound with every shot (ambiences, foley, hits). **SOUND DESIGN** keeps it and mixes it with the music, whose volume gives way to it (a compressor keyed by the shots); **SOUND OF THE SHOTS VOLUME** sets its level (0.8). **SOUND EFFECTS** adds a whoosh under a whip, a camera shutter under a flash, an impact, a hit or a glitch under the other cuts of the plan (made by the code, the same every time). With **VOICE ON** the sound of the shots is the voice and the sound design at once.\n**Effects on the beat**: the cuts of the plan, the cuts inside a shot (where the punch-ins, the flips, the flashes and the speed ramps start) and so the sound effects under them snap to the half beats of the music (the `cut_snap` of **CREATE TIMELINE**, `half_beat`; `beat` or `bar` for fewer, `off` to leave them where the planner put them). The beat grid follows the kick.\n**MUSIC SYNC** (off by default): H3 hears the slice of the music under each shot (the reference audio of H3, the same seconds as the shot in the edit) and the prompt says the movement lands on its beats, so the shot moves with the rhythm. H3 may let some of the music into the sound of the shot, which the sound design then mixes under the music. Ignored when a voice sample is given (VOICE ON).\n**Bad takes**: every take is looked at (**Take Check**: eight frames; black or white from start to end, or only noise, is bad; a dark, busy or still shot is not; a smeared face is not caught). With **RETRY BAD TAKES** a bad take is generated again once with another seed, and only then (a second H3 that does not run otherwise).\n**Format and quality**: **FORMAT AND QUALITY** is ComfyUI's Resolution Selector (multiple of 32): the ratio and the megapixels of the video. 0.35 MP (the default, about 448 x 800 for 9:16) is the draft; 0.6 MP is 576 x 1024; 0.98 MP is 768 x 1344, what H3 is made for: measured on a 24 GB GPU, a shot takes about 112 s instead of 48 s (82 s of sampling instead of 21 s) and the card holds it. H3 generates at that size and never above 0.98 MP; the planner is told the ratio.\n**PLACES**: the planner gives each shot a place; the empty plate of a place is made once (FLUX.2 klein) and is the last picture of every shot in that place.\n**Motion graphics**: the control **MOTION GRAPHICS** takes a list of layers (animated texts, boxes, corner brackets, emojis, glitch / chromatic aberration / grid / dots, a contour around the subject, points that follow it) that the **Motion Graphics** node draws over the finished edit; `[]` means none. The contour, the effects aimed at the subject or the background and the points anchored on the subject need **SUBJECT MASK** on (BiRefNet reads about 48 frames of the edit). Example: `[{\"type\": \"text\", \"content\": \"NEW DROP\", \"position\": \"top_left\", \"size\": 0.09, \"color\": \"white\", \"start\": \"0%\", \"end\": \"30%\", \"animation\": \"typewriter\", \"out\": \"fade\"}]`. Hover the control for every field.\n**Video model** (VIDEO MODEL in the controls): `minimax_h3` generates the takes locally with H3; `seedance_2_5`, `wan_3_0`, `ltx_2_5_fast` and `ltx_2_5_pro` call the Comfy API (sign in; each take spends credits, so keep RETRY BAD TAKES off while you try). The plan, the length asked and the take follow the choice and only the chosen branch runs. The API branch of a shot block (**Generate Shot (API)**) has its own aspect ratio and resolution: set them like CREATE TIMELINE (LTX makes 16:9 and 9:16 only; Seedance needs a reference picture or video, so keep one REF on). **Budget**: MAX API SECONDS on VIDEO MODEL (120 by default, 0 = no limit) caps the seconds of video asked for from an API model in one run, retries included. Deploy Shots writes the estimate of the whole edit in its report and asks before a deployment that would go over; Generate Shot (API) stops before the take that would pass it, without calling the model. The prompt of each shot is written by the skill of the model (`seedance_shot_prompt`, `wan_shot_prompt`, `ltx_shot_prompt`; `h3_shot_prompt_from_plan` for H3): Edit Skills in the Shot sub-graph reads the generator and swaps the writer, so the LLM writes @Image / @Video tags for Seedance and Wan, a single flowing paragraph for LTX.\nOptional loaders are bypassed (purple): select one and press Ctrl+B to use it."
       ],
       "title": "GUIDE"
     },
@@ -7009,7 +7009,7 @@
       "type": "MarkdownNote",
       "pos": [
         -760,
-        1620
+        1680
       ],
       "size": [
         760,
@@ -7034,7 +7034,7 @@
       "type": "MarkdownNote",
       "pos": [
         -760,
-        2480
+        2540
       ],
       "size": [
         760,
@@ -7470,6 +7470,15 @@
             "name": "generator"
           },
           "link": null
+        },
+        {
+          "name": "max_api_seconds",
+          "type": "INT",
+          "shape": 7,
+          "widget": {
+            "name": "max_api_seconds"
+          },
+          "link": null
         }
       ],
       "outputs": [
@@ -7485,10 +7494,12 @@
         "Node name for S&R": "MajoorGeneratorSelect"
       },
       "widgets_values": [
-        "minimax_h3"
+        "minimax_h3",
+        120
       ],
       "widgets_values_named": {
-        "generator": "minimax_h3"
+        "generator": "minimax_h3",
+        "max_api_seconds": 120
       },
       "title": "VIDEO MODEL (H3 local, or an API model)",
       "color": "#323",

@@ -2,6 +2,7 @@ from aiohttp import web
 from comfy_api.latest import io
 from server import PromptServer
 
+from ..core.cost_guard import DEFAULT_BUDGET_SECONDS
 from ..core.generators import describe, generation_frames_for, generation_seconds_for, list_generators, load_generator
 
 VIDEO = list_generators("video")
@@ -15,14 +16,19 @@ class MajoorGeneratorSelect(io.ComfyNode):
             display_name="Generator Select",
             category="Majoor/VideoTools",
             description="The video model of the graph: one choice that every shot block reads. Branches of the shot block are switched on by Generator Is, and Generator Limits gives the length to ask for and what the model accepts.",
-            inputs=[io.Combo.Input("generator", options=VIDEO, default="minimax_h3", tooltip="A file of the generators folder of this pack: add a file there to offer another model.")],
+            inputs=[
+                io.Combo.Input("generator", options=VIDEO, default="minimax_h3", tooltip="A file of the generators folder of this pack: add a file there to offer another model."),
+                io.Int.Input("max_api_seconds", default=DEFAULT_BUDGET_SECONDS, min=0, max=36000, optional=True,
+                             tooltip="The budget of a run, in seconds of video asked for from an API model (every take counts, a retry too). Deploy Shots writes the estimate of the edit and asks before it goes over; Generate Shot (API) stops before the take that would pass it. 0: no limit."),
+            ],
             outputs=[io.String.Output(display_name="generator")],
         )
 
     @classmethod
-    def execute(cls, generator) -> io.NodeOutput:
+    def execute(cls, generator, max_api_seconds=DEFAULT_BUDGET_SECONDS) -> io.NodeOutput:
         gen = load_generator(generator)
-        return io.NodeOutput(gen.id, ui={"text": (f"{gen.title} · {gen.source} · {gen.cost}",)})
+        budget = f" · budget {max_api_seconds} s" if gen.source == "api" and max_api_seconds > 0 else ""
+        return io.NodeOutput(gen.id, ui={"text": (f"{gen.title} · {gen.source} · {gen.cost}{budget}",)})
 
 
 class MajoorGeneratorIs(io.ComfyNode):

@@ -115,6 +115,8 @@ async function create(node) {
       has_plan: payload.shots.some((s) => s.prompt),
       workflow: graph.serialize(),
       shots,
+      shots_info: payload.shots.filter((s) => shots.includes(s.id) && (s.render_source ?? "generated") === "generated").map((s) => ({ id: s.id, frames: s.frames })),
+      fps: payload.source?.fps ?? 0,
       anchor: node.id,
       columns: widgetValue(node, "columns"),
       include_finale: widgetValue(node, "include_finale"),
@@ -125,6 +127,10 @@ async function create(node) {
   if (!response.ok) throw new Error(data.error ?? `HTTP ${response.status}`);
   const { workflow, report } = data;
   if (report.replaced.length && !window.confirm(`Replace the blocks already in the graph for ${report.replaced.join(", ")} with the recipe's blocks?`)) {
+    node._mjrDeployInfo("Cancelled, the graph is unchanged.");
+    return;
+  }
+  if (report.confirm?.length && !window.confirm(report.confirm.join("\n"))) {
     node._mjrDeployInfo("Cancelled, the graph is unchanged.");
     return;
   }
