@@ -5,6 +5,7 @@
   "source": "api",
   "node": "LtxApi25ImageToVideo",
   "model": "LTX-2.5 (Fast)",
+  "family": "ltx",
   "cost": "credits",
   "duration": {
     "mode": "seconds",

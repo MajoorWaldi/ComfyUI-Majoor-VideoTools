@@ -5,6 +5,7 @@
   "source": "api",
   "node": "ByteDance2ReferenceNodeV2",
   "model": "Seedance 2.5",
+  "family": "seedance",
   "cost": "credits",
   "duration": {
     "mode": "seconds",

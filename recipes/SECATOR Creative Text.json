@@ -1,8 +1,8 @@
 {
   "id": "093a5e62-5c7b-4a6e-9a19-05b068f53c04",
   "revision": 0,
-  "last_node_id": 152,
-  "last_link_id": 188,
+  "last_node_id": 168,
+  "last_link_id": 250,
   "nodes": [
     {
       "id": 1,
@@ -222,7 +222,9 @@
           "type": "BOOLEAN",
           "links": [
             56,
-            185
+            185,
+            214,
+            238
           ]
         }
       ],
@@ -3502,6 +3504,12 @@
           "type": "STRING",
           "link": null,
           "shape": 7
+        },
+        {
+          "name": "generator",
+          "type": "STRING",
+          "link": 201,
+          "shape": 7
         }
       ],
       "outputs": [
@@ -3710,7 +3718,9 @@
           "links": [
             91,
             116,
-            140
+            140,
+            205,
+            229
           ]
         },
         {
@@ -4603,7 +4613,9 @@
           "type": "AUDIO",
           "links": [
             118,
-            142
+            142,
+            207,
+            231
           ]
         }
       ],
@@ -4702,7 +4714,9 @@
           "type": "STRING",
           "links": [
             113,
-            137
+            137,
+            204,
+            228
           ]
         }
       ],
@@ -4927,14 +4941,14 @@
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
-            121
+            221
           ]
         },
         {
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            120
+            217
           ]
         }
       ],
@@ -5250,7 +5264,9 @@
           "type": "IMAGE",
           "links": [
             108,
-            132
+            132,
+            208,
+            232
           ]
         }
       ],
@@ -5288,7 +5304,9 @@
           "type": "IMAGE",
           "links": [
             109,
-            133
+            133,
+            209,
+            233
           ]
         }
       ],
@@ -5326,7 +5344,9 @@
           "type": "IMAGE",
           "links": [
             110,
-            134
+            134,
+            210,
+            234
           ]
         }
       ],
@@ -5364,7 +5384,9 @@
           "type": "IMAGE",
           "links": [
             111,
-            135
+            135,
+            211,
+            235
           ]
         }
       ],
@@ -5402,7 +5424,9 @@
           "type": "IMAGE",
           "links": [
             112,
-            136
+            136,
+            212,
+            236
           ]
         }
       ],
@@ -5440,7 +5464,9 @@
           "type": "IMAGE",
           "links": [
             119,
-            143
+            143,
+            206,
+            230
           ]
         }
       ],
@@ -5473,13 +5499,21 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 120
+          "link": 218
         },
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 121,
+          "link": 222,
           "shape": 7
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "link": 226,
+          "widget": {
+            "name": "fps"
+          }
         }
       ],
       "outputs": [
@@ -5849,14 +5883,14 @@
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
-            145
+            245
           ]
         },
         {
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            144
+            241
           ]
         }
       ],
@@ -5901,13 +5935,21 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 144
+          "link": 242
         },
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 145,
+          "link": 246,
           "shape": 7
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "link": 250,
+          "widget": {
+            "name": "fps"
+          }
         }
       ],
       "outputs": [
@@ -6801,7 +6843,7 @@
       ],
       "size": [
         640,
-        600
+        730
       ],
       "flags": {},
       "order": 0,
@@ -6813,7 +6855,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## SECATOR · Creative Text · YuE2\n\nType an **idea**: the planner decides the cuts (how many shots, how long, the cuts inside a shot) from the idea and the **style**; a long soundtrack is made by YuE2 (the **SOUND MOOD** are its tags, the **BPM** is given to it), and **Music Fit** cuts its strongest window, on the bars, to the length of the edit and every cut is then snapped to its beats.\nPictures: up to 5 (REF 1 is the hero, kept exactly as shown) and/or one reference video.\n\n1. **YOUR IDEA**, **SOUND MOOD**, **BPM**, **REF 1**. Set the **EDIT LENGTH**.\n2. Run once: the idea is enhanced, the soundtrack is made, the plan is written (**CREATE TIMELINE**). Press **Create shots** in Deploy Shots (one block per shot appears below).\n3. Run again: each shot gets its H3 prompt (and, with **PLACES**, the empty plate of its place as the last picture) and is generated; **SHOT ASSEMBLE** puts shots, effects and sound together.\n\n**Sound**: a soundtrack made in the mood you ask for. With **VOICE ON** (+ the VOICE sample and the DIALOGUE) H3 speaks the lines and the music is mixed under the voices.\n**Style**: the `profile` of **Skill · timeline_planner** (viral_aura_farming by default; glow_up, outfit_change, beauty_premium, product_advertising, narrative_cinematic, music_video). **CAMERA LOOK**: paste a look of the note.\n**Reference video** (bypassed): its motion guides H3 (`<Video 1>`) and the enhancer ends with the TRICK of the video.\n**Switches** (controls, top): **EFFECTS** (zoom, speed, flip, look, transitions and sub-cuts of the plan, drawn by Shot Assemble), **TEXT** (the planner stops writing text and the assembly draws none) and **MOTION GRAPHICS ON** (the layers of the control; off: the node does not run). **SUBJECT MASK** is only needed by the layers that use the subject.\n**Sound of the shots**: H3 makes a sound with every shot (ambiences, foley, hits). **SOUND DESIGN** keeps it and mixes it with the music, whose volume gives way to it (a compressor keyed by the shots); **SOUND OF THE SHOTS VOLUME** sets its level (0.8). **SOUND EFFECTS** adds a whoosh under a whip, a camera shutter under a flash, an impact, a hit or a glitch under the other cuts of the plan (made by the code, the same every time). With **VOICE ON** the sound of the shots is the voice and the sound design at once.\n**Effects on the beat**: the cuts of the plan, the cuts inside a shot (where the punch-ins, the flips, the flashes and the speed ramps start) and so the sound effects under them snap to the half beats of the music (the `cut_snap` of **CREATE TIMELINE**, `half_beat`; `beat` or `bar` for fewer, `off` to leave them where the planner put them). The beat grid follows the kick.\n**MUSIC SYNC** (off by default): H3 hears the slice of the music under each shot (the reference audio of H3, the same seconds as the shot in the edit) and the prompt says the movement lands on its beats, so the shot moves with the rhythm. H3 may let some of the music into the sound of the shot, which the sound design then mixes under the music. Ignored when a voice sample is given (VOICE ON).\n**Bad takes**: every take is looked at (**Take Check**: eight frames; black or white from start to end, or only noise, is bad; a dark, busy or still shot is not; a smeared face is not caught). With **RETRY BAD TAKES** a bad take is generated again once with another seed, and only then (a second H3 that does not run otherwise).\n**Format and quality**: **FORMAT AND QUALITY** is ComfyUI's Resolution Selector (multiple of 32): the ratio and the megapixels of the video. 0.35 MP (the default, about 448 x 800 for 9:16) is the draft; 0.6 MP is 576 x 1024; 0.98 MP is 768 x 1344, what H3 is made for: measured on a 24 GB GPU, a shot takes about 112 s instead of 48 s (82 s of sampling instead of 21 s) and the card holds it. H3 generates at that size and never above 0.98 MP; the planner is told the ratio.\n**PLACES**: the planner gives each shot a place; the empty plate of a place is made once (FLUX.2 klein) and is the last picture of every shot in that place.\n**Motion graphics**: the control **MOTION GRAPHICS** takes a list of layers (animated texts, boxes, corner brackets, emojis, glitch / chromatic aberration / grid / dots, a contour around the subject, points that follow it) that the **Motion Graphics** node draws over the finished edit; `[]` means none. The contour, the effects aimed at the subject or the background and the points anchored on the subject need **SUBJECT MASK** on (BiRefNet reads about 48 frames of the edit). Example: `[{\"type\": \"text\", \"content\": \"NEW DROP\", \"position\": \"top_left\", \"size\": 0.09, \"color\": \"white\", \"start\": \"0%\", \"end\": \"30%\", \"animation\": \"typewriter\", \"out\": \"fade\"}]`. Hover the control for every field.\nOptional loaders are bypassed (purple): select one and press Ctrl+B to use it."
+        "## SECATOR · Creative Text · YuE2\n\nType an **idea**: the planner decides the cuts (how many shots, how long, the cuts inside a shot) from the idea and the **style**; a long soundtrack is made by YuE2 (the **SOUND MOOD** are its tags, the **BPM** is given to it), and **Music Fit** cuts its strongest window, on the bars, to the length of the edit and every cut is then snapped to its beats.\nPictures: up to 5 (REF 1 is the hero, kept exactly as shown) and/or one reference video.\n\n1. **YOUR IDEA**, **SOUND MOOD**, **BPM**, **REF 1**. Set the **EDIT LENGTH**.\n2. Run once: the idea is enhanced, the soundtrack is made, the plan is written (**CREATE TIMELINE**). Press **Create shots** in Deploy Shots (one block per shot appears below).\n3. Run again: each shot gets its H3 prompt (and, with **PLACES**, the empty plate of its place as the last picture) and is generated; **SHOT ASSEMBLE** puts shots, effects and sound together.\n\n**Sound**: a soundtrack made in the mood you ask for. With **VOICE ON** (+ the VOICE sample and the DIALOGUE) H3 speaks the lines and the music is mixed under the voices.\n**Style**: the `profile` of **Skill · timeline_planner** (viral_aura_farming by default; glow_up, outfit_change, beauty_premium, product_advertising, narrative_cinematic, music_video). **CAMERA LOOK**: paste a look of the note.\n**Reference video** (bypassed): its motion guides H3 (`<Video 1>`) and the enhancer ends with the TRICK of the video.\n**Switches** (controls, top): **EFFECTS** (zoom, speed, flip, look, transitions and sub-cuts of the plan, drawn by Shot Assemble), **TEXT** (the planner stops writing text and the assembly draws none) and **MOTION GRAPHICS ON** (the layers of the control; off: the node does not run). **SUBJECT MASK** is only needed by the layers that use the subject.\n**Sound of the shots**: H3 makes a sound with every shot (ambiences, foley, hits). **SOUND DESIGN** keeps it and mixes it with the music, whose volume gives way to it (a compressor keyed by the shots); **SOUND OF THE SHOTS VOLUME** sets its level (0.8). **SOUND EFFECTS** adds a whoosh under a whip, a camera shutter under a flash, an impact, a hit or a glitch under the other cuts of the plan (made by the code, the same every time). With **VOICE ON** the sound of the shots is the voice and the sound design at once.\n**Effects on the beat**: the cuts of the plan, the cuts inside a shot (where the punch-ins, the flips, the flashes and the speed ramps start) and so the sound effects under them snap to the half beats of the music (the `cut_snap` of **CREATE TIMELINE**, `half_beat`; `beat` or `bar` for fewer, `off` to leave them where the planner put them). The beat grid follows the kick.\n**MUSIC SYNC** (off by default): H3 hears the slice of the music under each shot (the reference audio of H3, the same seconds as the shot in the edit) and the prompt says the movement lands on its beats, so the shot moves with the rhythm. H3 may let some of the music into the sound of the shot, which the sound design then mixes under the music. Ignored when a voice sample is given (VOICE ON).\n**Bad takes**: every take is looked at (**Take Check**: eight frames; black or white from start to end, or only noise, is bad; a dark, busy or still shot is not; a smeared face is not caught). With **RETRY BAD TAKES** a bad take is generated again once with another seed, and only then (a second H3 that does not run otherwise).\n**Format and quality**: **FORMAT AND QUALITY** is ComfyUI's Resolution Selector (multiple of 32): the ratio and the megapixels of the video. 0.35 MP (the default, about 448 x 800 for 9:16) is the draft; 0.6 MP is 576 x 1024; 0.98 MP is 768 x 1344, what H3 is made for: measured on a 24 GB GPU, a shot takes about 112 s instead of 48 s (82 s of sampling instead of 21 s) and the card holds it. H3 generates at that size and never above 0.98 MP; the planner is told the ratio.\n**PLACES**: the planner gives each shot a place; the empty plate of a place is made once (FLUX.2 klein) and is the last picture of every shot in that place.\n**Motion graphics**: the control **MOTION GRAPHICS** takes a list of layers (animated texts, boxes, corner brackets, emojis, glitch / chromatic aberration / grid / dots, a contour around the subject, points that follow it) that the **Motion Graphics** node draws over the finished edit; `[]` means none. The contour, the effects aimed at the subject or the background and the points anchored on the subject need **SUBJECT MASK** on (BiRefNet reads about 48 frames of the edit). Example: `[{\"type\": \"text\", \"content\": \"NEW DROP\", \"position\": \"top_left\", \"size\": 0.09, \"color\": \"white\", \"start\": \"0%\", \"end\": \"30%\", \"animation\": \"typewriter\", \"out\": \"fade\"}]`. Hover the control for every field.\n**Video model** (VIDEO MODEL in the controls): `minimax_h3` generates the takes locally with H3; `seedance_2_5`, `wan_3_0`, `ltx_2_5_fast` and `ltx_2_5_pro` call the Comfy API (sign in; each take spends credits, so keep RETRY BAD TAKES off while you try). The plan, the length asked and the take follow the choice and only the chosen branch runs. The API branch of a shot block (**Generate Shot (API)**) has its own aspect ratio and resolution: set them like CREATE TIMELINE (LTX makes 16:9 and 9:16 only; Seedance needs a reference picture or video, so keep one REF on). The prompt writer still writes the H3 prompt format for now.\nOptional loaders are bypassed (purple): select one and press Ctrl+B to use it."
       ],
       "title": "GUIDE"
     },
@@ -6822,11 +6864,11 @@
       "type": "MarkdownNote",
       "pos": [
         -760,
-        1490
+        1620
       ],
       "size": [
         760,
-        700
+        750
       ],
       "flags": {},
       "order": 0,
@@ -6838,7 +6880,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## DEPENDENCIES\n\n### Node packs\n\n| Pack | Why |\n|---|---|\n| [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | Set / Get nodes: the wires between the sections and the shot blocks |\n| [comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) | DWPreprocessor: the pose map inside the H3 sub-graph (its pose models download on the first run) |\n| [comfyui-easy-use](https://github.com/yolain/ComfyUI-Easy-Use) | frees the GPU memory between steps inside the H3 sub-graph |\n| [ComfyUI-Majoor-VideoTools](https://github.com/MajoorWaldi/ComfyUI-Majoor-VideoTools) | this pack: Scene Detect, Select Shot, Edit Skills, Deploy Shots, Apply Shot Metadata, Shot Assemble |\n\n### Models (ComfyUI/models/...)\n\n| Role | File | Folder | Download |\n|---|---|---|---|\n| LLM vision (reads, writes) | `gemma4_12b_int8_convrot.safetensors` | `text_encoders` | [Comfy-Org/Gemma4](https://huggingface.co/Comfy-Org/Gemma4) · 12.1 GB |\n| LLM (hears, plans) | `gemma4_e4b_it_fp8_scaled.safetensors` | `text_encoders` | [Comfy-Org/Gemma4](https://huggingface.co/Comfy-Org/Gemma4) · 9 GB |\n| H3 · diffusion model | `minimax_h3_ref2va_pruned_int8_convrot.safetensors` | `diffusion_models` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) · 19.5 GB |\n| H3 · turbo LoRA (8 steps) | `minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors` | `loras` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) · your local file: the repo lists `minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors`; pick the one you have in the LoRA node |\n| H3 · text encoder | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · video VAE | `minimax_h3_video_vae_int8_convrot.safetensors` | `vae` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · audio VAE | `minimax_h3_audio_vae_fp32.safetensors` | `vae` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · pose ControlNet | `minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors` | `model_patches` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| Music · YuE2 combined checkpoint | `yue2_3b_int8_convrot.safetensors` | `checkpoints` | [Comfy-Org/YuE2](https://huggingface.co/Comfy-Org/YuE2) |\n| Plate · FLUX.2 klein 4B (Apache 2.0) | `flux-2-klein-4b-fp8.safetensors` | `diffusion_models` | [black-forest-labs/FLUX.2-klein-4b-fp8](https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-fp8) · Apache 2.0; 4-step text-to-image |\n| Plate · text encoder | `qwen_3_4b.safetensors` | `text_encoders` | [Comfy-Org/flux2-klein](https://huggingface.co/Comfy-Org/flux2-klein) · in `split_files/text_encoders/` |\n| Plate · VAE | `flux2-vae.safetensors` | `vae` | [Comfy-Org/flux2-klein](https://huggingface.co/Comfy-Org/flux2-klein) · in `split_files/vae/` |\n| Subject mask · BiRefNet | `birefnet.safetensors` | `background_removal` | [Comfy-Org/BiRefNet](https://huggingface.co/Comfy-Org/BiRefNet) · only for the SUBJECT MASK (outline, effects on the subject, points that follow it) |\n\n### System\n\n- ComfyUI recent enough to have *Generate Text*, MiniMax H3, YuE2, Resolution Selector and background removal nodes, and the sub-graphs.\n- FFmpeg and FFprobe on `PATH`; `pip install -r requirements.txt` in this pack (scenedetect)."
+        "## DEPENDENCIES\n\n### Node packs\n\n| Pack | Why |\n|---|---|\n| [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | Set / Get nodes: the wires between the sections and the shot blocks |\n| [comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) | DWPreprocessor: the pose map inside the H3 sub-graph (its pose models download on the first run) |\n| [comfyui-easy-use](https://github.com/yolain/ComfyUI-Easy-Use) | frees the GPU memory between steps inside the H3 sub-graph |\n| [ComfyUI-Majoor-VideoTools](https://github.com/MajoorWaldi/ComfyUI-Majoor-VideoTools) | this pack: Scene Detect, Select Shot, Edit Skills, Deploy Shots, Apply Shot Metadata, Shot Assemble |\n\n### Models (ComfyUI/models/...)\n\n| Role | File | Folder | Download |\n|---|---|---|---|\n| LLM vision (reads, writes) | `gemma4_12b_int8_convrot.safetensors` | `text_encoders` | [Comfy-Org/Gemma4](https://huggingface.co/Comfy-Org/Gemma4) · 12.1 GB |\n| LLM (hears, plans) | `gemma4_e4b_it_fp8_scaled.safetensors` | `text_encoders` | [Comfy-Org/Gemma4](https://huggingface.co/Comfy-Org/Gemma4) · 9 GB |\n| H3 · diffusion model | `minimax_h3_ref2va_pruned_int8_convrot.safetensors` | `diffusion_models` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) · 19.5 GB |\n| H3 · turbo LoRA (8 steps) | `minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors` | `loras` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) · your local file: the repo lists `minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors`; pick the one you have in the LoRA node |\n| H3 · text encoder | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · video VAE | `minimax_h3_video_vae_int8_convrot.safetensors` | `vae` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · audio VAE | `minimax_h3_audio_vae_fp32.safetensors` | `vae` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · pose ControlNet | `minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors` | `model_patches` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| Music · YuE2 combined checkpoint | `yue2_3b_int8_convrot.safetensors` | `checkpoints` | [Comfy-Org/YuE2](https://huggingface.co/Comfy-Org/YuE2) |\n| Plate · FLUX.2 klein 4B (Apache 2.0) | `flux-2-klein-4b-fp8.safetensors` | `diffusion_models` | [black-forest-labs/FLUX.2-klein-4b-fp8](https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-fp8) · Apache 2.0; 4-step text-to-image |\n| Plate · text encoder | `qwen_3_4b.safetensors` | `text_encoders` | [Comfy-Org/flux2-klein](https://huggingface.co/Comfy-Org/flux2-klein) · in `split_files/text_encoders/` |\n| Plate · VAE | `flux2-vae.safetensors` | `vae` | [Comfy-Org/flux2-klein](https://huggingface.co/Comfy-Org/flux2-klein) · in `split_files/vae/` |\n| Subject mask · BiRefNet | `birefnet.safetensors` | `background_removal` | [Comfy-Org/BiRefNet](https://huggingface.co/Comfy-Org/BiRefNet) · only for the SUBJECT MASK (outline, effects on the subject, points that follow it) |\n\n### System\n\n- API video models (Seedance 2.5, Wan 3.0, LTX 2.5): a signed-in Comfy account with credits (the partner nodes of ComfyUI); nothing to download.\n- ComfyUI recent enough to have *Generate Text*, MiniMax H3, YuE2, Resolution Selector and background removal nodes, and the sub-graphs.\n- FFmpeg and FFprobe on `PATH`; `pip install -r requirements.txt` in this pack (scenedetect)."
       ],
       "title": "DEPENDENCIES · node packs, models, links"
     },
@@ -6847,7 +6889,7 @@
       "type": "MarkdownNote",
       "pos": [
         -760,
-        2300
+        2480
       ],
       "size": [
         760,
@@ -6863,7 +6905,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## WIRING\n\nNodes talk through KJNodes **Set / Get** pairs (the name is the wire); the block of one shot reads them, so Deploy Shots can copy it for every shot.\n\n| Name | Type | From | Read by |\n|---|---|---|---|\n| `MUSIC_SYNC` | BOOLEAN | MUSIC SYNC (H3 hears the music of each shot, and moves with it) | 1 |\n| `VOICE_ON` | BOOLEAN | VOICE ON (H3 speaks the dialogue) | 1 |\n| `RETRY_BAD` | BOOLEAN | RETRY BAD TAKES (black, white, only noise) | 1 |\n| `TURBO` | BOOLEAN | TURBO (8-step LoRA) | 1 |\n| `DIALOGUE` | STRING | DIALOGUE (0-3 s: \"Hello.\") | 1 |\n| `REF1` | IMAGE | REF 1 | 1 |\n| `REF2` | IMAGE | REF 2 | 1 |\n| `REF3` | IMAGE | REF 3 | 1 |\n| `REF4` | IMAGE | REF 4 | 1 |\n| `REF5` | IMAGE | REF 5 | 1 |\n| `REFS` | IMAGE | REFS | 1 |\n| `REFERENCE_VIDEO_FRAMES` | IMAGE | REFERENCE VIDEO | 1 |\n| `REFERENCE_VIDEO_SAMPLE` | IMAGE | REFERENCE VIDEO | 1 |\n| `VOICE` | AUDIO | VOICE | 1 |\n| `LLM_VISION` | CLIP | LLM VISION | 1 |\n| `LLM` | CLIP | LLM | 0 |\n| `MODEL_FULL` | MODEL | H3 | 1 |\n| `MODEL_TURBO` | MODEL | H3 | 1 |\n| `CLIP` | CLIP | H3 | 1 |\n| `VAE_VIDEO` | VAE | H3 | 1 |\n| `VAE_AUDIO` | VAE | H3 | 1 |\n| `MODEL_PATCH` | MODEL_PATCH | H3 | 1 |\n| `PLATE_MODEL` | MODEL | Plate | 1 |\n| `PLATE_CLIP` | CLIP | Plate | 1 |\n| `PLATE_VAE` | VAE | Plate | 1 |\n| `MUSIC` | AUDIO | SOUND | 1 |\n| `ENHANCED_PROMPT` | STRING | ENHANCER | 1 |\n| `SHOT_LIST` | MAJOOR_SHOT_LIST | CREATE TIMELINE | 1 |\n| `SHOT_001` | VIDEO | SHOT | 0 |\n| `SHOT_001_META` | MAJOOR_SHOT_METADATA | SHOT | 1 |\n| `SHOT_001_GENERATED` | VIDEO | TAKE (the second try only when the first is bad) | 1 |\n\n### Sub-graphs (open one with the icon in the corner of the node)\n\n| Sub-graph | In | Out |\n|---|---|---|\n| **Sound · a soundtrack in the mood (YuE2)** | mood, rhythm_text, length, llm, music_model, music_clip, music_vae, bpm | music |\n| **Enhancer · the idea, richer** | idea, refs, video_sample, extra, llm_vision | enhanced |\n| **Plate · the empty place of a shot** | location, model, clip, vae | plate |\n| **Shot · writes the H3 prompt** | brief, rhythm_text, prompt, fx_json, refs, plate, video_sample, voice, dialogue, llm_vision | prompt |"
+        "## WIRING\n\nNodes talk through KJNodes **Set / Get** pairs (the name is the wire); the block of one shot reads them, so Deploy Shots can copy it for every shot.\n\n| Name | Type | From | Read by |\n|---|---|---|---|\n| `GENERATOR` | STRING | VIDEO MODEL (Generator Select) | CREATE TIMELINE, and the Generator Is and Generate Shot (API) nodes of each shot |\n| `MUSIC_SYNC` | BOOLEAN | MUSIC SYNC (H3 hears the music of each shot, and moves with it) | 1 |\n| `VOICE_ON` | BOOLEAN | VOICE ON (H3 speaks the dialogue) | 1 |\n| `RETRY_BAD` | BOOLEAN | RETRY BAD TAKES (black, white, only noise) | 1 |\n| `TURBO` | BOOLEAN | TURBO (8-step LoRA) | 1 |\n| `DIALOGUE` | STRING | DIALOGUE (0-3 s: \"Hello.\") | 1 |\n| `REF1` | IMAGE | REF 1 | 1 |\n| `REF2` | IMAGE | REF 2 | 1 |\n| `REF3` | IMAGE | REF 3 | 1 |\n| `REF4` | IMAGE | REF 4 | 1 |\n| `REF5` | IMAGE | REF 5 | 1 |\n| `REFS` | IMAGE | REFS | 1 |\n| `REFERENCE_VIDEO_FRAMES` | IMAGE | REFERENCE VIDEO | 1 |\n| `REFERENCE_VIDEO_SAMPLE` | IMAGE | REFERENCE VIDEO | 1 |\n| `VOICE` | AUDIO | VOICE | 1 |\n| `LLM_VISION` | CLIP | LLM VISION | 1 |\n| `LLM` | CLIP | LLM | 0 |\n| `MODEL_FULL` | MODEL | H3 | 1 |\n| `MODEL_TURBO` | MODEL | H3 | 1 |\n| `CLIP` | CLIP | H3 | 1 |\n| `VAE_VIDEO` | VAE | H3 | 1 |\n| `VAE_AUDIO` | VAE | H3 | 1 |\n| `MODEL_PATCH` | MODEL_PATCH | H3 | 1 |\n| `PLATE_MODEL` | MODEL | Plate | 1 |\n| `PLATE_CLIP` | CLIP | Plate | 1 |\n| `PLATE_VAE` | VAE | Plate | 1 |\n| `MUSIC` | AUDIO | SOUND | 1 |\n| `ENHANCED_PROMPT` | STRING | ENHANCER | 1 |\n| `SHOT_LIST` | MAJOOR_SHOT_LIST | CREATE TIMELINE | 1 |\n| `SHOT_001` | VIDEO | SHOT | 0 |\n| `SHOT_001_META` | MAJOOR_SHOT_METADATA | SHOT | 1 |\n| `SHOT_001_GENERATED` | VIDEO | TAKE (the second try only when the first is bad) | 1 |\n\n### Sub-graphs (open one with the icon in the corner of the node)\n\n| Sub-graph | In | Out |\n|---|---|---|\n| **Sound · a soundtrack in the mood (YuE2)** | mood, rhythm_text, length, llm, music_model, music_clip, music_vae, bpm | music |\n| **Enhancer · the idea, richer** | idea, refs, video_sample, extra, llm_vision | enhanced |\n| **Plate · the empty place of a shot** | location, model, clip, vae | plate |\n| **Shot · writes the H3 prompt** | brief, rhythm_text, prompt, fx_json, refs, plate, video_sample, voice, dialogue, llm_vision | prompt |"
       ],
       "title": "WIRING · Set / Get names and sub-graphs"
     },
@@ -7093,7 +7135,9 @@
           "links": [
             82,
             117,
-            141
+            141,
+            213,
+            237
           ]
         }
       ],
@@ -7262,6 +7306,951 @@
       "widgets_values": [
         true
       ]
+    },
+    {
+      "type": "MajoorGeneratorSelect",
+      "pos": [
+        4900,
+        760
+      ],
+      "size": [
+        400,
+        82
+      ],
+      "inputs": [
+        {
+          "name": "generator",
+          "type": "COMBO",
+          "widget": {
+            "name": "generator"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "generator",
+          "type": "STRING",
+          "links": [
+            200
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorGeneratorSelect"
+      },
+      "widgets_values": [
+        "minimax_h3"
+      ],
+      "widgets_values_named": {
+        "generator": "minimax_h3"
+      },
+      "title": "VIDEO MODEL (H3 local, or an API model)",
+      "color": "#323",
+      "bgcolor": "#535",
+      "id": 155,
+      "flags": {},
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "SetNode",
+      "pos": [
+        5380,
+        500
+      ],
+      "size": [
+        210,
+        34
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "inputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "link": 200
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SetNode",
+        "previousName": "GENERATOR",
+        "aux_id": "kijai/ComfyUI-KJNodes"
+      },
+      "widgets_values": [
+        "GENERATOR"
+      ],
+      "title": "Set_GENERATOR",
+      "id": 156,
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "GetNode",
+      "pos": [
+        2040,
+        5824
+      ],
+      "size": [
+        210,
+        34
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            201
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes"
+      },
+      "widgets_values": [
+        "GENERATOR"
+      ],
+      "title": "Get_GENERATOR",
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "id": 157,
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "GetNode",
+      "pos": [
+        4300,
+        7772
+      ],
+      "size": [
+        210,
+        34
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            202,
+            203,
+            227
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes"
+      },
+      "widgets_values": [
+        "GENERATOR"
+      ],
+      "title": "Get_GENERATOR",
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "id": 158,
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "MajoorGeneratorIs",
+      "pos": [
+        4300,
+        7842
+      ],
+      "size": [
+        270,
+        60
+      ],
+      "inputs": [
+        {
+          "name": "generator",
+          "type": "STRING",
+          "link": 202
+        },
+        {
+          "name": "is",
+          "type": "COMBO",
+          "widget": {
+            "name": "is"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "selected",
+          "type": "BOOLEAN",
+          "links": [
+            215,
+            219,
+            223,
+            239,
+            243,
+            247
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorGeneratorIs"
+      },
+      "widgets_values": [
+        "minimax_h3"
+      ],
+      "widgets_values_named": {
+        "is": "minimax_h3"
+      },
+      "title": "H3 MODEL? (else the API branch)",
+      "id": 159,
+      "flags": {},
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "PrimitiveFloat",
+      "pos": [
+        4300,
+        7972
+      ],
+      "size": [
+        270,
+        60
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            225,
+            249
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveFloat"
+      },
+      "widgets_values": [
+        24.0
+      ],
+      "title": "H3 fps",
+      "id": 160,
+      "flags": {},
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "MajoorGenerateShot",
+      "pos": [
+        4610,
+        7772
+      ],
+      "size": [
+        330,
+        450
+      ],
+      "inputs": [
+        {
+          "name": "generator",
+          "type": "STRING",
+          "link": 203
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 204
+        },
+        {
+          "name": "seconds",
+          "type": "FLOAT",
+          "link": 205
+        },
+        {
+          "name": "image_1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 208
+        },
+        {
+          "name": "image_2",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 209
+        },
+        {
+          "name": "image_3",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 210
+        },
+        {
+          "name": "image_4",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 211
+        },
+        {
+          "name": "image_5",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 212
+        },
+        {
+          "name": "image_6",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 213
+        },
+        {
+          "name": "image_7",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image_8",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image_9",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "reference_frames",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 206
+        },
+        {
+          "name": "reference_audio",
+          "type": "AUDIO",
+          "shape": 7,
+          "link": 207
+        },
+        {
+          "name": "aspect_ratio",
+          "type": "COMBO",
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "link": null
+        },
+        {
+          "name": "resolution",
+          "type": "COMBO",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        },
+        {
+          "name": "generate_audio",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "generate_audio"
+          },
+          "link": null
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "name": "reference_fps",
+          "type": "FLOAT",
+          "shape": 7,
+          "widget": {
+            "name": "reference_fps"
+          },
+          "link": null
+        },
+        {
+          "name": "use_image_6",
+          "type": "BOOLEAN",
+          "shape": 7,
+          "widget": {
+            "name": "use_image_6"
+          },
+          "link": 214
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            216
+          ]
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            220
+          ]
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "links": [
+            224
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorGenerateShot"
+      },
+      "widgets_values": [
+        "9:16",
+        "720p",
+        true,
+        695425565,
+        "randomize",
+        24,
+        true
+      ],
+      "widgets_values_named": {
+        "aspect_ratio": "9:16",
+        "resolution": "720p",
+        "generate_audio": true,
+        "seed": 695425565,
+        "control_after_generate": "randomize",
+        "reference_fps": 24,
+        "use_image_6": true
+      },
+      "title": "API · generates the shot",
+      "color": "#432",
+      "bgcolor": "#653",
+      "id": 161,
+      "flags": {},
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "ComfySwitchNode",
+      "pos": [
+        5350,
+        7772
+      ],
+      "size": [
+        340,
+        110
+      ],
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 215,
+          "widget": {
+            "name": "switch"
+          }
+        },
+        {
+          "name": "on_false",
+          "type": "IMAGE",
+          "link": 216
+        },
+        {
+          "name": "on_true",
+          "type": "IMAGE",
+          "link": 217
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "IMAGE",
+          "links": [
+            218
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ],
+      "title": "GENERATES THE SHOT · images",
+      "id": 162,
+      "flags": {},
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "ComfySwitchNode",
+      "pos": [
+        5350,
+        7932
+      ],
+      "size": [
+        340,
+        110
+      ],
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 219,
+          "widget": {
+            "name": "switch"
+          }
+        },
+        {
+          "name": "on_false",
+          "type": "AUDIO",
+          "link": 220
+        },
+        {
+          "name": "on_true",
+          "type": "AUDIO",
+          "link": 221
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "AUDIO",
+          "links": [
+            222
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ],
+      "title": "GENERATES THE SHOT · audio",
+      "id": 163,
+      "flags": {},
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "ComfySwitchNode",
+      "pos": [
+        5350,
+        8092
+      ],
+      "size": [
+        340,
+        110
+      ],
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 223,
+          "widget": {
+            "name": "switch"
+          }
+        },
+        {
+          "name": "on_false",
+          "type": "FLOAT",
+          "link": 224
+        },
+        {
+          "name": "on_true",
+          "type": "FLOAT",
+          "link": 225
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "FLOAT",
+          "links": [
+            226
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ],
+      "title": "GENERATES THE SHOT · fps",
+      "id": 164,
+      "flags": {},
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "MajoorGenerateShot",
+      "pos": [
+        4980,
+        7772
+      ],
+      "size": [
+        330,
+        450
+      ],
+      "inputs": [
+        {
+          "name": "generator",
+          "type": "STRING",
+          "link": 227
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 228
+        },
+        {
+          "name": "seconds",
+          "type": "FLOAT",
+          "link": 229
+        },
+        {
+          "name": "image_1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 232
+        },
+        {
+          "name": "image_2",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 233
+        },
+        {
+          "name": "image_3",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 234
+        },
+        {
+          "name": "image_4",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 235
+        },
+        {
+          "name": "image_5",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 236
+        },
+        {
+          "name": "image_6",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 237
+        },
+        {
+          "name": "image_7",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image_8",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image_9",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "reference_frames",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 230
+        },
+        {
+          "name": "reference_audio",
+          "type": "AUDIO",
+          "shape": 7,
+          "link": 231
+        },
+        {
+          "name": "aspect_ratio",
+          "type": "COMBO",
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "link": null
+        },
+        {
+          "name": "resolution",
+          "type": "COMBO",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        },
+        {
+          "name": "generate_audio",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "generate_audio"
+          },
+          "link": null
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "name": "reference_fps",
+          "type": "FLOAT",
+          "shape": 7,
+          "widget": {
+            "name": "reference_fps"
+          },
+          "link": null
+        },
+        {
+          "name": "use_image_6",
+          "type": "BOOLEAN",
+          "shape": 7,
+          "widget": {
+            "name": "use_image_6"
+          },
+          "link": 238
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            240
+          ]
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            244
+          ]
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "links": [
+            248
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorGenerateShot"
+      },
+      "widgets_values": [
+        "9:16",
+        "720p",
+        true,
+        2035525363,
+        "randomize",
+        24,
+        true
+      ],
+      "widgets_values_named": {
+        "aspect_ratio": "9:16",
+        "resolution": "720p",
+        "generate_audio": true,
+        "seed": 2035525363,
+        "control_after_generate": "randomize",
+        "reference_fps": 24,
+        "use_image_6": true
+      },
+      "title": "API · again with another seed",
+      "color": "#432",
+      "bgcolor": "#653",
+      "id": 165,
+      "flags": {},
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "ComfySwitchNode",
+      "pos": [
+        5730,
+        7772
+      ],
+      "size": [
+        340,
+        110
+      ],
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 239,
+          "widget": {
+            "name": "switch"
+          }
+        },
+        {
+          "name": "on_false",
+          "type": "IMAGE",
+          "link": 240
+        },
+        {
+          "name": "on_true",
+          "type": "IMAGE",
+          "link": 241
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "IMAGE",
+          "links": [
+            242
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ],
+      "title": "AGAIN WITH ANOTHER SEED · images",
+      "id": 166,
+      "flags": {},
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "ComfySwitchNode",
+      "pos": [
+        5730,
+        7932
+      ],
+      "size": [
+        340,
+        110
+      ],
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 243,
+          "widget": {
+            "name": "switch"
+          }
+        },
+        {
+          "name": "on_false",
+          "type": "AUDIO",
+          "link": 244
+        },
+        {
+          "name": "on_true",
+          "type": "AUDIO",
+          "link": 245
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "AUDIO",
+          "links": [
+            246
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ],
+      "title": "AGAIN WITH ANOTHER SEED · audio",
+      "id": 167,
+      "flags": {},
+      "order": 0,
+      "mode": 0
+    },
+    {
+      "type": "ComfySwitchNode",
+      "pos": [
+        5730,
+        8092
+      ],
+      "size": [
+        340,
+        110
+      ],
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 247,
+          "widget": {
+            "name": "switch"
+          }
+        },
+        {
+          "name": "on_false",
+          "type": "FLOAT",
+          "link": 248
+        },
+        {
+          "name": "on_true",
+          "type": "FLOAT",
+          "link": 249
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "FLOAT",
+          "links": [
+            250
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ],
+      "title": "AGAIN WITH ANOTHER SEED · fps",
+      "id": 168,
+      "flags": {},
+      "order": 0,
+      "mode": 0
     }
   ],
   "links": [
@@ -8218,22 +9207,6 @@
       "IMAGE"
     ],
     [
-      120,
-      109,
-      1,
-      123,
-      0,
-      "IMAGE"
-    ],
-    [
-      121,
-      109,
-      0,
-      123,
-      1,
-      "AUDIO"
-    ],
-    [
       122,
       123,
       0,
@@ -8408,22 +9381,6 @@
       127,
       21,
       "IMAGE"
-    ],
-    [
-      144,
-      127,
-      1,
-      128,
-      0,
-      "IMAGE"
-    ],
-    [
-      145,
-      127,
-      0,
-      128,
-      1,
-      "AUDIO"
     ],
     [
       146,
@@ -8856,6 +9813,414 @@
       132,
       2,
       "VIDEO"
+    ],
+    [
+      200,
+      155,
+      0,
+      156,
+      0,
+      "STRING"
+    ],
+    [
+      201,
+      157,
+      0,
+      84,
+      7,
+      "STRING"
+    ],
+    [
+      202,
+      158,
+      0,
+      159,
+      0,
+      "STRING"
+    ],
+    [
+      203,
+      158,
+      0,
+      161,
+      0,
+      "STRING"
+    ],
+    [
+      204,
+      108,
+      0,
+      161,
+      1,
+      "STRING"
+    ],
+    [
+      205,
+      87,
+      6,
+      161,
+      2,
+      "FLOAT"
+    ],
+    [
+      206,
+      122,
+      0,
+      161,
+      12,
+      "IMAGE"
+    ],
+    [
+      207,
+      106,
+      0,
+      161,
+      13,
+      "AUDIO"
+    ],
+    [
+      208,
+      117,
+      0,
+      161,
+      3,
+      "IMAGE"
+    ],
+    [
+      209,
+      118,
+      0,
+      161,
+      4,
+      "IMAGE"
+    ],
+    [
+      210,
+      119,
+      0,
+      161,
+      5,
+      "IMAGE"
+    ],
+    [
+      211,
+      120,
+      0,
+      161,
+      6,
+      "IMAGE"
+    ],
+    [
+      212,
+      121,
+      0,
+      161,
+      7,
+      "IMAGE"
+    ],
+    [
+      213,
+      151,
+      0,
+      161,
+      8,
+      "IMAGE"
+    ],
+    [
+      214,
+      6,
+      0,
+      161,
+      19,
+      "BOOLEAN"
+    ],
+    [
+      215,
+      159,
+      0,
+      162,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      216,
+      161,
+      0,
+      162,
+      1,
+      "IMAGE"
+    ],
+    [
+      217,
+      109,
+      1,
+      162,
+      2,
+      "IMAGE"
+    ],
+    [
+      218,
+      162,
+      0,
+      123,
+      0,
+      "IMAGE"
+    ],
+    [
+      219,
+      159,
+      0,
+      163,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      220,
+      161,
+      1,
+      163,
+      1,
+      "AUDIO"
+    ],
+    [
+      221,
+      109,
+      0,
+      163,
+      2,
+      "AUDIO"
+    ],
+    [
+      222,
+      163,
+      0,
+      123,
+      1,
+      "AUDIO"
+    ],
+    [
+      223,
+      159,
+      0,
+      164,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      224,
+      161,
+      2,
+      164,
+      1,
+      "FLOAT"
+    ],
+    [
+      225,
+      160,
+      0,
+      164,
+      2,
+      "FLOAT"
+    ],
+    [
+      226,
+      164,
+      0,
+      123,
+      2,
+      "FLOAT"
+    ],
+    [
+      227,
+      158,
+      0,
+      165,
+      0,
+      "STRING"
+    ],
+    [
+      228,
+      108,
+      0,
+      165,
+      1,
+      "STRING"
+    ],
+    [
+      229,
+      87,
+      6,
+      165,
+      2,
+      "FLOAT"
+    ],
+    [
+      230,
+      122,
+      0,
+      165,
+      12,
+      "IMAGE"
+    ],
+    [
+      231,
+      106,
+      0,
+      165,
+      13,
+      "AUDIO"
+    ],
+    [
+      232,
+      117,
+      0,
+      165,
+      3,
+      "IMAGE"
+    ],
+    [
+      233,
+      118,
+      0,
+      165,
+      4,
+      "IMAGE"
+    ],
+    [
+      234,
+      119,
+      0,
+      165,
+      5,
+      "IMAGE"
+    ],
+    [
+      235,
+      120,
+      0,
+      165,
+      6,
+      "IMAGE"
+    ],
+    [
+      236,
+      121,
+      0,
+      165,
+      7,
+      "IMAGE"
+    ],
+    [
+      237,
+      151,
+      0,
+      165,
+      8,
+      "IMAGE"
+    ],
+    [
+      238,
+      6,
+      0,
+      165,
+      19,
+      "BOOLEAN"
+    ],
+    [
+      239,
+      159,
+      0,
+      166,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      240,
+      165,
+      0,
+      166,
+      1,
+      "IMAGE"
+    ],
+    [
+      241,
+      127,
+      1,
+      166,
+      2,
+      "IMAGE"
+    ],
+    [
+      242,
+      166,
+      0,
+      128,
+      0,
+      "IMAGE"
+    ],
+    [
+      243,
+      159,
+      0,
+      167,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      244,
+      165,
+      1,
+      167,
+      1,
+      "AUDIO"
+    ],
+    [
+      245,
+      127,
+      0,
+      167,
+      2,
+      "AUDIO"
+    ],
+    [
+      246,
+      167,
+      0,
+      128,
+      1,
+      "AUDIO"
+    ],
+    [
+      247,
+      159,
+      0,
+      168,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      248,
+      165,
+      2,
+      168,
+      1,
+      "FLOAT"
+    ],
+    [
+      249,
+      160,
+      0,
+      168,
+      2,
+      "FLOAT"
+    ],
+    [
+      250,
+      168,
+      0,
+      128,
+      2,
+      "FLOAT"
     ]
   ],
   "groups": [

@@ -90,6 +90,7 @@ class MajoorCreateTimeline(io.ComfyNode):
                 io.Combo.Input("music_cut_every", options=list(CUT_EVERY), default="2_beats", optional=True),
                 io.Combo.Input("music_cut_mood", options=["auto", "calm", "confident", "dreamy", "intense"], default="auto", optional=True, tooltip="Optional artistic mood bias. Acoustic energy and accents remain measured from the music."),
                 io.String.Input("words_json", default="", optional=True, force_input=True, tooltip="Words with times from Music Words: in the phrases mode, the cuts fall in the pauses between the sung or spoken phrases they give, instead of the loud stretches of the voice."),
+                io.String.Input("generator", default="", optional=True, force_input=True, tooltip="The generator of Generator Select: it replaces generation_profile, so that the plan follows the model the graph generates with."),
             ],
             outputs=[
                 MajoorShotList.Output(display_name="shot_list"),
@@ -102,7 +103,11 @@ class MajoorCreateTimeline(io.ComfyNode):
     @classmethod
     def execute(cls, source, fps, aspect_ratio, resolution, generation_profile, music=None, video=None, preview_thumbnails=True, card_text=True, width=0, height=0, skeleton_json="", rhythm_reference_only=False,
                 music_edit_mode="legacy", music_cut_density="auto", music_cut_variation=0.5, music_cut_sync=1.0,
-                music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", project_root="", words_json="") -> io.NodeOutput:
+                music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", project_root="", words_json="", generator="") -> io.NodeOutput:
+        if generator.strip():
+            if generator.strip() not in PROFILES:
+                raise MajoorError(f"Unknown generator '{generator.strip()}'. Available: {list(PROFILES)}")
+            generation_profile = generator.strip()
         kind = source["source"]
         rate = fps if fps > 0 else 24.0
         aspect = "16:9" if aspect_ratio == "auto" else aspect_ratio

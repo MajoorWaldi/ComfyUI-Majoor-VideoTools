@@ -337,9 +337,10 @@ def clone_block(block: Block, shot_id: str, index: int, origin: tuple[float, flo
     _set_widget(select, "shot_id", shot_id)
     _set_widget(select, "index", index)
     for node in nodes:  # the same seed for every shot would make them move alike
-        seed = (node.get("widgets_values_named") or {}).get("noise_seed")
+        name = "seed" if node["type"] == "MajoorGenerateShot" else "noise_seed"  # Generate Shot (API) has the seed of the API model
+        seed = (node.get("widgets_values_named") or {}).get(name)
         if isinstance(seed, int) and not isinstance(seed, bool):
-            _set_widget(node, "noise_seed", seed + index - 1)
+            _set_widget(node, name, seed + index - 1)
     apply = next((n for n in nodes if n["type"] == APPLY), None)
     shared = [[l[0], l[1], renumber[l[2]], l[3], l[4]] for l in block.shared_links]
     listed = [[renumber[i], slot] for i, slot in block.list_inputs]

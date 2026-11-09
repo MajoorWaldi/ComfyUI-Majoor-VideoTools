@@ -5,6 +5,7 @@
   "source": "api",
   "node": "Wan3ReferenceToVideoApi",
   "model": "wan3.0-video",
+  "family": "wan",
   "cost": "credits",
   "duration": {
     "mode": "seconds",

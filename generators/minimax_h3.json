@@ -5,6 +5,7 @@
   "source": "local",
   "node": "MiniMaxH3ReferenceToVideo",
   "model": "",
+  "family": "h3",
   "cost": "free",
   "duration": {
     "mode": "frames_grid",
