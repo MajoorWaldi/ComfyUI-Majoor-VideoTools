@@ -35,6 +35,6 @@
     "last_frame": true
   },
   "audio": "native",
-  "prompt_skill": "",
+  "prompt_skill": "ltx_shot_prompt",
   "notes": "Image to Video (first and last frame); LtxApi25TextToVideo takes text only, LtxApi25AudioToVideo a 2-20 s audio track. Over 10 s needs 720p/1080p and 24/25 fps."
 }

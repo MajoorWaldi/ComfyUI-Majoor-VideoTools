@@ -4,7 +4,7 @@ A skill file is a Markdown or text file:
 
     ---
     name: Dynamic Edit
-    kind: planner            (planner | h3_writer | music_writer | analyzer | profile | mode | other)
+    kind: planner            (planner | h3_writer | shot_writer | music_writer | analyzer | profile | mode | other)
     description: one line
     ---
     text that is always there, with {{VARIABLES}} such as {{DURATION}}
@@ -25,7 +25,7 @@ from pathlib import Path
 from .errors import MajoorError
 
 SKILLS = Path(__file__).resolve().parents[1] / "skills"
-KINDS = ("planner", "h3_writer", "music_writer", "analyzer", "profile", "mode", "other")
+KINDS = ("planner", "h3_writer", "shot_writer", "music_writer", "analyzer", "profile", "mode", "other")
 DATA_KINDS = ("profile", "mode")  # not system prompts: an editing profile, the settings of an edit mode (see core/profiles.py and core/modes.py)
 # a module alone on its lines, or inline inside a sentence
 _OPEN = re.compile(r"<<module ([a-z0-9_]+)(?: default=(on|off))?>>(\n)?")
@@ -183,12 +183,12 @@ def compose(skill: Skill, states: dict[str, bool] | None = None, variables: dict
 
 
 def user_message(brief: str = "", rhythm_text: str = "", n_pictures: int = 1, videos: tuple[tuple[int, int, int], ...] = (), voice: bool = False, dialogue: str = "", plate: bool = False, shot_only: bool = False,
-                 shot_frames: tuple[tuple[int, str], ...] = ()) -> str:
+                 shot_frames: tuple[tuple[int, str], ...] = (), target: str = "H3") -> str:
     """The message that goes with the skill: the brief, the pictures, the videos, the voice, the dialogue, the rhythm. videos: (number, first image, last image) of the frames of each <Video k> among the images of the chat.
     shot_frames: (image, shot id) of the frame taken from the middle of each shot."""
     blocks = []
     if shot_only:
-        blocks.append('H3 INPUT MODE: ' + ('Ref2VA' if n_pictures > 0 or videos or voice else 'T2VA'))
+        blocks.append(f'{target} INPUT MODE: ' + (('Ref2VA' if target == 'H3' else 'reference') if n_pictures > 0 or videos or voice else ('T2VA' if target == 'H3' else 'text only')))
     scoped = shot_only and bool(rhythm_text.strip())
     if scoped:
         blocks.append("CURRENT SHOT ONLY\nThe selected shot below is the complete local generation brief. Perform only its visible event, starting state and ending state. Do not reconstruct the whole film. References define identity, not a repeated action or setting. After this event, hold its resulting state for any unused take duration; do not start the next event or replay the action.")
@@ -210,7 +210,7 @@ def user_message(brief: str = "", rhythm_text: str = "", n_pictures: int = 1, vi
         blocks.append("SHOT FRAMES (one frame from the middle of each shot of the source: what this shot shows, its people, their clothes, the place)\n"
                       + "\n".join(f"image {image} = {shot}" for image, shot in shot_frames))
     if voice:
-        blocks.append("AUDIO\n<Audio 1> = the voice sample of <Subject 1>: H3 receives it and speaks the lines of the DIALOGUE in this voice.")
+        blocks.append(f"AUDIO\n<Audio 1> = the voice sample of <Subject 1>: {target} receives it and speaks the lines of the DIALOGUE in this voice.")
     if dialogue.strip():
         blocks.append("DIALOGUE (the lines spoken in this shot, with their times counted from the start of the shot)\n" + dialogue.strip())
     if rhythm_text.strip():

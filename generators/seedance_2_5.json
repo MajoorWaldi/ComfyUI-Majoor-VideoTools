@@ -21,6 +21,6 @@
     "last_frame": false
   },
   "audio": "native",
-  "prompt_skill": "",
+  "prompt_skill": "seedance_shot_prompt",
   "notes": "Reference to Video. Text-only and first/last-frame variants are other nodes (ByteDance2TextToVideoNode, ByteDance2FirstLastFrameNode). Seedance 2.5 Draft renders a cheap draft first."
 }
