@@ -7,6 +7,7 @@ that would go over the budget stops, before it calls the model). The budgets are
 The dollars are the sum of the price badges of the API nodes (core/pricing.py), evaluated on the settings of each take. When a badge cannot be
 evaluated (jsonata-python not installed, a node without badge) a generator file may carry `price_per_second` and `price_unit`; without either,
 the estimate keeps the seconds only."""
+from collections.abc import Callable
 from dataclasses import dataclass
 from fractions import Fraction
 
@@ -37,14 +38,15 @@ class Choice:
     budget_usd: float
 
 
-def shot_price(generator_id: str, seconds: float, settings: Settings = Settings(), seed: int = 0) -> Price | None:
-    """The price badge of the API node that makes a take of `seconds`, on the settings of the take; None when it cannot be known."""
+def shot_price(generator_id: str, seconds: float, settings: Settings = Settings(), seed: int = 0, badges: Callable[[str], dict | None] | None = None) -> Price | None:
+    """The price badge of the API node that makes a take of `seconds`, on the settings of the take; None when it cannot be known.
+    badges: where the badge of a node class comes from (the object_info of a ComfyUI that is not this process); by default the running ComfyUI."""
     try:
         request = build_request(generator_id, prompt="x", seconds=seconds, aspect=settings.aspect, resolution=settings.resolution, audio=settings.audio, seed=seed,
                                 images=["i"] * settings.images, videos=["v"] * settings.videos, audios=["a"] * settings.audios)
     except MajoorError:
         return None
-    return evaluate(badge_of(request.class_type), request.inputs, request.media)
+    return evaluate((badges or badge_of)(request.class_type), request.inputs, request.media)
 
 
 @dataclass(frozen=True)
@@ -84,13 +86,14 @@ class Estimate:
         return head + f". Over the budget of {limits}: the run stops before shot {self.stops_at}."
 
 
-def estimate(generator_id: str, shots: list[int], fps: Fraction | float, budget_seconds: int = DEFAULT_BUDGET_SECONDS, budget_usd: float = 0.0, settings: Settings = Settings()) -> Estimate:
+def estimate(generator_id: str, shots: list[int], fps: Fraction | float, budget_seconds: int = DEFAULT_BUDGET_SECONDS, budget_usd: float = 0.0, settings: Settings = Settings(),
+             badges: Callable[[str], dict | None] | None = None) -> Estimate:
     """shots: the length in frames of each shot that a model has to generate."""
     gen = load_generator(generator_id)
     if gen.source != "api":
         return Estimate(gen.id, gen.title, False, len(shots), 0.0, budget_seconds, budget_usd, None, None)
     seconds = [generation_seconds_for(gen.id, frames, fps) or frames / float(fps) for frames in shots]
-    prices = [shot_price(gen.id, s, settings) for s in seconds]
+    prices = [shot_price(gen.id, s, settings, badges=badges) for s in seconds]
     known = all(p is not None for p in prices)
     total = sum(prices, ZERO) if known and prices else None
     stops_at, run_s, run_usd = None, 0.0, 0.0

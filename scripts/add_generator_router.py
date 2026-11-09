@@ -120,11 +120,10 @@ def gen_shot(r: Recipe, title: str, pos, aspect: str, seed: int) -> dict:
                              {"name": "resolution", "type": "COMBO", "widget": {"name": "resolution"}, "link": None},
                              {"name": "generate_audio", "type": "BOOLEAN", "widget": {"name": "generate_audio"}, "link": None},
                              {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": None},
-                             {"name": "reference_fps", "type": "FLOAT", "shape": 7, "widget": {"name": "reference_fps"}, "link": None},
-                             {"name": "use_image_6", "type": "BOOLEAN", "shape": 7, "widget": {"name": "use_image_6"}, "link": None}],
+                             {"name": "reference_fps", "type": "FLOAT", "shape": 7, "widget": {"name": "reference_fps"}, "link": None}],
                   "outputs": [{"name": "images", "type": "IMAGE", "links": None}, {"name": "audio", "type": "AUDIO", "links": None}, {"name": "fps", "type": "FLOAT", "links": None}],
-                  "properties": {"Node name for S&R": "MajoorGenerateShot"}, "widgets_values": [aspect, "720p", True, seed, "randomize", 24, True],
-                  "widgets_values_named": {"aspect_ratio": aspect, "resolution": "720p", "generate_audio": True, "seed": seed, "control_after_generate": "randomize", "reference_fps": 24, "use_image_6": True},
+                  "properties": {"Node name for S&R": "MajoorGenerateShot"}, "widgets_values": [aspect, "720p", True, seed, "randomize", 24],
+                  "widgets_values_named": {"aspect_ratio": aspect, "resolution": "720p", "generate_audio": True, "seed": seed, "control_after_generate": "randomize", "reference_fps": 24},
                   "title": title, "color": "#432", "bgcolor": "#653"})
 
 
@@ -217,11 +216,6 @@ def patch(path: Path) -> bool:
             found = r.source(h3_node, theirs)
             if found:
                 r.link(found[0], found[1], gen, mine)
-        plate = r.source(h3_node, "ref_images.ref_image_5")  # the plate switch of the block: its own switch input says whether there is a plate
-        if plate and plate[0]["type"] == "ComfySwitchNode":
-            wanted = r.source(plate[0], "switch")
-            if wanted:
-                r.link(wanted[0], wanted[1], gen, "use_image_6")
         take = next(r.nodes[r.links[l][3]] for l in h3_node["outputs"][1]["links"] if r.nodes[r.links[l][3]]["type"] == "CreateVideo")
         sw_x = colx + 2 * (GENSHOT_SIZE[0] + GAP) + (k * (SWITCH_SIZE[0] + GAP) if False else 0)
         stacked = [("IMAGE", "images", 1, 0, "images"), ("AUDIO", "audio", 0, 1, "audio"), ("FLOAT", "fps", None, 2, "fps")]

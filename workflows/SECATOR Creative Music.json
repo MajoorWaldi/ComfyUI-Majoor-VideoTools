@@ -2,7 +2,7 @@
   "id": "0f38be27-ea50-4309-8466-1d557c8202af",
   "revision": 0,
   "last_node_id": 168,
-  "last_link_id": 254,
+  "last_link_id": 252,
   "nodes": [
     {
       "id": 1,
@@ -186,9 +186,7 @@
           "type": "BOOLEAN",
           "links": [
             57,
-            188,
-            217,
-            241
+            188
           ]
         }
       ],
@@ -3860,7 +3858,7 @@
             119,
             143,
             208,
-            232
+            231
           ]
         },
         {
@@ -4246,7 +4244,7 @@
         {
           "name": "generator",
           "type": "STRING",
-          "link": 254
+          "link": 252
         }
       ],
       "outputs": [
@@ -4760,7 +4758,7 @@
             121,
             145,
             210,
-            234
+            233
           ]
         }
       ],
@@ -4861,7 +4859,7 @@
             116,
             140,
             207,
-            231
+            230
           ]
         }
       ],
@@ -5086,14 +5084,14 @@
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
-            224
+            223
           ]
         },
         {
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            220
+            219
           ]
         }
       ],
@@ -5411,7 +5409,7 @@
             111,
             135,
             211,
-            235
+            234
           ]
         }
       ],
@@ -5451,7 +5449,7 @@
             112,
             136,
             212,
-            236
+            235
           ]
         }
       ],
@@ -5491,7 +5489,7 @@
             113,
             137,
             213,
-            237
+            236
           ]
         }
       ],
@@ -5531,7 +5529,7 @@
             114,
             138,
             214,
-            238
+            237
           ]
         }
       ],
@@ -5571,7 +5569,7 @@
             115,
             139,
             215,
-            239
+            238
           ]
         }
       ],
@@ -5611,7 +5609,7 @@
             122,
             146,
             209,
-            233
+            232
           ]
         }
       ],
@@ -5644,18 +5642,18 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 221
+          "link": 220
         },
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 225,
+          "link": 224,
           "shape": 7
         },
         {
           "name": "fps",
           "type": "FLOAT",
-          "link": 229,
+          "link": 228,
           "widget": {
             "name": "fps"
           }
@@ -6028,14 +6026,14 @@
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
-            248
+            246
           ]
         },
         {
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            244
+            242
           ]
         }
       ],
@@ -6080,18 +6078,18 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 245
+          "link": 243
         },
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 249,
+          "link": 247,
           "shape": 7
         },
         {
           "name": "fps",
           "type": "FLOAT",
-          "link": 253,
+          "link": 251,
           "widget": {
             "name": "fps"
           }
@@ -7282,7 +7280,7 @@
             120,
             144,
             216,
-            240
+            239
           ]
         }
       ],
@@ -7618,8 +7616,8 @@
           "links": [
             205,
             206,
-            230,
-            254
+            229,
+            252
           ]
         }
       ],
@@ -7667,12 +7665,12 @@
           "name": "selected",
           "type": "BOOLEAN",
           "links": [
-            218,
-            222,
-            226,
-            242,
-            246,
-            250
+            217,
+            221,
+            225,
+            240,
+            244,
+            248
           ]
         }
       ],
@@ -7707,8 +7705,8 @@
           "name": "FLOAT",
           "type": "FLOAT",
           "links": [
-            228,
-            252
+            227,
+            250
           ]
         }
       ],
@@ -7856,15 +7854,6 @@
             "name": "reference_fps"
           },
           "link": null
-        },
-        {
-          "name": "use_image_6",
-          "type": "BOOLEAN",
-          "shape": 7,
-          "widget": {
-            "name": "use_image_6"
-          },
-          "link": 217
         }
       ],
       "outputs": [
@@ -7872,21 +7861,21 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            219
+            218
           ]
         },
         {
           "name": "audio",
           "type": "AUDIO",
           "links": [
-            223
+            222
           ]
         },
         {
           "name": "fps",
           "type": "FLOAT",
           "links": [
-            227
+            226
           ]
         }
       ],
@@ -7899,8 +7888,7 @@
         true,
         695425565,
         "randomize",
-        24,
-        true
+        24
       ],
       "widgets_values_named": {
         "aspect_ratio": "9:16",
@@ -7908,8 +7896,7 @@
         "generate_audio": true,
         "seed": 695425565,
         "control_after_generate": "randomize",
-        "reference_fps": 24,
-        "use_image_6": true
+        "reference_fps": 24
       },
       "title": "API · generates the shot",
       "color": "#432",
@@ -7933,7 +7920,7 @@
         {
           "name": "switch",
           "type": "BOOLEAN",
-          "link": 218,
+          "link": 217,
           "widget": {
             "name": "switch"
           }
@@ -7941,12 +7928,12 @@
         {
           "name": "on_false",
           "type": "IMAGE",
-          "link": 219
+          "link": 218
         },
         {
           "name": "on_true",
           "type": "IMAGE",
-          "link": 220
+          "link": 219
         }
       ],
       "outputs": [
@@ -7954,7 +7941,7 @@
           "name": "output",
           "type": "IMAGE",
           "links": [
-            221
+            220
           ]
         }
       ],
@@ -7984,7 +7971,7 @@
         {
           "name": "switch",
           "type": "BOOLEAN",
-          "link": 222,
+          "link": 221,
           "widget": {
             "name": "switch"
           }
@@ -7992,12 +7979,12 @@
         {
           "name": "on_false",
           "type": "AUDIO",
-          "link": 223
+          "link": 222
         },
         {
           "name": "on_true",
           "type": "AUDIO",
-          "link": 224
+          "link": 223
         }
       ],
       "outputs": [
@@ -8005,7 +7992,7 @@
           "name": "output",
           "type": "AUDIO",
           "links": [
-            225
+            224
           ]
         }
       ],
@@ -8035,7 +8022,7 @@
         {
           "name": "switch",
           "type": "BOOLEAN",
-          "link": 226,
+          "link": 225,
           "widget": {
             "name": "switch"
           }
@@ -8043,12 +8030,12 @@
         {
           "name": "on_false",
           "type": "FLOAT",
-          "link": 227
+          "link": 226
         },
         {
           "name": "on_true",
           "type": "FLOAT",
-          "link": 228
+          "link": 227
         }
       ],
       "outputs": [
@@ -8056,7 +8043,7 @@
           "name": "output",
           "type": "FLOAT",
           "links": [
-            229
+            228
           ]
         }
       ],
@@ -8086,53 +8073,53 @@
         {
           "name": "generator",
           "type": "STRING",
-          "link": 230
+          "link": 229
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 231
+          "link": 230
         },
         {
           "name": "seconds",
           "type": "FLOAT",
-          "link": 232
+          "link": 231
         },
         {
           "name": "image_1",
           "type": "IMAGE",
           "shape": 7,
-          "link": 235
+          "link": 234
         },
         {
           "name": "image_2",
           "type": "IMAGE",
           "shape": 7,
-          "link": 236
+          "link": 235
         },
         {
           "name": "image_3",
           "type": "IMAGE",
           "shape": 7,
-          "link": 237
+          "link": 236
         },
         {
           "name": "image_4",
           "type": "IMAGE",
           "shape": 7,
-          "link": 238
+          "link": 237
         },
         {
           "name": "image_5",
           "type": "IMAGE",
           "shape": 7,
-          "link": 239
+          "link": 238
         },
         {
           "name": "image_6",
           "type": "IMAGE",
           "shape": 7,
-          "link": 240
+          "link": 239
         },
         {
           "name": "image_7",
@@ -8156,13 +8143,13 @@
           "name": "reference_frames",
           "type": "IMAGE",
           "shape": 7,
-          "link": 233
+          "link": 232
         },
         {
           "name": "reference_audio",
           "type": "AUDIO",
           "shape": 7,
-          "link": 234
+          "link": 233
         },
         {
           "name": "aspect_ratio",
@@ -8204,15 +8191,6 @@
             "name": "reference_fps"
           },
           "link": null
-        },
-        {
-          "name": "use_image_6",
-          "type": "BOOLEAN",
-          "shape": 7,
-          "widget": {
-            "name": "use_image_6"
-          },
-          "link": 241
         }
       ],
       "outputs": [
@@ -8220,21 +8198,21 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            243
+            241
           ]
         },
         {
           "name": "audio",
           "type": "AUDIO",
           "links": [
-            247
+            245
           ]
         },
         {
           "name": "fps",
           "type": "FLOAT",
           "links": [
-            251
+            249
           ]
         }
       ],
@@ -8247,8 +8225,7 @@
         true,
         2035525363,
         "randomize",
-        24,
-        true
+        24
       ],
       "widgets_values_named": {
         "aspect_ratio": "9:16",
@@ -8256,8 +8233,7 @@
         "generate_audio": true,
         "seed": 2035525363,
         "control_after_generate": "randomize",
-        "reference_fps": 24,
-        "use_image_6": true
+        "reference_fps": 24
       },
       "title": "API · again with another seed",
       "color": "#432",
@@ -8281,7 +8257,7 @@
         {
           "name": "switch",
           "type": "BOOLEAN",
-          "link": 242,
+          "link": 240,
           "widget": {
             "name": "switch"
           }
@@ -8289,12 +8265,12 @@
         {
           "name": "on_false",
           "type": "IMAGE",
-          "link": 243
+          "link": 241
         },
         {
           "name": "on_true",
           "type": "IMAGE",
-          "link": 244
+          "link": 242
         }
       ],
       "outputs": [
@@ -8302,7 +8278,7 @@
           "name": "output",
           "type": "IMAGE",
           "links": [
-            245
+            243
           ]
         }
       ],
@@ -8332,7 +8308,7 @@
         {
           "name": "switch",
           "type": "BOOLEAN",
-          "link": 246,
+          "link": 244,
           "widget": {
             "name": "switch"
           }
@@ -8340,12 +8316,12 @@
         {
           "name": "on_false",
           "type": "AUDIO",
-          "link": 247
+          "link": 245
         },
         {
           "name": "on_true",
           "type": "AUDIO",
-          "link": 248
+          "link": 246
         }
       ],
       "outputs": [
@@ -8353,7 +8329,7 @@
           "name": "output",
           "type": "AUDIO",
           "links": [
-            249
+            247
           ]
         }
       ],
@@ -8383,7 +8359,7 @@
         {
           "name": "switch",
           "type": "BOOLEAN",
-          "link": 250,
+          "link": 248,
           "widget": {
             "name": "switch"
           }
@@ -8391,12 +8367,12 @@
         {
           "name": "on_false",
           "type": "FLOAT",
-          "link": 251
+          "link": 249
         },
         {
           "name": "on_true",
           "type": "FLOAT",
-          "link": 252
+          "link": 250
         }
       ],
       "outputs": [
@@ -8404,7 +8380,7 @@
           "name": "output",
           "type": "FLOAT",
           "links": [
-            253
+            251
           ]
         }
       ],
@@ -10120,38 +10096,30 @@
     ],
     [
       217,
-      5,
+      159,
       0,
-      161,
-      19,
+      162,
+      0,
       "BOOLEAN"
     ],
     [
       218,
-      159,
-      0,
-      162,
-      0,
-      "BOOLEAN"
-    ],
-    [
-      219,
       161,
       0,
       162,
       1,
+      "IMAGE"
+    ],
+    [
+      219,
+      109,
+      1,
+      162,
+      2,
       "IMAGE"
     ],
     [
       220,
-      109,
-      1,
-      162,
-      2,
-      "IMAGE"
-    ],
-    [
-      221,
       162,
       0,
       123,
@@ -10159,7 +10127,7 @@
       "IMAGE"
     ],
     [
-      222,
+      221,
       159,
       0,
       163,
@@ -10167,7 +10135,7 @@
       "BOOLEAN"
     ],
     [
-      223,
+      222,
       161,
       1,
       163,
@@ -10175,7 +10143,7 @@
       "AUDIO"
     ],
     [
-      224,
+      223,
       109,
       0,
       163,
@@ -10183,7 +10151,7 @@
       "AUDIO"
     ],
     [
-      225,
+      224,
       163,
       0,
       123,
@@ -10191,7 +10159,7 @@
       "AUDIO"
     ],
     [
-      226,
+      225,
       159,
       0,
       164,
@@ -10199,7 +10167,7 @@
       "BOOLEAN"
     ],
     [
-      227,
+      226,
       161,
       2,
       164,
@@ -10207,7 +10175,7 @@
       "FLOAT"
     ],
     [
-      228,
+      227,
       160,
       0,
       164,
@@ -10215,7 +10183,7 @@
       "FLOAT"
     ],
     [
-      229,
+      228,
       164,
       0,
       123,
@@ -10223,7 +10191,7 @@
       "FLOAT"
     ],
     [
-      230,
+      229,
       158,
       0,
       165,
@@ -10231,7 +10199,7 @@
       "STRING"
     ],
     [
-      231,
+      230,
       108,
       0,
       165,
@@ -10239,7 +10207,7 @@
       "STRING"
     ],
     [
-      232,
+      231,
       87,
       6,
       165,
@@ -10247,7 +10215,7 @@
       "FLOAT"
     ],
     [
-      233,
+      232,
       122,
       0,
       165,
@@ -10255,7 +10223,7 @@
       "IMAGE"
     ],
     [
-      234,
+      233,
       106,
       0,
       165,
@@ -10263,7 +10231,7 @@
       "AUDIO"
     ],
     [
-      235,
+      234,
       117,
       0,
       165,
@@ -10271,7 +10239,7 @@
       "IMAGE"
     ],
     [
-      236,
+      235,
       118,
       0,
       165,
@@ -10279,7 +10247,7 @@
       "IMAGE"
     ],
     [
-      237,
+      236,
       119,
       0,
       165,
@@ -10287,7 +10255,7 @@
       "IMAGE"
     ],
     [
-      238,
+      237,
       120,
       0,
       165,
@@ -10295,7 +10263,7 @@
       "IMAGE"
     ],
     [
-      239,
+      238,
       121,
       0,
       165,
@@ -10303,7 +10271,7 @@
       "IMAGE"
     ],
     [
-      240,
+      239,
       151,
       0,
       165,
@@ -10311,15 +10279,7 @@
       "IMAGE"
     ],
     [
-      241,
-      5,
-      0,
-      165,
-      19,
-      "BOOLEAN"
-    ],
-    [
-      242,
+      240,
       159,
       0,
       166,
@@ -10327,7 +10287,7 @@
       "BOOLEAN"
     ],
     [
-      243,
+      241,
       165,
       0,
       166,
@@ -10335,7 +10295,7 @@
       "IMAGE"
     ],
     [
-      244,
+      242,
       127,
       1,
       166,
@@ -10343,7 +10303,7 @@
       "IMAGE"
     ],
     [
-      245,
+      243,
       166,
       0,
       128,
@@ -10351,7 +10311,7 @@
       "IMAGE"
     ],
     [
-      246,
+      244,
       159,
       0,
       167,
@@ -10359,31 +10319,31 @@
       "BOOLEAN"
     ],
     [
-      247,
+      245,
       165,
       1,
       167,
+      1,
+      "AUDIO"
+    ],
+    [
+      246,
+      127,
+      0,
+      167,
+      2,
+      "AUDIO"
+    ],
+    [
+      247,
+      167,
+      0,
+      128,
       1,
       "AUDIO"
     ],
     [
       248,
-      127,
-      0,
-      167,
-      2,
-      "AUDIO"
-    ],
-    [
-      249,
-      167,
-      0,
-      128,
-      1,
-      "AUDIO"
-    ],
-    [
-      250,
       159,
       0,
       168,
@@ -10391,7 +10351,7 @@
       "BOOLEAN"
     ],
     [
-      251,
+      249,
       165,
       2,
       168,
@@ -10399,7 +10359,7 @@
       "FLOAT"
     ],
     [
-      252,
+      250,
       160,
       0,
       168,
@@ -10407,7 +10367,7 @@
       "FLOAT"
     ],
     [
-      253,
+      251,
       168,
       0,
       128,
@@ -10415,7 +10375,7 @@
       "FLOAT"
     ],
     [
-      254,
+      252,
       158,
       0,
       94,
