@@ -119,6 +119,18 @@ def prompt_skills() -> list[str]:
     return [i for i in list_skills() if load_skill(i).kind not in DATA_KINDS]
 
 
+def skill_for_generator(skill: str, generator: str) -> str:
+    """The skill that writes the prompt of a shot follows the video model of the graph: the prompt_skill of its file in the generators folder
+    (a Remix shot has its own writer for each model: remix_prompt_skill). Other skills, and an empty generator, keep the skill that was chosen."""
+    if not generator.strip() or load_skill(skill).kind not in ("h3_writer", "shot_writer"):
+        return skill
+    from .generators import load_generator
+    chosen = load_generator(generator.strip())
+    if skill == "remix_shot_prompt":
+        return chosen.remix_prompt_skill or skill
+    return chosen.prompt_skill or skill
+
+
 def load_skill(skill_id: str) -> Skill:
     if not re.fullmatch(r"[\w .()-]+", skill_id or ""):
         raise MajoorError(f"Invalid skill name {skill_id!r}")

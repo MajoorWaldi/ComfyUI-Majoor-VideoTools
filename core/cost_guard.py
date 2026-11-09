@@ -29,6 +29,7 @@ class Settings:
     images: int = 1
     videos: int = 0
     audios: int = 0
+    task: str = "reference"  # edit: a Remix take changes a source video
 
 
 @dataclass(frozen=True)
@@ -43,7 +44,7 @@ def shot_price(generator_id: str, seconds: float, settings: Settings = Settings(
     badges: where the badge of a node class comes from (the object_info of a ComfyUI that is not this process); by default the running ComfyUI."""
     try:
         request = build_request(generator_id, prompt="x", seconds=seconds, aspect=settings.aspect, resolution=settings.resolution, audio=settings.audio, seed=seed,
-                                images=["i"] * settings.images, videos=["v"] * settings.videos, audios=["a"] * settings.audios)
+                                images=["i"] * settings.images, videos=["v"] * settings.videos, audios=["a"] * settings.audios, task=settings.task)
     except MajoorError:
         return None
     return evaluate((badges or badge_of)(request.class_type), request.inputs, request.media)
@@ -128,7 +129,7 @@ def settings_of(workflow: dict) -> Settings:
     named = node.get("widgets_values_named") or {}
     wired = {i["name"] for i in node.get("inputs", []) if i.get("link") is not None}
     return Settings(str(named.get("aspect_ratio", "9:16")), str(named.get("resolution", "720p")), bool(named.get("generate_audio", True)),
-                    sum(1 for i in range(1, 10) if f"image_{i}" in wired), int("reference_frames" in wired), int("reference_audio" in wired))
+                    sum(1 for i in range(1, 10) if f"image_{i}" in wired), int("reference_frames" in wired or "source_video" in wired), int("reference_audio" in wired), str(named.get("task", "reference")))
 
 
 def deploy_notes(workflow: dict, shots: list[tuple[str, int]], fps: float) -> tuple[list[str], list[str]]:

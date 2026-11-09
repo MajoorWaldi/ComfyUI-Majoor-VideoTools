@@ -31,5 +31,6 @@
   },
   "audio": "native",
   "prompt_skill": "ltx_shot_prompt",
+  "remix": false,
   "notes": "Same nodes as LTX 2.5 Fast, up to 10 s."
 }

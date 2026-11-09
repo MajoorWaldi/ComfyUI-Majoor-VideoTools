@@ -36,3 +36,19 @@ def test_the_message_names_the_model_it_writes_for():
 def test_the_reference_tags_of_the_skills_follow_the_models():
     assert "@Image1" in load_skill("seedance_shot_prompt").body and "@Audio1" in load_skill("wan_shot_prompt").body
     assert "@Image" not in load_skill("ltx_shot_prompt").body.replace("no tags", "")  # LTX has no reference tags
+
+
+def test_a_remix_shot_has_its_own_writer_for_each_model_that_can_remix():
+    from majoor_videotools.core.skills import skill_for_generator
+    assert skill_for_generator("remix_shot_prompt", "seedance_2_5") == "seedance_remix_prompt"
+    assert skill_for_generator("remix_shot_prompt", "minimax_h3") == "remix_shot_prompt"
+    assert skill_for_generator("remix_shot_prompt", "") == "remix_shot_prompt"
+    assert skill_for_generator("h3_shot_prompt_from_plan", "seedance_2_5") == "seedance_shot_prompt"  # a creation keeps its own writer
+    assert skill_for_generator("timeline_planner", "seedance_2_5") == "timeline_planner"  # a planner is not a shot writer
+    skill = load_skill("seedance_remix_prompt")
+    assert skill.kind == "shot_writer" and skill.meta["target"] == "Seedance 2.5 edit"
+    plain, _ = compose(skill, module_states(skill, dialogue=False))
+    assert "@Video1" in plain and "Replace the person" in plain and "DIALOGUE" not in plain and len(plain.split()) < 900
+    for gid in list_generators("video"):
+        gen = load_generator(gid)
+        assert (not gen.remix) or load_skill(gen.remix_prompt_skill).kind in ("h3_writer", "shot_writer"), gid

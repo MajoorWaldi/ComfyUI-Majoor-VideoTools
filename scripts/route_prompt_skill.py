@@ -10,10 +10,12 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from add_generator_router import FILES, ROOT, Recipe  # noqa: E402
+from add_generator_router import FILES, ROOT, Recipe, write_like  # noqa: E402
 
-SHOT_SUB = "Shot"  # the sub-graph "Shot · writes the H3 prompt"
+WRITERS = ("h3_shot_prompt_from_plan", "remix_shot_prompt")  # the skills of the shot writers: the Edit Skills node that has one is the one that follows the model
 OLD_SENTENCE = " The prompt writer still writes the H3 prompt format for now."
+NEW_SENTENCE_REMIX = (" The prompt of each shot is written by the skill of the model (`seedance_remix_prompt` for the edit mode of Seedance, `remix_shot_prompt` for H3): "
+                     "Edit Skills in the ANALYSIS sub-graph reads the generator and swaps the writer.")
 NEW_SENTENCE = (" The prompt of each shot is written by the skill of the model (`seedance_shot_prompt`, `wan_shot_prompt`, `ltx_shot_prompt`; `h3_shot_prompt_from_plan` for H3): "
                 "Edit Skills in the Shot sub-graph reads the generator and swaps the writer, so the LLM writes @Image / @Video tags for Seedance and Wan, a single flowing paragraph for LTX.")
 
@@ -21,11 +23,11 @@ NEW_SENTENCE = (" The prompt of each shot is written by the skill of the model (
 def patch(path: Path) -> bool:
     data = json.loads(path.read_text(encoding="utf-8"))
     r = Recipe(data)
-    sub = next(d for d in data["definitions"]["subgraphs"] if d["name"].startswith(SHOT_SUB))
+    sub, skills = next((d, n) for d in data["definitions"]["subgraphs"] for n in d["nodes"] if n["type"] == "MajoorEditSkills" and (n.get("widgets_values") or [""])[0] in WRITERS)
     if any(i["name"] == "generator" for i in sub["inputs"]):
         return False
+    remix = (skills["widgets_values"] or [""])[0] == "remix_shot_prompt"
     instance = next(n for n in data["nodes"] if n["type"] == sub["id"])
-    skills = next(n for n in sub["nodes"] if n["type"] == "MajoorEditSkills")
     block = next(g for g in data["groups"] if g["title"].startswith("SHOT_"))
     x0, y0, w, h = block["bounding"]
     getter = next(n for n in data["nodes"] if n["type"] == "GetNode" and n["widgets_values"] == ["GENERATOR"] and x0 <= n["pos"][0] <= x0 + w and y0 <= n["pos"][1] <= y0 + h)
@@ -42,16 +44,18 @@ def patch(path: Path) -> bool:
     # outside: the instance reads GENERATOR of the block
     instance["inputs"].append({"name": "generator", "type": "STRING", "link": None})
     r.link(getter, 0, instance, "generator")
-    instance["title"] = "SHOT · writes the prompt (the style of the video model)"
+    if not remix:
+        instance["title"] = "SHOT · writes the prompt (the style of the video model)"
 
     for note in data["nodes"]:
         if note["type"] == "MarkdownNote" and note.get("title") == "GUIDE" and OLD_SENTENCE in note["widgets_values"][0]:
             note["widgets_values"][0] = note["widgets_values"][0].replace(OLD_SENTENCE, NEW_SENTENCE, 1)
             note["size"][1] += 40
+        elif remix and note["type"] == "MarkdownNote" and note.get("title") == "GUIDE" and "Optional loaders are bypassed" in note["widgets_values"][0]:
+            note["widgets_values"][0] = note["widgets_values"][0].replace("Optional loaders are bypassed", NEW_SENTENCE_REMIX.lstrip() + "\n" + "Optional loaders are bypassed", 1)
+            note["size"][1] += 40
     data["last_link_id"] = r.next_link - 1
-    text = json.dumps(data, ensure_ascii=False, indent=2).replace("\n", "\r\n")  # the files of the pack: CRLF, no final newline
-    for folder in ("recipes", "workflows"):
-        (ROOT / folder / path.name).write_bytes(text.encode("utf-8"))
+    write_like(path, data)
     return True
 
 

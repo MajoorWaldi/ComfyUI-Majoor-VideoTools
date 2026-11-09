@@ -96,7 +96,8 @@ def test_the_remix_graphs_plan_judge_remember_and_keep_shots():
     assert stage1['CV']['inputs']['min_seconds'] == 1.0
     assert {'MajoorShotMemory', 'MajoorSaveShotMemory', 'MajoorTakeCheck', 'MajoorCheckPlate'} <= kinds(shot)
     assert shot['JS']['inputs']['skill'] == 'take_judge' and shot['116']['inputs']['on_false'] == ['J', 0]
-    assert slots['shot']['seed'] == [['91:155', 'noise_seed']] and slots['shot']['seed_b'] == [['108:155', 'noise_seed']]  # take B has its own seed
+    assert slots['shot']['seed'][0] == ['91:155', 'noise_seed'] and slots['shot']['seed_b'][0] == ['108:155', 'noise_seed']  # take B has its own seed (the API takes of the model choice come after the H3 ones)
+    assert slots['shot']['seed'][1:] == [['AG1', 'seed']] and slots['shot']['seed_b'][1:] == [['AG2', 'seed']]
     assert local['153']['class_type'] == 'MajoorShotSource' and local['153']['inputs']['original_video'] == ['75', 0]
     for name in ('remix_plan', 'remix_cast', 'source_words', 'remix_camera', 'plates', 'planning_instructions'):
         assert name in slots['stage1']
@@ -158,7 +159,17 @@ def test_take_b_runs_only_for_a_failed_check_or_best_of_two(judge, check, failed
     shot = json.loads((WORKFLOWS / 'shot.api.json').read_text(encoding='utf-8'))
     shot['JBOOL']['inputs']['value'] = judge
     ran = _ran(shot, {('115', 2): False, ('14', 0): check, ('110:9029', 0): failed, ('JN', 2): True, ('114', 2): False,
-                      ('78:9022', 2): False, ('M1', 1): False, ('90:9027', 2): False})
+                      ('78:9022', 2): False, ('M1', 1): False, ('90:9027', 2): False, ('GIS', 0): True})  # the model of the graph is H3
     assert ('108:139' in ran) == (judge or (check and failed))
     assert ('JT' in ran) == judge and ('110:9028' in ran) == (check and not judge)
     assert '90:9024' not in ran  # no place picture without a place
+
+
+def test_the_model_switch_runs_only_the_chosen_branch_of_a_remix_take():
+    shot = json.loads((WORKFLOWS / 'shot.api.json').read_text(encoding='utf-8'))
+    shot['JBOOL']['inputs']['value'] = False
+    base = {('115', 2): False, ('14', 0): False, ('110:9029', 0): False, ('JN', 2): True, ('114', 2): False, ('78:9022', 2): False, ('M1', 1): False, ('90:9027', 2): False}
+    h3 = _ran(shot, {**base, ('GIS', 0): True})
+    api = _ran(shot, {**base, ('GIS', 0): False})
+    assert '91:139' in h3 and 'AG1' not in h3 and 'AG2' not in h3  # H3: no API node is run, nothing is paid
+    assert 'AG1' in api and '91:139' not in api  # an API model: H3 does not run

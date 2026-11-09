@@ -65,6 +65,20 @@ class MajoorHeldAudio(io.ComfyNode):
         return io.NodeOutput(HELD[token])
 
 
+class MajoorHeldVideo(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(node_id="MajoorHeldVideo", display_name="Held Video (internal)", category="Majoor/VideoTools/internal", is_dev_only=True,
+                         description="Gives the video that Generate Shot (API) holds for its API node. Created by Generate Shot, never wired by hand.",
+                         inputs=[io.String.Input("token")], outputs=[io.Video.Output()])
+
+    @classmethod
+    def execute(cls, token) -> io.NodeOutput:
+        if token not in HELD:
+            raise MajoorError("The video held for this take is gone (the graph was run again): run the shot again.")
+        return io.NodeOutput(HELD[token])
+
+
 class MajoorGenerateShot(io.ComfyNode):
     @classmethod
     def define_schema(cls) -> io.Schema:
@@ -88,6 +102,8 @@ class MajoorGenerateShot(io.ComfyNode):
                 io.Image.Input("reference_frames", optional=True, tooltip="The frames of a reference video (they are made a video again for the models that take one)."),
                 io.Float.Input("reference_fps", default=24.0, min=1.0, max=120.0, step=0.001, optional=True, tooltip="The fps of reference_frames."),
                 io.Audio.Input("reference_audio", optional=True, tooltip="The music slice or the voice of the shot, for the models that take an audio reference."),
+                io.Combo.Input("task", options=["reference", "edit"], default="reference", optional=True, tooltip="reference: a new video made from the references. edit (Remix): the model changes source_video, the pictures say who replaces whom; it keeps the length and the format of the source."),
+                io.Video.Input("source_video", optional=True, tooltip="The video of the shot (Select Shot). With task=edit it is the video that is changed."),
             ],
             outputs=[
                 io.Image.Output(display_name="images"),
@@ -99,7 +115,7 @@ class MajoorGenerateShot(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, generator, prompt, seconds, aspect_ratio, resolution, generate_audio, seed, reference_fps=24.0, **media) -> io.NodeOutput:
+    def execute(cls, generator, prompt, seconds, aspect_ratio, resolution, generate_audio, seed, reference_fps=24.0, task="reference", **media) -> io.NodeOutput:
         if generator not in API:
             raise MajoorError(f"Generate Shot (API) needs an API model, got '{generator}'. Available: {API}")
         graph = GraphBuilder()
@@ -112,13 +128,16 @@ class MajoorGenerateShot(io.ComfyNode):
             picture = media.get(f"image_{i}")
             if picture is not None:  # an input that was wired to a switch with nothing to give arrives empty: it is left out
                 images.append(held("MajoorHeldImage", picture[:1]))
-        frames, audio = media.get("reference_frames"), media.get("reference_audio")
+        frames, audio, source = media.get("reference_frames"), media.get("reference_audio"), media.get("source_video")
         videos = []
-        if frames is not None:
+        if task == "edit":
+            if source is not None:
+                videos.append(held("MajoorHeldVideo", source))
+        elif frames is not None:
             videos.append(graph.node("CreateVideo", images=held("MajoorHeldImage", frames), fps=reference_fps).out(0))
         request = build_request(
             generator, prompt=prompt, seconds=seconds, aspect=aspect_ratio, resolution=resolution, audio=generate_audio, seed=seed,
-            images=images, videos=videos, audios=[held("MajoorHeldAudio", audio)] if audio is not None else [],
+            images=images, videos=videos, audios=[held("MajoorHeldAudio", audio)] if audio is not None else [], task=task,
         )
         seconds_asked = float(request.inputs["model.duration"])
         price = evaluate(badge_of(request.class_type), request.inputs, request.media)  # the badge of the node that is about to be called, on the settings of this take

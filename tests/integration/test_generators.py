@@ -50,3 +50,10 @@ def test_unknown_or_invalid_ids_are_refused():
     for bad in ("nope", "../x", "Seedance"):
         with pytest.raises(MajoorError):
             load_generator(bad)
+
+
+def test_only_the_models_that_edit_a_video_can_remix():
+    assert load_generator("seedance_2_5").remix and "edit" in load_generator("seedance_2_5").tasks
+    assert load_generator("minimax_h3").remix and load_generator("minimax_h3").tasks == ("reference",)  # H3 remixes with its pose map, not through an edit task
+    assert not load_generator("wan_3_0").remix and not load_generator("ltx_2_5_pro").remix
+    assert describe("seedance_2_5")["remix"] is True and describe("seedance_2_5")["tasks"] == ["reference", "edit"]

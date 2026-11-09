@@ -53,3 +53,32 @@ def test_local_models_and_bad_settings_are_refused():
         build_request("seedance_2_5", **{**BASE, "prompt": " "}, images=["I"])
     with pytest.raises(MajoorError):
         build_request("seedance_2_5", **{**BASE, "aspect": "2:1"}, images=["I"])
+
+
+def test_seedance_edits_the_source_video_for_a_remix():
+    r = build_request("seedance_2_5", **BASE, images=["I1"], videos=["SRC", "OTHER"], task="edit")
+    assert r.inputs["model.task_type"] == "edit" and r.inputs["model.reference_videos.video_1"] == "SRC" and "model.reference_videos.video_2" not in r.inputs
+    assert r.inputs["model.reference_images.image_1"] == "I1" and any("keeps the length" in n for n in r.notes)
+
+
+def test_an_edit_needs_the_source_video_and_a_model_that_edits():
+    with pytest.raises(MajoorError, match="source video"):
+        build_request("seedance_2_5", **BASE, images=["I1"], task="edit")
+    for model in ("wan_3_0", "ltx_2_5_pro"):
+        with pytest.raises(MajoorError, match="cannot do the task 'edit'"):
+            build_request(model, **BASE, images=["I1"], videos=["SRC"], task="edit")
+    with pytest.raises(MajoorError, match="cannot do the task"):
+        build_request("seedance_2_5", **BASE, images=["I1"], task="inpaint")
+
+
+def test_a_source_below_the_minimum_size_is_scaled_up_not_refused():
+    for task, videos in (("reference", ["V1"]), ("edit", ["SRC"])):
+        assert build_request("seedance_2_5", **BASE, images=["I1"], videos=videos, task=task).inputs["model.auto_upscale"] is True
+
+
+@pytest.mark.parametrize("model,task", [("seedance_2_5", "reference"), ("seedance_2_5", "edit"), ("wan_3_0", "reference"), ("ltx_2_5_pro", "reference")])
+def test_every_request_carries_the_seed_and_what_the_node_needs(model, task):
+    r = build_request(model, **BASE, images=["I1"], videos=["SRC"] if task == "edit" else [], task=task)
+    assert r.inputs["seed"] == 7 and "model" in r.inputs and "model.duration" in r.inputs  # a key lost from the dict was once hidden by a comment
+    if model != "ltx_2_5_pro":
+        assert r.inputs["watermark"] is False

@@ -8,11 +8,10 @@ from comfy_api.latest import io
 
 from ..adapters.comfy_video import MajoorShotList, projects_root
 from ..core.errors import MajoorError
-from ..core.generators import load_generator
 from ..core.paths import ProjectStore
 from ..core.dialogue import lines_of_shot
 from ..core.profiles import DIALS, list_profiles, music_text, profile_text
-from ..core.skills import DEFAULTS, GENRES, compose, load_skill, module_states, prompt_skills, user_message
+from ..core.skills import DEFAULTS, GENRES, compose, load_skill, module_states, prompt_skills, skill_for_generator, user_message
 
 
 RATIOS = ("9:16", "16:9", "1:1", "4:5", "21:9", "2:3", "3:2", "3:4", "4:3")
@@ -41,9 +40,7 @@ def _shot_frames(shot_list) -> tuple[torch.Tensor | None, list[str]]:
 
 def writer_skill(skill: str, generator: str) -> str:
     """The skill that writes the prompt of a shot follows the video model of the graph: the prompt_skill of its file in the generators folder."""
-    if not generator.strip() or load_skill(skill).kind not in ("h3_writer", "shot_writer"):
-        return skill
-    return load_generator(generator.strip()).prompt_skill or skill
+    return skill_for_generator(skill, generator)
 
 
 def _build(skill_id, overlays_splits, text_overlays, reference_mode, genre, duration, fps, aspect_ratio, n_pictures, text_allowed, extra, profile="none", dials=None, dialogue=False, locations=False, plate=False):

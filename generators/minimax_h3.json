@@ -22,5 +22,7 @@
   },
   "audio": "native",
   "prompt_skill": "h3_shot_prompt_from_plan",
+  "remix": true,
+  "remix_prompt_skill": "remix_shot_prompt",
   "notes": "Local. Lengths are 17k+5 frames, at least 124."
 }

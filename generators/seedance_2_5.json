@@ -22,5 +22,11 @@
   },
   "audio": "native",
   "prompt_skill": "seedance_shot_prompt",
+  "remix": true,
+  "tasks": [
+    "reference",
+    "edit"
+  ],
+  "remix_prompt_skill": "seedance_remix_prompt",
   "notes": "Reference to Video. Text-only and first/last-frame variants are other nodes (ByteDance2TextToVideoNode, ByteDance2FirstLastFrameNode). Seedance 2.5 Draft renders a cheap draft first."
 }

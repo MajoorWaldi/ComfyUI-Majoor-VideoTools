@@ -7,7 +7,7 @@ hard-coded where a shot is planned. Adding a model is adding a file.
 Fields of a file: id, kind (video), title, source (local | api), node (ComfyUI node), model (option of that node), family (h3 | seedance | wan | ltx: which request builder talks to it), cost (free | credits),
 duration ({mode: frames_grid, min_frames, step, offset} or {mode: seconds, min, max, step, values?}),
 inputs ({images, videos, audios: how many, null when unknown; first_frame, last_frame}), audio (native | none), prompt_skill, notes,
-price_per_second and price_unit (optional, see cost_guard.py)."""
+price_per_second and price_unit (optional, see cost_guard.py), remix (can it replace the subject of a source video), remix_prompt_skill, tasks (reference | edit)."""
 import json
 import math
 import re
@@ -40,6 +40,9 @@ class Generator:
     notes: str
     price_per_second: float | None = None  # credits (or the unit below) for a second of video; not shipped: the partner nodes show their own price
     price_unit: str = ""
+    remix: bool = False  # can it replace the subject of a source video (Remix)?
+    remix_prompt_skill: str = ""  # the writer of the Remix prompt that replaces remix_shot_prompt
+    tasks: tuple = ("reference",)  # what the model does with its references: reference (a new video), edit (change a source video)
 
     @property
     def seconds_based(self) -> bool:
@@ -62,6 +65,7 @@ def _parse(path: Path) -> Generator:
             model=str(raw.get("model", "")), family=str(raw.get("family", "")), cost=str(raw.get("cost", "free")), duration=dict(raw["duration"]), inputs=dict(raw.get("inputs", {})),
             audio=str(raw.get("audio", "none")), prompt_skill=str(raw.get("prompt_skill", "")), notes=str(raw.get("notes", "")),
             price_per_second=None if raw.get("price_per_second") is None else float(raw["price_per_second"]), price_unit=str(raw.get("price_unit", "")),
+            remix=bool(raw.get("remix", False)), remix_prompt_skill=str(raw.get("remix_prompt_skill", "")), tasks=tuple(raw.get("tasks", ["reference"])),
         )
     except (KeyError, TypeError, ValueError) as e:
         raise MajoorError(f"Generator '{path.stem}' is incomplete: {e!r}") from e
@@ -148,4 +152,5 @@ def describe(generator_id: str) -> dict:
     gen = load_generator(generator_id)
     return {"id": gen.id, "kind": gen.kind, "title": gen.title, "source": gen.source, "node": gen.node, "model": gen.model, "family": gen.family, "cost": gen.cost,
             "duration": gen.duration, "inputs": gen.inputs, "audio": gen.audio, "prompt_skill": gen.prompt_skill, "notes": gen.notes,
-            "price_per_second": gen.price_per_second, "price_unit": gen.price_unit}
+            "price_per_second": gen.price_per_second, "price_unit": gen.price_unit,
+            "remix": gen.remix, "remix_prompt_skill": gen.remix_prompt_skill, "tasks": list(gen.tasks)}

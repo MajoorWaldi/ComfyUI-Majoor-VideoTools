@@ -31,7 +31,7 @@ def _take(handles: list, cap: int | None, what: str, notes: list[str], title: st
 
 
 def build_request(generator_id: str, *, prompt: str, seconds: float, aspect: str = "16:9", resolution: str = "720p", audio: bool = True, seed: int = 0,
-                  images: list | None = None, videos: list | None = None, audios: list | None = None, fps: float = 24.0) -> Request:
+                  images: list | None = None, videos: list | None = None, audios: list | None = None, fps: float = 24.0, task: str = "reference") -> Request:
     gen = load_generator(generator_id)
     if gen.source != "api":
         raise MajoorError(f"Generator '{generator_id}' is not an API model")
@@ -39,6 +39,8 @@ def build_request(generator_id: str, *, prompt: str, seconds: float, aspect: str
         raise MajoorError(f"aspect_ratio {aspect!r} or resolution {resolution!r} unknown. Available: {ASPECTS}, {RESOLUTIONS}")
     if not prompt.strip():
         raise MajoorError("The prompt of the shot is empty")
+    if task not in gen.tasks:
+        raise MajoorError(f"{gen.title} cannot do the task '{task}' (it does: {list(gen.tasks)}); a Remix needs a model that edits a source video")
     secs = max(1, round(seconds))
     notes: list[str] = []
     images = _take(list(images or []), gen.limit("images"), "images", notes, gen.title)
@@ -46,12 +48,17 @@ def build_request(generator_id: str, *, prompt: str, seconds: float, aspect: str
     audios = _take(list(audios or []), gen.limit("audios"), "audios", notes, gen.title)
 
     if gen.family == "seedance":
-        if not images and not videos:
+        if task == "edit":
+            if not videos:
+                raise MajoorError(f"{gen.title} edits a source video: the video of the shot is missing")
+            videos = videos[:1]  # the first video is the one that is changed
+            notes.append("edit: the take keeps the length and the format of the source shot")
+        elif not images and not videos:
             raise MajoorError(f"{gen.title} reference mode needs at least one reference picture or video for the shot")
         inputs = {
             "model": gen.model, "model.prompt": prompt, "model.resolution": resolution, "model.ratio": aspect, "model.duration": secs,
-            "model.generate_audio": audio, "model.task_type": "reference", "model.output_format": "mp4",
-            "model.auto_downscale": True, "model.auto_upscale": False, "seed": seed, "watermark": False,
+            "model.generate_audio": audio, "model.task_type": task, "model.output_format": "mp4",
+            "model.auto_downscale": True, "model.auto_upscale": True, "seed": seed, "watermark": False,  # a source shot below the minimum size of the model (409,600 pixels) is scaled up, not refused
         }
         inputs.update({f"model.reference_images.image_{i}": h for i, h in enumerate(images, 1)})
         inputs.update({f"model.reference_videos.video_{i}": h for i, h in enumerate(videos, 1)})

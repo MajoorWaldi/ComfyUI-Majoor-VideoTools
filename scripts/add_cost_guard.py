@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from add_generator_router import FILES, ROOT, Recipe, push_notes_down  # noqa: E402
+from add_generator_router import FILES, ROOT, Recipe, push_notes_down, write_like  # noqa: E402
 
 SECONDS, USD = 120, 0.0
 AFTER = " The prompt of each shot is written by the skill"
@@ -42,10 +42,11 @@ def patch(path: Path) -> bool:
             elif AFTER in text and SENTENCE not in text:
                 note["widgets_values"][0] = text.replace(AFTER, SENTENCE + AFTER, 1)
                 note["size"][1] += 100
+            elif SENTENCE not in text and "Optional loaders are bypassed" in text:  # a note without the sentence about the prompt writer
+                note["widgets_values"][0] = text.replace("Optional loaders are bypassed", SENTENCE.lstrip() + "\n" + "Optional loaders are bypassed", 1)
+                note["size"][1] += 100
     push_notes_down(r, sizes)
-    text = json.dumps(data, ensure_ascii=False, indent=2).replace("\n", "\r\n")  # the files of the pack: CRLF, no final newline
-    for folder in ("recipes", "workflows"):
-        (ROOT / folder / path.name).write_bytes(text.encode("utf-8"))
+    write_like(path, data)
     return True
 
 
