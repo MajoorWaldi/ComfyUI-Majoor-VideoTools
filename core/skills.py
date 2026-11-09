@@ -203,7 +203,7 @@ def user_message(brief: str = "", rhythm_text: str = "", n_pictures: int = 1, vi
     if n_pictures > 0:
         blocks.append("PICTURES\n" + " ".join(f"<Picture {i}>" for i in range(1, n_pictures + 1)) + " are the images of this chat, in order.")
     if plate:
-        blocks.append(f"PLACE\n<Picture {n_pictures}> is the empty plate of the place of this shot: unoccupied but set-dressed, with its relevant furniture, mounted artwork, practical lights and fixed objects. Preserve their appearance and placement and name the elements useful to this shot in the prompt. It is an environment reference, never the actor identity. Static printed figures remain part of the artwork unless this shot explicitly animates them; movable/action props follow the current shot state.")
+        blocks.append(f"PLACE\n<Picture {n_pictures}> is the empty plate of the place of this shot: unoccupied, with its relevant furniture, practical lights and fixed objects. Preserve their appearance and placement and name the elements useful to this shot in the prompt. It is an environment reference, never the actor identity. Never add paintings, framed pictures or posters that the plate does not show; movable/action props follow the current shot state.")
     if videos:
         blocks.append("VIDEOS\n" + "\n".join(f"<Video {k}> = images {a} to {b} of this chat ({b - a + 1} frames in time order, from the first to the last frame of the clip)." for k, a, b in videos))
     if shot_frames:

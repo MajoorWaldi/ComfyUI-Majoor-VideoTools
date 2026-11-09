@@ -1,6 +1,7 @@
 from comfy_api.latest import io
 
 from ..adapters.comfy_video import MajoorShotList, MajoorShotMetadata, projects_root, video_file
+from ..core.workflow_tags import workflow_tags
 from ..core.revisions import DURATION_POLICIES, apply_revision
 from .preview import shots_payload
 
@@ -26,13 +27,16 @@ class MajoorApplyShotMetadata(io.ComfyNode):
                                  "before it cuts to what was asked. On: the take starts after that copy (its frames stay in the file). For a remix."),
                 io.Boolean.Input("align_to_music", default=False, optional=True, tooltip="On: the take starts where its moments of strongest motion land best on the attacks of the music of the project "
                                  "(at most half a second in, and only when it lines up clearly more). Not for a shot cut inside, nor for one whose words are sung or spoken."),
+                io.Boolean.Input("embed_workflow", default=True, optional=True, tooltip="On: the take file carries the workflow that made it (prompt and workflow tags, like Save Video), so dropping it in ComfyUI reopens it. "
+                                 "The environment variable MAJOOR_EMBED_WORKFLOW=0 turns it off for every take."),
             ],
             outputs=[MajoorShotList.Output(display_name="updated_shot_list")],
+            hidden=[io.Hidden.prompt, io.Hidden.extra_pnginfo],
         )
 
     @classmethod
-    def execute(cls, shot_list, metadata, video, activate_new_take, duration_policy, revision_label="", generation_prompt="", skip_copied_lead=False, align_to_music=False) -> io.NodeOutput:
-        with video_file(video) as path:
+    def execute(cls, shot_list, metadata, video, activate_new_take, duration_policy, revision_label="", generation_prompt="", skip_copied_lead=False, align_to_music=False, embed_workflow=True) -> io.NodeOutput:
+        with video_file(video, workflow_tags(cls.hidden, video, projects_root(shot_list)) if embed_workflow else None) as path:
             updated = apply_revision(shot_list, projects_root(shot_list), metadata, path, revision_label, activate_new_take, duration_policy, generation_prompt,
                                      skip_copied_lead, align_to_music)
         shot = updated.get_shot(metadata.shot_id)

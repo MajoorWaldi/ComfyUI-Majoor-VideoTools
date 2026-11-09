@@ -79,3 +79,15 @@ def test_insufficient_disk_is_an_explicit_failure(tmp_path, monkeypatch):
 def test_invalid_cache_policy_is_rejected(value):
     with pytest.raises(ValueError):
         CachePolicy(max_bytes=value)
+
+
+def test_the_cache_of_a_project_is_hidden_and_an_older_one_stays_readable(tmp_path):
+    from majoor_videotools.core.paths import ProjectStore
+
+    store = ProjectStore(tmp_path, "p_" + "a" * 12)
+    assert store.resolve("cache/slates/S.png").parent.parent.name == ".cache"
+    old = store.dir / "cache" / "slates" / "OLD.png"
+    old.parent.mkdir(parents=True)
+    old.write_bytes(b"x")
+    assert store.resolve("cache/slates/OLD.png") == old.resolve()
+    assert not (store.dir / "cache" / "scene_metrics").exists()

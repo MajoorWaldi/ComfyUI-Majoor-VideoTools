@@ -140,3 +140,10 @@ def test_the_words_of_a_lyric_last_as_long_as_they_are_sung_and_never_pile_up():
     assert all(layers[i]["end"] <= layers[i + 1]["start"] + 1 / 24 for i in range(len(layers) - 1))  # one word at a time
     assert all(l["reading"] == "exact" for l in layers)
     assert not [w for w in readability(parse_layers(json.dumps(layers), 4), 720, 1280, 4)["warnings"] if w["kind"] == "short_reading_window"]
+
+
+def test_kinetic_lyrics_never_show_commas():
+    from majoor_videotools.core.motion_library import kinetic_lyrics
+
+    rows = kinetic_lyrics(0, 3, [{"word": "Hello,", "start": 0, "end": .5}, {"word": ",", "start": .5, "end": .6}, {"word": "world", "start": .6, "end": 1}])
+    assert [r["content"] if "content" in r else r["text"] for r in rows] == ["Hello", "world"]

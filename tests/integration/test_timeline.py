@@ -477,7 +477,8 @@ def test_effects_and_sub_cuts_can_be_switched_off_at_assembly(root, fixtures):
     no_text = assemble_shots(sl, root, AssemblyOptions(audio_policy="mute", text=False))
     assert len({full.path, plain.path, one_piece.path, no_text.path}) == 4  # four different exports of the same takes: the text is its own switch
     assert all(probe(r.path).frame_count == 60 for r in (full, plain, one_piece, no_text))
-    assert [t[0] for t in plain.timeline] == ["BURST", "RAMP"] and len(plain.warnings) == 2  # the usual "take trimmed to the target" notes
+    assert [t[0] for t in plain.timeline] == ["BURST", "RAMP"]
+    assert len(plain.warnings) == 1 and plain.warnings[0].startswith("RAMP")  # the usual "take trimmed to the target" note; BURST is cut by its sub-cuts, which the effects switch does not turn off
     assert not full.warnings
 
 

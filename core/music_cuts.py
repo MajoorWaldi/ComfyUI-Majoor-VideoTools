@@ -13,7 +13,7 @@ from .words import parse_words, phrase_groups
 from .template import MIN_SHOT_FRAMES, _find_shots, _json_text, parse_plan
 from .timeline_sources import _with_lengths, group_cuts, merge_plans, plan_from_music, plan_text, protected_action
 
-MODES = ("legacy", "adaptive", "random", "regular", "free", "phrases")
+MODES = ("legacy", "adaptive", "random", "regular", "free", "phrases", "hits")
 MIN_TAKE_FRAMES = 22  # the shortest take H3 makes (the 17k+5 grid)
 PULSE_MIN = 0.3  # pulse of a section (autocorrelation of its attacks at the tempo) under which its beats are a metronome the tracker imposed
 SYNCOPATION = 0.15  # share of cuts, at full variation, that land on purpose between two beats in a section cut on the beat
@@ -21,6 +21,13 @@ PHRASE_HOLD = 1.6  # a section cut by phrases holds its shots this much longer
 CHAPTER_SECONDS = 2.0  # a section shorter than this (a lead-in before the first attack) does not open a chapter
 BURST_ACTIVITY = 0.25  # activity from which an adaptive edit may burst: calm intros sit near 0.2, rhythmic verses near 0.3 to 0.45, drops above 0.5
 HIT = 0.7  # strength of an attack that a cut can underline (a flash, a punch); weaker ones only carry the cut
+# Hit sync: what each cut pace keeps, as (weakest hit kept, shortest shot in seconds)
+HIT_PACE = {"low": (.6, .6), "auto": (.28, .25), "medium": (.28, .25), "high": (0.0, 0.0)}  # high: every hit, the shortest shot is MIN_SHOT_FRAMES
+BASS_WITH_HIT = .12  # a bass entry this close to a kick, a snare or a word is the same event, which keeps the sharper time
+HIT_MERGE = .05  # two hits closer than this are one (a kick and a bass entering together)
+VOICE_BURST = .45  # strength given to the start of a burst of voice
+WORD_START = .5  # strength given to the start of a word (a transcript says exactly where it is)
+VOICE_KINDS = ("voice", "word")  # a cut on the voice only fills what the rhythm of the music leaves: it never takes the place of a kick, a bass entry or a snare
 
 
 def pulse_confidence(samples, rate, bpm):
@@ -124,6 +131,8 @@ def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", densit
             "bpm": float(bpm) if bpm > 0 else None, "beat_times": [float(t) for t in beats] if bpm > 0 else [],
             "warnings": [] if phrases else ["No vocal phrase found; the whole track is one shot"],
             "timing_source": ("word_phrases" if spoken else "vocal_phrases") if phrases else "narrative"}
+    if mode == "hits":
+        return _hit_plan(samples, rate, total=total, fps=fps, density=density, words=words)
     if mode == "regular":
         return plan_from_music(samples, rate, duration=duration, fps=fps, cut_every=cut_every)
     if mode in ("legacy", "free"):
@@ -232,6 +241,56 @@ def music_cut_plan(samples, rate, *, duration, fps=24.0, mode="adaptive", densit
         "timing_source": "measured_accents" if candidates else "narrative",
         "sections": [{k: s[k] for k in ("tag", "start", "end", "pacing", "pulse")} for s in sections],
     }
+
+
+def hit_candidates(samples, rate, words=None) -> list[tuple[float, float, str]]:
+    """(seconds, strength, kind) of everything a cut can land on: the kicks, the snares, the entries of the bass, the starts of the voice (words with their times when
+    there are some, else the bursts of voice), and the start of each section. Hits within HIT_MERGE of each other are one: the strongest names it."""
+    from .audio_events import band_hits, bass_hits
+    found = [(t, x, band) for band, rows in band_hits(samples, rate).items() if band in ("kick", "snare") for t, x in rows]
+    found += [(t, x, "bass") for t, x in bass_hits(samples, rate)]
+    spoken = []
+    if words:
+        try:
+            spoken = [(w["start"], WORD_START, "word") for w in parse_words(words)]
+        except ValueError as error:
+            raise MajoorError(f"The words are not valid JSON: {error}") from error
+    found += spoken or [(a, VOICE_BURST, "voice") for a, _ in vocal_phrases(samples, rate, min_pause=.12, min_length=.1)]
+    found += [(s["start"], 1.0, "start of the " + s["tag"]) for s in track_sections(np.asarray(samples), rate)[1:]]
+    sharp = [(t, x, k) for t, x, k in found if k != "bass"]
+    found = sharp + [(t, x, k) for t, x, k in found if k == "bass" and not any(abs(t - other) < BASS_WITH_HIT for other, _, _ in sharp)]  # a bass that comes in with a kick is that kick
+    found = [(t, max([x, *[y for u, y, k in found if k == "bass" and abs(t - u) < BASS_WITH_HIT]]) if kind in ("kick", "snare") else x, kind) for t, x, kind in found]
+    merged = []
+    for time, strength, kind in sorted(found):
+        if merged and time - merged[-1][0] < HIT_MERGE:
+            if strength > merged[-1][1]:
+                merged[-1] = (merged[-1][0], strength, kind)
+            continue
+        merged.append((time, strength, kind))
+    return merged
+
+
+def _hit_plan(samples, rate, *, total, fps, density, words):
+    """A cut on the hits themselves: every kick, bass entry, snare or word the cut pace keeps, strongest first, never two closer than the pace allows."""
+    weakest, gap_seconds = HIT_PACE[density]
+    gap = max(MIN_SHOT_FRAMES, round(gap_seconds * fps))
+    chosen = []
+    found = hit_candidates(samples, rate, words)
+    for voice in (False, True):  # the music first, then the voice in what is left
+        for time, strength, kind in sorted((row for row in found if (row[2] in VOICE_KINDS) == voice), key=lambda row: -row[1]):
+            frame = round(time * fps)
+            if strength < weakest or not MIN_SHOT_FRAMES <= frame <= total - MIN_SHOT_FRAMES:
+                continue
+            if all(abs(frame - other) >= gap for other, _ in chosen):
+                chosen.append((frame, kind))
+    chosen.sort()
+    bounds = [0, *[frame for frame, _ in chosen], total]
+    kinds = ["", *[kind for _, kind in chosen]]
+    bpm, beats = detect_beats(samples, rate)
+    return {"fps": fps, "shots": [{"duration_frames": b - a, "prompt": "", "notes": "hit sync" + (f"; starts on {'an' if kind[0] in 'aeiou' else 'a'} {kind}" if kind else "")}
+                                  for (a, b), kind in zip(zip(bounds, bounds[1:]), kinds)]}, {
+        "bpm": float(bpm) if bpm > 0 else None, "beat_times": [float(t) for t in beats] if bpm > 0 else [],
+        "warnings": [] if chosen else ["No hit found; the whole track is one shot"], "timing_source": "hits" if chosen else "narrative"}
 
 
 def _pacing_note(section, kind):

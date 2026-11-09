@@ -10,7 +10,8 @@ from filelock import FileLock
 
 from .errors import PathError
 
-SUBDIRS = ("sources", "cache/scene_metrics", "cache/thumbnails", "cache/clips", "generated", "exports", "manifests", "logs")
+CACHE_DIR = ".cache"  # what the project can rebuild (slates, thumbnails, clips, renders): hidden from the asset browsers of ComfyUI, which skip folders starting with a dot
+SUBDIRS = ("sources", f"{CACHE_DIR}/scene_metrics", f"{CACHE_DIR}/thumbnails", f"{CACHE_DIR}/clips", "generated", "exports", "manifests", "logs")
 _SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 
 
@@ -36,6 +37,10 @@ class ProjectStore:
         path = (self.dir / rel).resolve()
         if not path.is_relative_to(self.dir):
             raise PathError(f"Path '{rel}' escapes the project directory")
+        parts = Path(rel).parts
+        if parts and parts[0] == "cache":  # the cache folder of a project made before it was hidden stays readable where it is
+            hidden = (self.dir / CACHE_DIR / Path(*parts[1:])).resolve()
+            return path if path.exists() and not hidden.exists() else hidden
         return path
 
     def rel(self, path: Path) -> str:

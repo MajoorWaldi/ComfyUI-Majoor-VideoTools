@@ -42,11 +42,12 @@ class MajoorRetimeFrames(io.ComfyNode):
                 io.Image.Input("images"),
                 io.Float.Input("fps_in", default=30.0, min=0.01, max=1000.0, step=0.001, tooltip="The frame rate of the images (the fps of Get Video Components)."),
                 io.Float.Input("fps_out", default=24.0, min=0.01, max=1000.0, step=0.001, tooltip="The frame rate the next node reads them at."),
+                io.Int.Input("min_frames", default=5, min=1, max=1000, optional=True, tooltip="A shorter result is held to this many frames (the last frame repeats). MiniMax H3 refuses a reference video of fewer than 5 frames, which a shot of a fifth of a second or less would give."),
             ],
             outputs=[io.Image.Output(display_name="images"), io.Int.Output(display_name="count")],
         )
 
     @classmethod
-    def execute(cls, images, fps_in, fps_out) -> io.NodeOutput:
-        indices = retime_frames(images.shape[0], fps_in, fps_out)
+    def execute(cls, images, fps_in, fps_out, min_frames=5) -> io.NodeOutput:
+        indices = retime_frames(images.shape[0], fps_in, fps_out, min_frames)
         return io.NodeOutput(images[indices], len(indices))

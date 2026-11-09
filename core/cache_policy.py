@@ -34,7 +34,7 @@ def _regular(path):
 def _candidates(store):
     # Sources, takes, durable audio, exports and arbitrary cache files are never GC candidates.
     for relative in ("cache/text", "cache/render_sources", "cache/timeline"):
-        directory = store.dir / relative
+        directory = store.resolve(relative)
         if not directory.exists() or directory.is_symlink() or getattr(directory.lstat(), "st_file_attributes", 0) & 0x400:
             continue
         def walk_error(error):

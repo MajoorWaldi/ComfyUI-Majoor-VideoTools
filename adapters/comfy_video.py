@@ -394,10 +394,11 @@ def project_media_base(scope, relative="") -> str:
 
 
 @contextlib.contextmanager
-def video_file(video):
-    """Yield a path holding the video. Untrimmed, uncropped file-backed videos are used in place; anything else is saved first."""
+def video_file(video, metadata: dict | None = None):
+    """Yield a path holding the video. Untrimmed, uncropped file-backed videos are used in place; anything else is saved first,
+    and so is any video that must carry `metadata` (tags of the file: the workflow that made it)."""
     source = video.get_stream_source()
-    if isinstance(source, str) and video.get_active_trim_window() == (0.0, 0.0):
+    if not metadata and isinstance(source, str) and video.get_active_trim_window() == (0.0, 0.0):
         whole = probe(Path(source), with_packets=False)
         if video.get_dimensions() == (whole.width, whole.height):  # a crop changes the size of the video, not the file
             yield Path(source)
@@ -406,7 +407,7 @@ def video_file(video):
     scratch.mkdir(parents=True, exist_ok=True)
     tmp = scratch / f"{uuid.uuid4().hex}.mp4"
     try:
-        video.save_to(str(tmp))
+        video.save_to(str(tmp), metadata=metadata) if metadata else video.save_to(str(tmp))
         yield tmp
     finally:
         tmp.unlink(missing_ok=True)

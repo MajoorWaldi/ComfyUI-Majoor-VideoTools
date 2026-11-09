@@ -7036,7 +7036,7 @@
         }
       ],
       "widgets_values": [
-        "Inspect only the attached image. Is this an unoccupied location, with no actual people? Furniture, objects, lamps, shelves and mounted artwork/posters are allowed: unoccupied does not mean unfurnished.\nActual people include partial bodies, silhouettes, reflections of real people and background crowds. A clearly flat printed figure inside an identifiable mounted poster/artwork is set dressing, not an actual person; mention that distinction in the reason. If you cannot distinguish a depiction from an actual person, use uncertain. A dark or unreadable image is uncertain. Do not infer the absence of people from the request or the filename.\nReturn ONLY one JSON object: {\"status\":\"clear|person|uncertain\",\"reason\":\"brief visual evidence\"}.\nUse clear only when the visible scene contains no actual people and any printed figure is unambiguously part of mounted artwork. Use person if an actual person is visible, including a reflection or partial body. Otherwise use uncertain. Do not include markdown, a score or a promise of certainty.\n"
+        "Inspect only the attached image. Is this an unoccupied location, with no actual people? Furniture, objects and lamps are allowed: unoccupied does not mean unfurnished.\nActual people include partial bodies, silhouettes, reflections of real people and background crowds. A clearly flat printed figure on a surface is not an actual person; mention that distinction in the reason. If you cannot distinguish a depiction from an actual person, use uncertain. A dark or unreadable image is uncertain. Do not infer the absence of people from the request or the filename.\nReturn ONLY one JSON object: {\"status\":\"clear|person|uncertain\",\"reason\":\"brief visual evidence\"}.\nUse clear only when the visible scene contains no actual people and any printed figure is unambiguously flat print. Use person if an actual person is visible, including a reflection or partial body. Otherwise use uncertain. Do not include markdown, a score or a promise of certainty.\n"
       ]
     },
     {
@@ -12563,7 +12563,7 @@
               "Node name for S&R": "StringConcatenate"
             },
             "widgets_values": [
-              "An unoccupied, fully set-dressed ",
+              "An unoccupied ",
               null,
               ""
             ],
@@ -12608,7 +12608,7 @@
             },
             "widgets_values": [
               null,
-              ". Location reference photograph: preserve the requested architecture, furnishings, fixed objects, mounted artwork/posters and practical lighting, including their placement. No actual people or performed action. Static printed artwork explicitly requested for the set may remain flat on its support. No invented readable lettering or logos.",
+              ". Location reference photograph: preserve the requested architecture, materials, furniture, fixed objects and practical lighting, including their placement. Plain clean walls with nothing hung on them, unless the place description names a wall item. No actual people or performed action. No invented readable lettering or logos.",
               ""
             ],
             "title": "... no people"
