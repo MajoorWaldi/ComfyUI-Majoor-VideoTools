@@ -5,6 +5,7 @@ from server import PromptServer
 
 from ..core.api_request import ASPECTS, RESOLUTIONS, build_request
 from ..core.cost_guard import DEFAULT_BUDGET_SECONDS, Ledger
+from ..core.pricing import badge_of, evaluate
 from ..core.errors import MajoorError
 from ..core.generators import list_generators, load_generator
 
@@ -13,14 +14,14 @@ N_IMAGES = 9
 LEDGER = Ledger()
 
 
-def api_budget(dynprompt) -> int:
-    """MAX API SECONDS of the Generator Select of the graph being run (the default when the graph has none or it is wired to something)."""
+def api_budget(dynprompt) -> tuple[int, float]:
+    """MAX API SECONDS and MAX API USD of the Generator Select of the graph being run (the defaults when the graph has none or they are wired to something)."""
     for node_id in dynprompt.all_node_ids():
         node = dynprompt.get_node(node_id)
         if node.get("class_type") == "MajoorGeneratorSelect":
-            value = node.get("inputs", {}).get("max_api_seconds", DEFAULT_BUDGET_SECONDS)
-            return DEFAULT_BUDGET_SECONDS if is_link(value) else int(value)
-    return DEFAULT_BUDGET_SECONDS
+            seconds, usd = node.get("inputs", {}).get("max_api_seconds", DEFAULT_BUDGET_SECONDS), node.get("inputs", {}).get("max_api_usd", 0.0)
+            return (DEFAULT_BUDGET_SECONDS if is_link(seconds) else int(seconds)), (0.0 if is_link(usd) else float(usd))
+    return DEFAULT_BUDGET_SECONDS, 0.0
 
 
 class MajoorGenerateShot(io.ComfyNode):
@@ -72,10 +73,14 @@ class MajoorGenerateShot(io.ComfyNode):
             generator, prompt=prompt, seconds=seconds, aspect=aspect_ratio, resolution=resolution, audio=generate_audio, seed=seed,
             images=[h for h in images if is_link(h)], videos=videos, audios=[audio] if is_link(audio) else [],
         )
-        try:  # the budget of the run: the seconds of this take are counted before the model is called
-            LEDGER.charge(str(getattr(PromptServer.instance, "last_prompt_id", "") or "run"), float(request.inputs["model.duration"]), api_budget(cls.hidden.dynprompt))
+        seconds_asked = float(request.inputs["model.duration"])
+        price = evaluate(badge_of(request.class_type), request.inputs, request.media)  # the badge of the node that is about to be called, on the settings of this take
+        budget_seconds, budget_usd = api_budget(cls.hidden.dynprompt)
+        try:  # the budget of the run: this take is counted before the model is called
+            spent_seconds, spent_usd = LEDGER.charge(str(getattr(PromptServer.instance, "last_prompt_id", "") or "run"), seconds_asked, budget_seconds, price.high if price else 0.0, budget_usd)
         except ValueError as e:
             raise MajoorError(str(e)) from e
+        print(f"[Majoor] Generate Shot: {generator} {seconds_asked:g} s" + (f", about {price.text}" if price else "") + f" (this run: {spent_seconds:g} s" + (f", about ${spent_usd:.2f}" if price else "") + ")")
         for note in request.notes:
             print(f"[Majoor] Generate Shot: {note}")
         api = graph.node(request.class_type, **request.inputs)

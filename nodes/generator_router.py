@@ -20,14 +20,16 @@ class MajoorGeneratorSelect(io.ComfyNode):
                 io.Combo.Input("generator", options=VIDEO, default="minimax_h3", tooltip="A file of the generators folder of this pack: add a file there to offer another model."),
                 io.Int.Input("max_api_seconds", default=DEFAULT_BUDGET_SECONDS, min=0, max=36000, optional=True,
                              tooltip="The budget of a run, in seconds of video asked for from an API model (every take counts, a retry too). Deploy Shots writes the estimate of the edit and asks before it goes over; Generate Shot (API) stops before the take that would pass it. 0: no limit."),
+                io.Float.Input("max_api_usd", default=0.0, min=0.0, max=100000.0, step=0.5, optional=True,
+                               tooltip="The budget of a run in dollars: the price badges of the API nodes added up, the dearest figure of a range. Same guards as MAX API SECONDS (it needs jsonata-python, see requirements.txt). 0: no limit."),
             ],
             outputs=[io.String.Output(display_name="generator")],
         )
 
     @classmethod
-    def execute(cls, generator, max_api_seconds=DEFAULT_BUDGET_SECONDS) -> io.NodeOutput:
+    def execute(cls, generator, max_api_seconds=DEFAULT_BUDGET_SECONDS, max_api_usd=0.0) -> io.NodeOutput:
         gen = load_generator(generator)
-        budget = f" · budget {max_api_seconds} s" if gen.source == "api" and max_api_seconds > 0 else ""
+        budget = "".join([f" · budget {max_api_seconds} s" if max_api_seconds > 0 else "", f" · ${max_api_usd:g}" if max_api_usd > 0 else ""]) if gen.source == "api" else ""
         return io.NodeOutput(gen.id, ui={"text": (f"{gen.title} · {gen.source} · {gen.cost}{budget}",)})
 
 

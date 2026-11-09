@@ -19,6 +19,7 @@ class Request:
     inputs: dict
     notes: list[str] = field(default_factory=list)
     video_fps: float = 0.0  # the fps the model makes, when it is set by the request (0: the model decides)
+    media: list[str] = field(default_factory=list)  # the inputs that are references (handles), the others are widget values
 
 
 def _take(handles: list, cap: int | None, what: str, notes: list[str], title: str) -> list:
@@ -55,7 +56,7 @@ def build_request(generator_id: str, *, prompt: str, seconds: float, aspect: str
         inputs.update({f"model.reference_images.image_{i}": h for i, h in enumerate(images, 1)})
         inputs.update({f"model.reference_videos.video_{i}": h for i, h in enumerate(videos, 1)})
         inputs.update({f"model.reference_audios.audio_{i}": h for i, h in enumerate(audios, 1)})
-        return Request(gen.node, inputs, notes)
+        return Request(gen.node, inputs, notes, media=[k for k in inputs if k.startswith("model.reference_")])
 
     if gen.family == "wan":
         if aspect not in ("16:9", "9:16", "1:1", "4:3", "3:4"):
@@ -67,7 +68,7 @@ def build_request(generator_id: str, *, prompt: str, seconds: float, aspect: str
         inputs.update({f"model.reference_images.image{i}": h for i, h in enumerate(images, 1)})
         inputs.update({f"model.reference_videos.video{i}": h for i, h in enumerate(videos, 1)})
         inputs.update({f"model.reference_audios.audio{i}": h for i, h in enumerate(audios, 1)})
-        return Request(gen.node, inputs, notes)
+        return Request(gen.node, inputs, notes, media=[k for k in inputs if k.startswith("model.reference_")])
 
     if gen.family == "ltx":
         size = LTX_SIZES.get((aspect, resolution))
@@ -77,7 +78,7 @@ def build_request(generator_id: str, *, prompt: str, seconds: float, aspect: str
                   "model.generate_audio": audio, "prompt": prompt, "seed": seed}
         if images:
             inputs["image"] = images[0]  # LTX starts from a picture: the shot begins on the first reference
-            return Request(gen.node, inputs, notes, float(inputs["model.fps"]))
+            return Request(gen.node, inputs, notes, float(inputs["model.fps"]), media=["image"])
         return Request("LtxApi25TextToVideo", inputs, notes, float(inputs["model.fps"]))
 
     raise MajoorError(f"Generator '{generator_id}' has no request builder for the family {gen.family!r}")
