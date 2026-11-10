@@ -26,6 +26,7 @@ UI_CACHE = ("majoor_ui", "majoor_compare", "majoor_assembly", "majoor_deploy")  
 SHOT_ID = re.compile(r"[A-Za-z0-9_-]{1,40}")
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 RECIPES = Path(__file__).resolve().parents[1] / "recipes"
+LEGACY_PREFIX = "SECATOR "
 GAP = 60.0
 
 
@@ -60,6 +61,8 @@ def load_recipe(name: str) -> dict:
     if not re.fullmatch(r"[\w .()&-]+", name or ""):
         raise MajoorError(f"Invalid recipe name {name!r}")
     path = RECIPES / f"{name}.json"
+    if not path.is_file() and name.startswith(LEGACY_PREFIX):  # the recipes were called SECATOR before: a saved graph still names them so
+        path = RECIPES / f"HyperKut {name[len(LEGACY_PREFIX):]}.json"
     if not path.is_file():
         raise MajoorError(f"Unknown recipe '{name}'. Available: {list_recipes()}")
     try:

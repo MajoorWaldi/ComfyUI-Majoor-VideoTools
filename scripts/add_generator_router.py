@@ -13,8 +13,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REMIX = "SECATOR Remix"  # a Remix replaces the subject of a source video: Seedance does it in edit mode, so its block gets the router in another form
-FILES = ("SECATOR Creative Text", "SECATOR Creative Music", REMIX)
+REMIX = "HyperKut Remix"  # a Remix replaces the subject of a source video: Seedance does it in edit mode, so its block gets the router in another form
+FILES = ("HyperKut Creative Text", "HyperKut Creative Music", REMIX)
 H3 = "e8d64e56-82fd-4a7a-b144-51025f6ba7be"
 CTRL, BLOCK, TIMELINE_NODE = "0", "SHOT_", "MajoorCreateTimeline"
 GENSHOT_SIZE, IS_SIZE, SELECT_SIZE, SWITCH_SIZE = (330, 450), (270, 60), (400, 82), (340, 110)

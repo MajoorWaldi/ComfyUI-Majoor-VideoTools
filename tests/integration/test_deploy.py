@@ -174,7 +174,9 @@ def test_layout_in_columns_and_input_checks(recipe):
         dp.load_recipe("nope")
     with pytest.raises(MajoorError, match="Invalid recipe"):
         dp.load_recipe("../secret")
-    assert "SECATOR Remix" in dp.list_recipes()
+    assert "HyperKut Remix" in dp.list_recipes()
+    assert not any(name.startswith("SECATOR") for name in dp.list_recipes())
+    assert dp.load_recipe("SECATOR Remix") == dp.load_recipe("HyperKut Remix")  # a graph saved before the rename still deploys
 
 
 def test_input_graph_is_not_modified(recipe):
@@ -209,8 +211,8 @@ def plan_recipe():
 
 
 def test_recipe_is_picked_by_the_kind_of_shots():
-    assert dp.pick_recipe("auto", True) == "Minimax H3 TimelineShot Creator" and dp.pick_recipe("auto", False) == "SECATOR Remix"
-    assert dp.pick_recipe("SECATOR Creative", False) == "SECATOR Creative"  # an explicit choice is kept
+    assert dp.pick_recipe("auto", True) == "Minimax H3 TimelineShot Creator" and dp.pick_recipe("auto", False) == "HyperKut Remix"
+    assert dp.pick_recipe("HyperKut Creative", False) == "HyperKut Creative"  # an explicit choice is kept
 
 
 def test_plan_recipe_block_is_driven_by_the_plan(plan_recipe):
@@ -269,7 +271,7 @@ def _bare_of(recipe_wf):
 
 
 def test_auto_takes_the_timelineshot_recipe_for_plan_shots_and_the_video_one_otherwise():
-    assert dp.pick_recipe("auto", True) == TIMELINESHOT and dp.pick_recipe("auto", False) == "SECATOR Remix"
+    assert dp.pick_recipe("auto", True) == TIMELINESHOT and dp.pick_recipe("auto", False) == "HyperKut Remix"
     assert dp.recipe_info(TIMELINESHOT)["kind"] == "plan" and TIMELINESHOT in dp.list_recipes()
     assert dp.pick_recipe(TIMELINESHOT, False) == TIMELINESHOT  # an explicit choice is kept
 

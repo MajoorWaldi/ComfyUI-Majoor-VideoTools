@@ -9,7 +9,7 @@ SHARED = sorted(p.name for p in (ROOT / "recipes").glob("*.json") if (ROOT / "wo
 
 
 def test_the_creative_recipes_have_a_workflow_copy():
-    assert {"SECATOR Creative Text.json", "SECATOR Creative Music.json", "SECATOR Remix.json"} <= set(SHARED)
+    assert {"HyperKut Creative Text.json", "HyperKut Creative Music.json", "HyperKut Remix.json"} <= set(SHARED)
 
 
 @pytest.mark.parametrize("name", SHARED)

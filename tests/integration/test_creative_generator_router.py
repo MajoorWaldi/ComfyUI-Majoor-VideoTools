@@ -5,7 +5,7 @@ import pytest
 
 from majoor_videotools.core import deploy as dp
 
-CREATIVE = ("SECATOR Creative Text", "SECATOR Creative Music")
+CREATIVE = ("HyperKut Creative Text", "HyperKut Creative Music")
 IMAGES = [f"image_{i}" for i in range(1, 10)]
 
 

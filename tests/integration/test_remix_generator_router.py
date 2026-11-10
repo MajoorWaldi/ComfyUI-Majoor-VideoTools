@@ -4,7 +4,7 @@ from collections import Counter
 from majoor_videotools.core import deploy as dp
 from majoor_videotools.core.cost_guard import Choice, DEFAULT_BUDGET_SECONDS, selected_generator
 
-REMIX = "SECATOR Remix"
+REMIX = "HyperKut Remix"
 
 
 def _bare(recipe):

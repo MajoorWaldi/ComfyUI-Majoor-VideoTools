@@ -61,7 +61,7 @@ def test_the_ledger_counts_a_run_and_refuses_the_take_that_passes_the_budget():
     assert len(ledger.runs) <= Ledger.KEEP
 
 
-@pytest.mark.parametrize("name", ("SECATOR Creative Text", "SECATOR Creative Music"))
+@pytest.mark.parametrize("name", ("HyperKut Creative Text", "HyperKut Creative Music"))
 def test_the_creative_recipes_carry_the_budget(name):
     wf = dp.load_recipe(name)
     assert selected_generator(wf) == Choice("minimax_h3", DEFAULT_BUDGET_SECONDS, 0.0)

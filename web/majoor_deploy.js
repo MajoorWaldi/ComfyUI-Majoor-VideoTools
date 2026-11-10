@@ -148,6 +148,11 @@ app.registerExtension({
     if (node.comfyClass === DEPLOYER) setupDeployer(node);
   },
   loadedGraphNode(node) {
-    if (node.comfyClass === DEPLOYER) node._mjrDeployInfo?.(describe(node.properties?.majoor_deploy));
+    if (node.comfyClass !== DEPLOYER) return;
+    // the recipes were called SECATOR before: a saved graph gets the HyperKut recipe of the same name
+    const recipe = node.widgets?.find((w) => w.name === "recipe");
+    const renamed = typeof recipe?.value === "string" && recipe.value.startsWith("SECATOR ") ? `HyperKut ${recipe.value.slice(8)}` : null;
+    if (renamed && recipe.options?.values?.includes(renamed)) recipe.value = renamed;
+    node._mjrDeployInfo?.(describe(node.properties?.majoor_deploy));
   },
 });

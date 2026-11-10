@@ -1,8 +1,8 @@
 {
   "id": "093a5e62-5c7b-4a6e-9a19-05b068f53c04",
   "revision": 0,
-  "last_node_id": 168,
-  "last_link_id": 249,
+  "last_node_id": 171,
+  "last_link_id": 252,
   "nodes": [
     {
       "id": 1,
@@ -2177,7 +2177,8 @@
           "name": "CLIP",
           "type": "CLIP",
           "links": [
-            27
+            27,
+            32
           ]
         }
       ],
@@ -2570,10 +2571,10 @@
         "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
-        "flux-2-klein-4b-fp8.safetensors",
+        "minimax_h3_image_pruned_int8_convrot.safetensors",
         "default"
       ],
-      "title": "Plate · FLUX.2 klein 4B",
+      "title": "Plate · MiniMax H3 Image",
       "color": "#335",
       "bgcolor": "#557"
     },
@@ -2616,43 +2617,6 @@
         "PLATE_MODEL"
       ],
       "title": "Set_PLATE_MODEL"
-    },
-    {
-      "id": 69,
-      "type": "CLIPLoader",
-      "pos": [
-        1730,
-        3278
-      ],
-      "size": [
-        520,
-        454
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            32
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "Node name for S&R": "CLIPLoader"
-      },
-      "widgets_values": [
-        "qwen_3_4b.safetensors",
-        "flux2",
-        "default"
-      ],
-      "title": "Plate · text encoder",
-      "color": "#335",
-      "bgcolor": "#557"
     },
     {
       "id": 70,
@@ -2723,9 +2687,9 @@
         "Node name for S&R": "VAELoader"
       },
       "widgets_values": [
-        "flux2-vae.safetensors"
+        "minimax_h3_image_vae_fp16.safetensors"
       ],
-      "title": "Plate · VAE",
+      "title": "Plate · H3 Image VAE",
       "color": "#335",
       "bgcolor": "#557"
     },
@@ -3636,7 +3600,7 @@
         "Node name for S&R": "MajoorDeployShots"
       },
       "widgets_values": [
-        "SECATOR Creative Text",
+        "HyperKut Creative Text",
         0,
         3,
         true,
@@ -6858,7 +6822,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## SECATOR · Creative Text · YuE2\n\nType an **idea**: the planner decides the cuts (how many shots, how long, the cuts inside a shot) from the idea and the **style**; a long soundtrack is made by YuE2 (the **SOUND MOOD** are its tags, the **BPM** is given to it), and **Music Fit** cuts its strongest window, on the bars, to the length of the edit and every cut is then snapped to its beats.\nPictures: up to 5 (REF 1 is the hero, kept exactly as shown) and/or one reference video.\n\n1. **YOUR IDEA**, **SOUND MOOD**, **BPM**, **REF 1**. Set the **EDIT LENGTH**.\n2. Run once: the idea is enhanced, the soundtrack is made, the plan is written (**CREATE TIMELINE**). Press **Create shots** in Deploy Shots (one block per shot appears below).\n3. Run again: each shot gets its H3 prompt (and, with **PLACES**, the empty plate of its place as the last picture) and is generated; **SHOT ASSEMBLE** puts shots, effects and sound together.\n\n**Sound**: a soundtrack made in the mood you ask for. With **VOICE ON** (+ the VOICE sample and the DIALOGUE) H3 speaks the lines and the music is mixed under the voices.\n**Style**: the `profile` of **Skill · timeline_planner** (viral_aura_farming by default; glow_up, outfit_change, beauty_premium, product_advertising, narrative_cinematic, music_video). **CAMERA LOOK**: paste a look of the note.\n**Reference video** (bypassed): its motion guides H3 (`<Video 1>`) and the enhancer ends with the TRICK of the video.\n**Switches** (controls, top): **EFFECTS** (zoom, speed, flip, look, transitions and sub-cuts of the plan, drawn by Shot Assemble), **TEXT** (the planner stops writing text and the assembly draws none) and **MOTION GRAPHICS ON** (the layers of the control; off: the node does not run). **SUBJECT MASK** is only needed by the layers that use the subject.\n**Sound of the shots**: H3 makes a sound with every shot (ambiences, foley, hits). **SOUND DESIGN** keeps it and mixes it with the music, whose volume gives way to it (a compressor keyed by the shots); **SOUND OF THE SHOTS VOLUME** sets its level (0.8). **SOUND EFFECTS** adds a whoosh under a whip, a camera shutter under a flash, an impact, a hit or a glitch under the other cuts of the plan (made by the code, the same every time). With **VOICE ON** the sound of the shots is the voice and the sound design at once.\n**Effects on the beat**: the cuts of the plan, the cuts inside a shot (where the punch-ins, the flips, the flashes and the speed ramps start) and so the sound effects under them snap to the half beats of the music (the `cut_snap` of **CREATE TIMELINE**, `half_beat`; `beat` or `bar` for fewer, `off` to leave them where the planner put them). The beat grid follows the kick.\n**MUSIC SYNC** (off by default): H3 hears the slice of the music under each shot (the reference audio of H3, the same seconds as the shot in the edit) and the prompt says the movement lands on its beats, so the shot moves with the rhythm. H3 may let some of the music into the sound of the shot, which the sound design then mixes under the music. Ignored when a voice sample is given (VOICE ON).\n**Bad takes**: every take is looked at (**Take Check**: eight frames; black or white from start to end, or only noise, is bad; a dark, busy or still shot is not; a smeared face is not caught). With **RETRY BAD TAKES** a bad take is generated again once with another seed, and only then (a second H3 that does not run otherwise).\n**Format and quality**: **FORMAT AND QUALITY** is ComfyUI's Resolution Selector (multiple of 32): the ratio and the megapixels of the video. 0.35 MP (the default, about 448 x 800 for 9:16) is the draft; 0.6 MP is 576 x 1024; 0.98 MP is 768 x 1344, what H3 is made for: measured on a 24 GB GPU, a shot takes about 112 s instead of 48 s (82 s of sampling instead of 21 s) and the card holds it. H3 generates at that size and never above 0.98 MP; the planner is told the ratio.\n**PLACES**: the planner gives each shot a place; the empty plate of a place is made once (FLUX.2 klein) and is the last picture of every shot in that place.\n**Motion graphics**: the control **MOTION GRAPHICS** takes a list of layers (animated texts, boxes, corner brackets, emojis, glitch / chromatic aberration / grid / dots, a contour around the subject, points that follow it) that the **Motion Graphics** node draws over the finished edit; `[]` means none. The contour, the effects aimed at the subject or the background and the points anchored on the subject need **SUBJECT MASK** on (BiRefNet reads about 48 frames of the edit). Example: `[{\"type\": \"text\", \"content\": \"NEW DROP\", \"position\": \"top_left\", \"size\": 0.09, \"color\": \"white\", \"start\": \"0%\", \"end\": \"30%\", \"animation\": \"typewriter\", \"out\": \"fade\"}]`. Hover the control for every field.\n**Video model** (VIDEO MODEL in the controls): `minimax_h3` generates the takes locally with H3; `seedance_2_5`, `wan_3_0`, `ltx_2_5_fast` and `ltx_2_5_pro` call the Comfy API (sign in; each take spends credits, so keep RETRY BAD TAKES off while you try). The plan, the length asked and the take follow the choice and only the chosen branch runs. The API branch of a shot block (**Generate Shot (API)**) has its own aspect ratio and resolution: set them like CREATE TIMELINE (LTX makes 16:9 and 9:16 only; Seedance needs a reference picture or video, so keep one REF on). **Budget**: MAX API SECONDS (120 by default) and MAX API USD (0 = no limit) on VIDEO MODEL cap what one run asks from an API model, retries included; 0 removes a cap. The dollars are the price badges of the API nodes added up (needs `jsonata-python`, see requirements.txt). Deploy Shots writes the estimate of the whole edit in its report and asks before a deployment that would go over; Generate Shot (API) stops before the take that would pass a budget, without calling the model. The prompt of each shot is written by the skill of the model (`seedance_shot_prompt`, `wan_shot_prompt`, `ltx_shot_prompt`; `h3_shot_prompt_from_plan` for H3): Edit Skills in the Shot sub-graph reads the generator and swaps the writer, so the LLM writes @Image / @Video tags for Seedance and Wan, a single flowing paragraph for LTX.\nOptional loaders are bypassed (purple): select one and press Ctrl+B to use it."
+        "## HyperKut · Creative Text · YuE2\n\nType an **idea**: the planner decides the cuts (how many shots, how long, the cuts inside a shot) from the idea and the **style**; a long soundtrack is made by YuE2 (the **SOUND MOOD** are its tags, the **BPM** is given to it), and **Music Fit** cuts its strongest window, on the bars, to the length of the edit and every cut is then snapped to its beats.\nPictures: up to 5 (REF 1 is the hero, kept exactly as shown) and/or one reference video.\n\n1. **YOUR IDEA**, **SOUND MOOD**, **BPM**, **REF 1**. Set the **EDIT LENGTH**.\n2. Run once: the idea is enhanced, the soundtrack is made, the plan is written (**CREATE TIMELINE**). Press **Create shots** in Deploy Shots (one block per shot appears below).\n3. Run again: each shot gets its H3 prompt (and, with **PLACES**, the empty plate of its place as the last picture) and is generated; **SHOT ASSEMBLE** puts shots, effects and sound together.\n\n**Sound**: a soundtrack made in the mood you ask for. With **VOICE ON** (+ the VOICE sample and the DIALOGUE) H3 speaks the lines and the music is mixed under the voices.\n**Style**: the `profile` of **Skill · timeline_planner** (viral_aura_farming by default; glow_up, outfit_change, beauty_premium, product_advertising, narrative_cinematic, music_video). **CAMERA LOOK**: paste a look of the note.\n**Reference video** (bypassed): its motion guides H3 (`<Video 1>`) and the enhancer ends with the TRICK of the video.\n**Switches** (controls, top): **EFFECTS** (zoom, speed, flip, look, transitions and sub-cuts of the plan, drawn by Shot Assemble), **TEXT** (the planner stops writing text and the assembly draws none) and **MOTION GRAPHICS ON** (the layers of the control; off: the node does not run). **SUBJECT MASK** is only needed by the layers that use the subject.\n**Sound of the shots**: H3 makes a sound with every shot (ambiences, foley, hits). **SOUND DESIGN** keeps it and mixes it with the music, whose volume gives way to it (a compressor keyed by the shots); **SOUND OF THE SHOTS VOLUME** sets its level (0.8). **SOUND EFFECTS** adds a whoosh under a whip, a camera shutter under a flash, an impact, a hit or a glitch under the other cuts of the plan (made by the code, the same every time). With **VOICE ON** the sound of the shots is the voice and the sound design at once.\n**Effects on the beat**: the cuts of the plan, the cuts inside a shot (where the punch-ins, the flips, the flashes and the speed ramps start) and so the sound effects under them snap to the half beats of the music (the `cut_snap` of **CREATE TIMELINE**, `half_beat`; `beat` or `bar` for fewer, `off` to leave them where the planner put them). The beat grid follows the kick.\n**MUSIC SYNC** (off by default): H3 hears the slice of the music under each shot (the reference audio of H3, the same seconds as the shot in the edit) and the prompt says the movement lands on its beats, so the shot moves with the rhythm. H3 may let some of the music into the sound of the shot, which the sound design then mixes under the music. Ignored when a voice sample is given (VOICE ON).\n**Bad takes**: every take is looked at (**Take Check**: eight frames; black or white from start to end, or only noise, is bad; a dark, busy or still shot is not; a smeared face is not caught). With **RETRY BAD TAKES** a bad take is generated again once with another seed, and only then (a second H3 that does not run otherwise).\n**Format and quality**: **FORMAT AND QUALITY** is ComfyUI's Resolution Selector (multiple of 32): the ratio and the megapixels of the video. 0.35 MP (the default, about 448 x 800 for 9:16) is the draft; 0.6 MP is 576 x 1024; 0.98 MP is 768 x 1344, what H3 is made for: measured on a 24 GB GPU, a shot takes about 112 s instead of 48 s (82 s of sampling instead of 21 s) and the card holds it. H3 generates at that size and never above 0.98 MP; the planner is told the ratio.\n**PLACES**: the planner gives each shot a place; the empty plate of a place is made once (MiniMax H3 Image, 6 steps, with the text encoder of H3) and is the last picture of every shot in that place.\n**PLACE IMAGE**: load a picture of the place in PLACE IMAGE and turn on USE THE PLACE IMAGE: every shot happens there, the generated places are skipped (even with PLACES off). Off, the picture is not read.\n**Motion graphics**: the control **MOTION GRAPHICS** takes a list of layers (animated texts, boxes, corner brackets, emojis, glitch / chromatic aberration / grid / dots, a contour around the subject, points that follow it) that the **Motion Graphics** node draws over the finished edit; `[]` means none. The contour, the effects aimed at the subject or the background and the points anchored on the subject need **SUBJECT MASK** on (BiRefNet reads about 48 frames of the edit). Example: `[{\"type\": \"text\", \"content\": \"NEW DROP\", \"position\": \"top_left\", \"size\": 0.09, \"color\": \"white\", \"start\": \"0%\", \"end\": \"30%\", \"animation\": \"typewriter\", \"out\": \"fade\"}]`. Hover the control for every field.\n**Video model** (VIDEO MODEL in the controls): `minimax_h3` generates the takes locally with H3; `seedance_2_5`, `wan_3_0`, `ltx_2_5_fast` and `ltx_2_5_pro` call the Comfy API (sign in; each take spends credits, so keep RETRY BAD TAKES off while you try). The plan, the length asked and the take follow the choice and only the chosen branch runs. The API branch of a shot block (**Generate Shot (API)**) has its own aspect ratio and resolution: set them like CREATE TIMELINE (LTX makes 16:9 and 9:16 only; Seedance needs a reference picture or video, so keep one REF on). **Budget**: MAX API SECONDS (120 by default) and MAX API USD (0 = no limit) on VIDEO MODEL cap what one run asks from an API model, retries included; 0 removes a cap. The dollars are the price badges of the API nodes added up (needs `jsonata-python`, see requirements.txt). Deploy Shots writes the estimate of the whole edit in its report and asks before a deployment that would go over; Generate Shot (API) stops before the take that would pass a budget, without calling the model. The prompt of each shot is written by the skill of the model (`seedance_shot_prompt`, `wan_shot_prompt`, `ltx_shot_prompt`; `h3_shot_prompt_from_plan` for H3): Edit Skills in the Shot sub-graph reads the generator and swaps the writer, so the LLM writes @Image / @Video tags for Seedance and Wan, a single flowing paragraph for LTX.\nOptional loaders are bypassed (purple): select one and press Ctrl+B to use it."
       ],
       "title": "GUIDE"
     },
@@ -6883,7 +6847,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## DEPENDENCIES\n\n### Node packs\n\n| Pack | Why |\n|---|---|\n| [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | Set / Get nodes: the wires between the sections and the shot blocks |\n| [comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) | DWPreprocessor: the pose map inside the H3 sub-graph (its pose models download on the first run) |\n| [comfyui-easy-use](https://github.com/yolain/ComfyUI-Easy-Use) | frees the GPU memory between steps inside the H3 sub-graph |\n| [ComfyUI-Majoor-VideoTools](https://github.com/MajoorWaldi/ComfyUI-Majoor-VideoTools) | this pack: Scene Detect, Select Shot, Edit Skills, Deploy Shots, Apply Shot Metadata, Shot Assemble |\n\n### Models (ComfyUI/models/...)\n\n| Role | File | Folder | Download |\n|---|---|---|---|\n| LLM vision (reads, writes) | `gemma4_12b_int8_convrot.safetensors` | `text_encoders` | [Comfy-Org/Gemma4](https://huggingface.co/Comfy-Org/Gemma4) · 12.1 GB |\n| LLM (hears, plans) | `gemma4_e4b_it_fp8_scaled.safetensors` | `text_encoders` | [Comfy-Org/Gemma4](https://huggingface.co/Comfy-Org/Gemma4) · 9 GB |\n| H3 · diffusion model | `minimax_h3_ref2va_pruned_int8_convrot.safetensors` | `diffusion_models` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) · 19.5 GB |\n| H3 · turbo LoRA (8 steps) | `minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors` | `loras` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) · your local file: the repo lists `minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors`; pick the one you have in the LoRA node |\n| H3 · text encoder | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · video VAE | `minimax_h3_video_vae_int8_convrot.safetensors` | `vae` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · audio VAE | `minimax_h3_audio_vae_fp32.safetensors` | `vae` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · pose ControlNet | `minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors` | `model_patches` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| Music · YuE2 combined checkpoint | `yue2_3b_int8_convrot.safetensors` | `checkpoints` | [Comfy-Org/YuE2](https://huggingface.co/Comfy-Org/YuE2) |\n| Plate · FLUX.2 klein 4B (Apache 2.0) | `flux-2-klein-4b-fp8.safetensors` | `diffusion_models` | [black-forest-labs/FLUX.2-klein-4b-fp8](https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-fp8) · Apache 2.0; 4-step text-to-image |\n| Plate · text encoder | `qwen_3_4b.safetensors` | `text_encoders` | [Comfy-Org/flux2-klein](https://huggingface.co/Comfy-Org/flux2-klein) · in `split_files/text_encoders/` |\n| Plate · VAE | `flux2-vae.safetensors` | `vae` | [Comfy-Org/flux2-klein](https://huggingface.co/Comfy-Org/flux2-klein) · in `split_files/vae/` |\n| Subject mask · BiRefNet | `birefnet.safetensors` | `background_removal` | [Comfy-Org/BiRefNet](https://huggingface.co/Comfy-Org/BiRefNet) · only for the SUBJECT MASK (outline, effects on the subject, points that follow it) |\n\n### System\n\n- API video models (Seedance 2.5, Wan 3.0, LTX 2.5): a signed-in Comfy account with credits (the partner nodes of ComfyUI); nothing to download.\n- ComfyUI recent enough to have *Generate Text*, MiniMax H3, YuE2, Resolution Selector and background removal nodes, and the sub-graphs.\n- FFmpeg and FFprobe on `PATH`; `pip install -r requirements.txt` in this pack (scenedetect)."
+        "## DEPENDENCIES\n\n### Node packs\n\n| Pack | Why |\n|---|---|\n| [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | Set / Get nodes: the wires between the sections and the shot blocks |\n| [comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux) | DWPreprocessor: the pose map inside the H3 sub-graph (its pose models download on the first run) |\n| [comfyui-easy-use](https://github.com/yolain/ComfyUI-Easy-Use) | frees the GPU memory between steps inside the H3 sub-graph |\n| [ComfyUI-Majoor-VideoTools](https://github.com/MajoorWaldi/ComfyUI-Majoor-VideoTools) | this pack: Scene Detect, Select Shot, Edit Skills, Deploy Shots, Apply Shot Metadata, Shot Assemble |\n\n### Models (ComfyUI/models/...)\n\n| Role | File | Folder | Download |\n|---|---|---|---|\n| LLM vision (reads, writes) | `gemma4_12b_int8_convrot.safetensors` | `text_encoders` | [Comfy-Org/Gemma4](https://huggingface.co/Comfy-Org/Gemma4) · 12.1 GB |\n| LLM (hears, plans) | `gemma4_e4b_it_fp8_scaled.safetensors` | `text_encoders` | [Comfy-Org/Gemma4](https://huggingface.co/Comfy-Org/Gemma4) · 9 GB |\n| H3 · diffusion model | `minimax_h3_ref2va_pruned_int8_convrot.safetensors` | `diffusion_models` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) · 19.5 GB |\n| H3 · turbo LoRA (8 steps) | `minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors` | `loras` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) · your local file: the repo lists `minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors`; pick the one you have in the LoRA node |\n| H3 · text encoder | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · video VAE | `minimax_h3_video_vae_int8_convrot.safetensors` | `vae` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · audio VAE | `minimax_h3_audio_vae_fp32.safetensors` | `vae` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| H3 · pose ControlNet | `minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors` | `model_patches` | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) |\n| Music · YuE2 combined checkpoint | `yue2_3b_int8_convrot.safetensors` | `checkpoints` | [Comfy-Org/YuE2](https://huggingface.co/Comfy-Org/YuE2) |\n| Plate · MiniMax H3 Image | `minimax_h3_image_pruned_int8_convrot.safetensors` | `diffusion_models` | [Comfy-Org/MiniMax-H3-Image](https://huggingface.co/Comfy-Org/MiniMax-H3-Image) · 6-step text-to-image (ComfyUI 0.45 or later) |\n| Plate · H3 Image VAE | `minimax_h3_image_vae_fp16.safetensors` | `vae` | [Comfy-Org/MiniMax-H3-Image](https://huggingface.co/Comfy-Org/MiniMax-H3-Image) · the plate uses the H3 text encoder above |\n| Subject mask · BiRefNet | `birefnet.safetensors` | `background_removal` | [Comfy-Org/BiRefNet](https://huggingface.co/Comfy-Org/BiRefNet) · only for the SUBJECT MASK (outline, effects on the subject, points that follow it) |\n\n### System\n\n- API video models (Seedance 2.5, Wan 3.0, LTX 2.5): a signed-in Comfy account with credits (the partner nodes of ComfyUI); nothing to download.\n- ComfyUI recent enough to have *Generate Text*, MiniMax H3, YuE2, Resolution Selector and background removal nodes, and the sub-graphs.\n- FFmpeg and FFprobe on `PATH`; `pip install -r requirements.txt` in this pack (scenedetect)."
       ],
       "title": "DEPENDENCIES · node packs, models, links"
     },
@@ -7136,11 +7100,7 @@
           "name": "output",
           "type": "IMAGE",
           "links": [
-            82,
-            117,
-            141,
-            213,
-            236
+            252
           ]
         }
       ],
@@ -8255,6 +8215,137 @@
       "flags": {},
       "order": 0,
       "mode": 0
+    },
+    {
+      "id": 169,
+      "type": "PrimitiveBoolean",
+      "pos": [
+        1280,
+        858
+      ],
+      "size": [
+        408,
+        80
+      ],
+      "flags": {},
+      "order": 154,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": [
+            250
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PrimitiveBoolean"
+      },
+      "widgets_values": [
+        false
+      ],
+      "title": "USE THE PLACE IMAGE",
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 170,
+      "type": "LoadImage",
+      "pos": [
+        2040,
+        1700
+      ],
+      "size": [
+        340,
+        330
+      ],
+      "flags": {},
+      "order": 155,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            251
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ],
+      "title": "PLACE IMAGE · optional, replaces the generated places",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "flags": {},
+      "mode": 0,
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "id": 171,
+      "type": "ComfySwitchNode",
+      "title": "PLACE · your image, else the generated plate",
+      "pos": [
+        6970,
+        1700
+      ],
+      "size": [
+        420,
+        220
+      ],
+      "order": 156,
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 250,
+          "widget": {
+            "name": "switch"
+          }
+        },
+        {
+          "name": "on_false",
+          "type": "*",
+          "link": 252
+        },
+        {
+          "name": "on_true",
+          "type": "*",
+          "link": 251
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "IMAGE",
+          "links": [
+            82,
+            117,
+            141,
+            213,
+            236
+          ]
+        }
+      ],
+      "widgets_values": [
+        false
+      ]
     }
   ],
   "links": [
@@ -8508,7 +8599,7 @@
     ],
     [
       32,
-      69,
+      55,
       0,
       70,
       0,
@@ -8908,7 +8999,7 @@
     ],
     [
       82,
-      151,
+      171,
       0,
       94,
       5,
@@ -9188,7 +9279,7 @@
     ],
     [
       117,
-      151,
+      171,
       0,
       109,
       17,
@@ -9364,7 +9455,7 @@
     ],
     [
       141,
-      151,
+      171,
       0,
       127,
       17,
@@ -9924,7 +10015,7 @@
     ],
     [
       213,
-      151,
+      171,
       0,
       161,
       8,
@@ -10108,7 +10199,7 @@
     ],
     [
       236,
-      151,
+      171,
       0,
       165,
       8,
@@ -10217,6 +10308,30 @@
       94,
       10,
       "STRING"
+    ],
+    [
+      250,
+      169,
+      0,
+      171,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      251,
+      170,
+      0,
+      171,
+      2,
+      "IMAGE"
+    ],
+    [
+      252,
+      151,
+      0,
+      171,
+      1,
+      "IMAGE"
     ]
   ],
   "groups": [
@@ -10239,7 +10354,7 @@
       "bounding": [
         0,
         1358,
-        2310,
+        2480,
         1312
       ],
       "color": "#3f789e",
@@ -14536,7 +14651,7 @@
         "state": {
           "lastGroupId": 0,
           "lastNodeId": 13,
-          "lastLinkId": 18,
+          "lastLinkId": 19,
           "lastRerouteId": 0
         },
         "revision": 0,
@@ -14579,7 +14694,8 @@
             "name": "model",
             "type": "MODEL",
             "linkIds": [
-              5
+              5,
+              19
             ],
             "pos": [
               -200,
@@ -14717,8 +14833,85 @@
             "title": "... no people"
           },
           {
+            "type": "MiniMaxH3ImageConditioning",
+            "flags": {},
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "clip",
+                "name": "clip",
+                "type": "CLIP",
+                "link": 4
+              },
+              {
+                "localized_name": "vae",
+                "name": "vae",
+                "shape": 7,
+                "type": "VAE",
+                "link": null
+              },
+              {
+                "localized_name": "image_0",
+                "name": "images.image_0",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": null
+              },
+              {
+                "localized_name": "prompt",
+                "name": "prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt"
+                },
+                "link": 3
+              },
+              {
+                "localized_name": "width",
+                "name": "width",
+                "type": "INT",
+                "widget": {
+                  "name": "width"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "height",
+                "name": "height",
+                "type": "INT",
+                "widget": {
+                  "name": "height"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "positive",
+                "name": "positive",
+                "type": "CONDITIONING",
+                "links": [
+                  6
+                ]
+              },
+              {
+                "localized_name": "LATENT",
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  11
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "MiniMaxH3ImageConditioning"
+            },
+            "widgets_values": [
+              "",
+              1088,
+              1920
+            ],
             "id": 3,
-            "type": "CLIPTextEncode",
             "pos": [
               860,
               30
@@ -14727,40 +14920,7 @@
               420,
               200
             ],
-            "flags": {},
             "order": 0,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "text",
-                "type": "STRING",
-                "widget": {
-                  "name": "text"
-                },
-                "link": 3
-              },
-              {
-                "name": "clip",
-                "type": "CLIP",
-                "link": 4
-              }
-            ],
-            "outputs": [
-              {
-                "name": "CONDITIONING",
-                "type": "CONDITIONING",
-                "links": [
-                  6
-                ]
-              }
-            ],
-            "properties": {
-              "cnr_id": "comfy-core",
-              "Node name for S&R": "CLIPTextEncode"
-            },
-            "widgets_values": [
-              ""
-            ],
             "title": "Plate · prompt"
           },
           {
@@ -14806,57 +14966,47 @@
             "title": "Plate · guider"
           },
           {
-            "id": 5,
-            "type": "EmptyFlux2LatentImage",
-            "pos": [
-              0,
-              260
-            ],
-            "size": [
-              320,
-              110
-            ],
+            "type": "BasicScheduler",
             "flags": {},
-            "order": 0,
             "mode": 0,
-            "inputs": [],
-            "outputs": [
+            "inputs": [
               {
-                "name": "LATENT",
-                "type": "LATENT",
-                "links": [
-                  11
-                ]
+                "localized_name": "model",
+                "name": "model",
+                "type": "MODEL",
+                "link": 19
+              },
+              {
+                "localized_name": "scheduler",
+                "name": "scheduler",
+                "type": "COMBO",
+                "widget": {
+                  "name": "scheduler"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "steps",
+                "name": "steps",
+                "type": "INT",
+                "widget": {
+                  "name": "steps"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "denoise",
+                "name": "denoise",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "denoise"
+                },
+                "link": null
               }
             ],
-            "properties": {
-              "cnr_id": "comfy-core",
-              "Node name for S&R": "EmptyFlux2LatentImage"
-            },
-            "widgets_values": [
-              720,
-              1280,
-              1
-            ],
-            "title": "Plate · 720 x 1280"
-          },
-          {
-            "id": 6,
-            "type": "Flux2Scheduler",
-            "pos": [
-              0,
-              430
-            ],
-            "size": [
-              320,
-              110
-            ],
-            "flags": {},
-            "order": 0,
-            "mode": 0,
-            "inputs": [],
             "outputs": [
               {
+                "localized_name": "SIGMAS",
                 "name": "SIGMAS",
                 "type": "SIGMAS",
                 "links": [
@@ -14865,15 +15015,24 @@
               }
             ],
             "properties": {
-              "cnr_id": "comfy-core",
-              "Node name for S&R": "Flux2Scheduler"
+              "Node name for S&R": "BasicScheduler"
             },
             "widgets_values": [
-              4,
-              720,
-              1280
+              "simple",
+              6,
+              1
             ],
-            "title": "Plate · 4 steps"
+            "id": 6,
+            "pos": [
+              0,
+              430
+            ],
+            "size": [
+              320,
+              110
+            ],
+            "order": 0,
+            "title": "Plate · 6 steps"
           },
           {
             "id": 7,
@@ -15215,7 +15374,7 @@
             "origin_id": 2,
             "origin_slot": 0,
             "target_id": 3,
-            "target_slot": 0,
+            "target_slot": 3,
             "type": "STRING"
           },
           {
@@ -15223,7 +15382,7 @@
             "origin_id": -10,
             "origin_slot": 2,
             "target_id": 3,
-            "target_slot": 1,
+            "target_slot": 0,
             "type": "CLIP"
           },
           {
@@ -15276,8 +15435,8 @@
           },
           {
             "id": 11,
-            "origin_id": 5,
-            "origin_slot": 0,
+            "origin_id": 3,
+            "origin_slot": 1,
             "target_id": 9,
             "target_slot": 4,
             "type": "LATENT"
@@ -15337,6 +15496,14 @@
             "target_id": -20,
             "target_slot": 0,
             "type": "IMAGE"
+          },
+          {
+            "id": 19,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 6,
+            "target_slot": 0,
+            "type": "MODEL"
           }
         ],
         "extra": {}
@@ -15995,7 +16162,7 @@
   "config": {},
   "extra": {
     "majoor_recipe": {
-      "title": "SECATOR Creative Text",
+      "title": "HyperKut Creative Text",
       "kind": "plan",
       "priority": -1,
       "description": "Creative: an idea, pictures and a sound become an edit cut on the beats, one H3 shot per block."
