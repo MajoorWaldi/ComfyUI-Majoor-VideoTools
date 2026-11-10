@@ -21,15 +21,20 @@ class MajoorGeneratorSelect(io.ComfyNode):
                 io.Int.Input("max_api_seconds", default=DEFAULT_BUDGET_SECONDS, min=0, max=36000, optional=True,
                              tooltip="The budget of a run, in seconds of video asked for from an API model (every take counts, a retry too). Deploy Shots writes the estimate of the edit and asks before it goes over; Generate Shot (API) stops before the take that would pass it. 0: no limit."),
                 io.Float.Input("max_api_usd", default=0.0, min=0.0, max=100000.0, step=0.5, optional=True,
-                               tooltip="The budget of a run in dollars: the price badges of the API nodes added up, the dearest figure of a range. Same guards as MAX API SECONDS (it needs jsonata-python, see requirements.txt). 0: no limit."),
+                               tooltip="The budget of a run in dollars: the price badges of the API nodes added up, the dearest figure of a range. Same guards as MAX API SECONDS. "
+                                       "It needs jsonata-python (requirements.txt): without a price the take is refused rather than paid unchecked. 0: no limit."),
+                io.String.Input("budget_key", default="", optional=True,
+                                tooltip="Empty: the budget is the one of each run (queued again, a graph starts from zero). A name: every run with this name shares one budget, "
+                                        "kept on disk across restarts for 7 days (HyperKut Studio names the job, so the budget is the one of the whole edit). Another name starts again."),
             ],
             outputs=[io.String.Output(display_name="generator")],
         )
 
     @classmethod
-    def execute(cls, generator, max_api_seconds=DEFAULT_BUDGET_SECONDS, max_api_usd=0.0) -> io.NodeOutput:
+    def execute(cls, generator, max_api_seconds=DEFAULT_BUDGET_SECONDS, max_api_usd=0.0, budget_key="") -> io.NodeOutput:
         gen = load_generator(generator)
-        budget = "".join([f" · budget {max_api_seconds} s" if max_api_seconds > 0 else "", f" · ${max_api_usd:g}" if max_api_usd > 0 else ""]) if gen.source == "api" else ""
+        budget = "".join([f" · budget {max_api_seconds} s" if max_api_seconds > 0 else "", f" · ${max_api_usd:g}" if max_api_usd > 0 else "",
+                          f" · shared as {budget_key.strip()!r}" if budget_key.strip() else ""]) if gen.source == "api" else ""
         return io.NodeOutput(gen.id, ui={"text": (f"{gen.title} · {gen.source} · {gen.cost}{budget}",)})
 
 
@@ -90,3 +95,16 @@ def register_routes() -> None:
     async def generators(request):
         kind = request.query.get("kind") or None
         return web.json_response({"generators": [describe(g) for g in list_generators(kind)]})
+
+    @routes.get("/majoor/api_ledger")
+    async def api_ledger(request):
+        from .generate_shot import LEDGER
+        return web.json_response({"runs": {run: {"seconds": s, "usd": round(u, 4)} for run, (s, u) in LEDGER.runs.items()}})
+
+    @routes.delete("/majoor/api_ledger")
+    async def api_ledger_reset(request):
+        """Forget what a budget key spent (?key=name), or every run: the way to start a shared budget again, and the cleanup of its file."""
+        from .generate_shot import LEDGER
+        key = request.query.get("key")
+        LEDGER.reset(f"key:{key}" if key else None)
+        return web.json_response({"ok": True})

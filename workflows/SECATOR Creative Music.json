@@ -989,7 +989,7 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "ChatGPT Image 21 oct. 2026, 11_21_12.png",
+        "example.png",
         "image"
       ],
       "title": "REF 1 · the subject (kept exactly as shown)",
@@ -1072,7 +1072,7 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "ChatGPT Image 21 oct. 2026, 11_21_12.png",
+        "example.png",
         "image"
       ],
       "title": "REF 2 · optional (bypassed)",
@@ -1155,7 +1155,7 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "ChatGPT Image 21 oct. 2026, 11_21_12.png",
+        "example.png",
         "image"
       ],
       "title": "REF 3 · optional (bypassed)",
@@ -1238,7 +1238,7 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "ChatGPT Image 21 oct. 2026, 11_21_12.png",
+        "example.png",
         "image"
       ],
       "title": "REF 4 · optional (bypassed)",
@@ -1321,7 +1321,7 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "ChatGPT Image 21 oct. 2026, 11_21_12.png",
+        "example.png",
         "image"
       ],
       "title": "REF 5 · optional (bypassed)",

@@ -22,7 +22,7 @@ def test_a_shot_writer_composes_with_its_modules(skill_id):
     full, on = compose(skill, module_states(skill, plate=True, dialogue=True))
     assert "PLACE block" not in plain and "DIALOGUE block" not in plain and "no dialogue" in plain.lower()
     assert "PLACE block" in full and "DIALOGUE block" in full and "no dialogue" not in full.lower()
-    assert "{{" not in plain and len(plain.split()) < 900  # the LLM of a shot gets a short prompt
+    assert "{{" not in plain and len(plain.split()) < 1800  # the LLM of a shot gets a prompt of its own, not the whole planner
 
 
 def test_the_message_names_the_model_it_writes_for():
@@ -48,7 +48,7 @@ def test_a_remix_shot_has_its_own_writer_for_each_model_that_can_remix():
     skill = load_skill("seedance_remix_prompt")
     assert skill.kind == "shot_writer" and skill.meta["target"] == "Seedance 2.5 edit"
     plain, _ = compose(skill, module_states(skill, dialogue=False))
-    assert "@Video1" in plain and "Replace the person" in plain and "DIALOGUE" not in plain and len(plain.split()) < 900
+    assert "@Video1" in plain and "Replace the person" in plain and "DIALOGUE" not in plain and len(plain.split()) < 1500
     for gid in list_generators("video"):
         gen = load_generator(gid)
         assert (not gen.remix) or load_skill(gen.remix_prompt_skill).kind in ("h3_writer", "shot_writer"), gid

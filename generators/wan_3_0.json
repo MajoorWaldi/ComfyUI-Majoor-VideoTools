@@ -21,6 +21,7 @@
     "last_frame": false
   },
   "audio": "native",
+  "prompt_max_chars": 20000,
   "prompt_skill": "wan_shot_prompt",
   "remix": false,
   "notes": "Reference to Video; the reference videos and the output together must not exceed 30 s. Image-to-video with first and last frame is Wan3ImageToVideoApi."

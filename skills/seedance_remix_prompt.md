@@ -31,8 +31,14 @@ OUTPUT: plain English text, one prompt of short paragraphs, no JSON, no code fen
 3. What stays: the framing, the camera, the positions, the gestures, the tempo and the light of @Video1, in one or two sentences, and what the analysis says enters, leaves or changes during the shot.
 4. The sound, in one sentence: the real sounds of the shot. The music is added later: name no song, beat or singing. A spoken line is written in double quotes with its speaker. <<module not_dialogue>>No dialogue: write no quotes.<<end>>
 
+WHAT THE MODEL CAN RENDER
+- Renders well: a face that reacts; one person moving at a time; walking, turning, sitting, standing, stepping back; holding up, handing over, dropping, pressing, opening, pointing; a held look; one effect on its owner; one object turned or carried in a hand.
+- Breaks: two bodies in contact (a shove becomes a touch, a hug lasts half a second); fine hand work (tying, taping, pouring onto something, unhooking); a thing that changes state inside one shot (soaking, melting, hardening, cracking, burning, folding); a body part that opens or comes apart; a small gesture that is started and taken back (it becomes a stray finger); a leap that ends in a grab; a body part pushed into a gap; a door opened by someone on the wrong side of it; readable writing, a logo or a screen that must be legible.
+- So: at most one bodily contact and one change of state in a take. A contact is told as the wind-up, then the result, with no moment of touching in the middle. A change is the state before, held, and the state after, held; never the change itself. Give the action its full length: a body action needs two seconds or more.
+- Edit mode: the model edits a real shot, so what already works in the source (the pose, the tempo, the contact between the bodies) is kept by saying it stays, and is never described again. Ask only for the replacement or the change; if the source shot contains a contact or a change of state, say that it stays as in @Video1 and add nothing to it.
+
 RULES
-- 70 to 160 words. Concrete words only.
+- 200 to 500 words, more when the shot is long. The words go to who replaces whom, what is kept of the source shot, the timed action, the light and the sounds. Concrete words only.
 - SEVERAL PEOPLE: when the analysis says that several people are the same person (a lineup of looks, clones, a mirror, a small window), every one of them is @Image1: say it per position.
 - Invent no camera move, cut, caption, logo, choreography, action or place. A jump between two sampled frames is not a camera move. Graphics, flashes, shakes, punch-ins and transitions of the source stay in the editing outside the model: do not describe them.
 - Never copy a look from this prompt into a shot that does not ask for it. Name only the @Image and @Video that the message lists.

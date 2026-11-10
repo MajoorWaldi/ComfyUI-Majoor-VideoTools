@@ -3,6 +3,7 @@
 `build_request` is pure: media are opaque handles (the links of a graph under expansion), so it runs and is tested without ComfyUI.
 It returns the class of the node, its inputs as the API prompt wants them (the dynamic combo `model` is flattened into `model.<name>` keys)
 and the notes about what had to be left out (more pictures than the model takes)."""
+import math
 from dataclasses import dataclass, field
 
 from .errors import MajoorError
@@ -30,6 +31,29 @@ def _take(handles: list, cap: int | None, what: str, notes: list[str], title: st
     return handles
 
 
+def fit_prompt(prompt: str, limit: int | None, title: str, notes: list[str]) -> str:
+    """A prompt over the limit of the model is cut after the last whole sentence that fits, and the notes say so: the API would refuse it, and the run would stop on a shot."""
+    if not limit or len(prompt) <= limit:
+        return prompt
+    head = prompt[:limit]
+    cut = max(head.rfind(mark) for mark in (". ", ".\n", "! ", "? ", "\n"))
+    head = head[:cut + 1] if cut > limit // 2 else head
+    notes.append(f"{title} takes at most {limit} characters of prompt: the last {len(prompt) - len(head)} characters were left out")
+    return head.rstrip()
+
+
+def whole_seconds(gen, seconds: float) -> int:
+    """The whole seconds a model is asked for: the length rounded up (a model cuts nothing shorter than asked), then kept within what it makes
+    (the next of its listed lengths, or its min..max). The ledger counts this figure, so it is the one that is paid."""
+    need = max(1, math.ceil(float(seconds) - 1e-6))
+    d = gen.duration or {}
+    values = d.get("values")
+    if values:
+        return next((int(v) for v in sorted(values) if v >= need), int(max(values)))
+    low, high, step = int(d.get("min", 1) or 1), int(d.get("max", need) or need), max(1, int(d.get("step", 1) or 1))
+    return min(high, max(low, low + step * math.ceil((need - low) / step)))
+
+
 def build_request(generator_id: str, *, prompt: str, seconds: float, aspect: str = "16:9", resolution: str = "720p", audio: bool = True, seed: int = 0,
                   images: list | None = None, videos: list | None = None, audios: list | None = None, fps: float = 24.0, task: str = "reference") -> Request:
     gen = load_generator(generator_id)
@@ -41,8 +65,9 @@ def build_request(generator_id: str, *, prompt: str, seconds: float, aspect: str
         raise MajoorError("The prompt of the shot is empty")
     if task not in gen.tasks:
         raise MajoorError(f"{gen.title} cannot do the task '{task}' (it does: {list(gen.tasks)}); a Remix needs a model that edits a source video")
-    secs = max(1, round(seconds))
+    secs = whole_seconds(gen, seconds)
     notes: list[str] = []
+    prompt = fit_prompt(prompt, gen.prompt_max_chars, gen.title, notes)
     images = _take(list(images or []), gen.limit("images"), "images", notes, gen.title)
     videos = _take(list(videos or []), gen.limit("videos"), "videos", notes, gen.title)
     audios = _take(list(audios or []), gen.limit("audios"), "audios", notes, gen.title)

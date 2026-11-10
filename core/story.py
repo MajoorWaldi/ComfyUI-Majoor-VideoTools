@@ -12,7 +12,7 @@ FIELDS = ("role", "new_information", "start_state", "action", "end_state", "hand
 def story_fields(value) -> dict:
     if not isinstance(value, dict):
         return {}
-    result = {key: value[key].strip()[:500] for key in FIELDS
+    result = {key: value[key].strip()[:1500] for key in FIELDS
               if isinstance(value.get(key), str) and value[key].strip()}
     if value.get('protect_action') is True:
         result['protect_action'] = True

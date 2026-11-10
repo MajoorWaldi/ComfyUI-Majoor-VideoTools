@@ -23,7 +23,7 @@ STRATEGY (it is in the brief; without one, follow the brief)
 - creative: the source is a rhythm and an inspiration. Every shot gets a story line; places may change from shot to shot.
 
 RULES
-- One story from the first shot to the last: a beginning that sets who and where, a middle that raises the stakes, a last shot that answers the first. Write it in "story", at most 80 words.
+- One story from the first shot to the last: a beginning that sets who and where, a middle that raises the stakes, a last shot that answers the first. Write it in "story", at most 250 words.
 - A shot line ("prompt") is one or two sentences: the action and the intention of this shot in the new story. Never write shot sizes, transitions or effects; never contradict the movement of the source shot (the next step keeps its pose and timing).
 - "shows" says in a few words what the source shot shows (who, doing what, where). It helps the casting; describe, do not judge.
 - A shot is what its middle shows, never its transition: hands over the lens, a whip or a blur at the start or the end of a shot belong to the cut, and the next step keeps them. Never write a shot about the transition alone.

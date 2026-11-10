@@ -15,16 +15,22 @@ class MajoorTakeCheck(io.ComfyNode):
             node_id="MajoorTakeCheck",
             display_name="Take Check",
             category="Majoor/VideoTools",
-            description="Look at a generated take (eight frames) and say whether it is usable: a take that is black or white from start to end, or only noise, is not. "
-                        "Dark, busy and still shots pass; a smeared face does not get caught. Connect ok to a switch that generates the shot again with another seed.",
-            inputs=[io.Video.Input("video")],
+            description="Say whether a generated take is usable. First its file is measured with ffprobe against what was asked (shape, resolution, length), then eight frames are looked at: "
+                        "a take that is black or white from start to end, or only noise, is not usable. Dark, busy and still shots pass; a smeared face does not get caught. "
+                        "Connect ok to a switch that generates the shot again with another seed.",
+            inputs=[io.Video.Input("video"),
+                    io.String.Input("aspect_ratio", default="", optional=True, tooltip="The shape asked of the model, such as 9:16 or 16:9. Empty: not checked."),
+                    io.String.Input("resolution", default="", optional=True, tooltip="480p, 720p or 1080p (the short side). Empty: not checked."),
+                    io.Float.Input("seconds", default=0.0, min=0.0, max=600.0, step=0.01, optional=True, tooltip="The length asked of the model. 0: not checked."),
+                    io.Combo.Input("task", options=["reference", "edit"], default="reference", optional=True,
+                                   tooltip="edit (Remix): the take keeps the shape and the length of its source shot, so only the resolution is checked.")],
             outputs=[io.Boolean.Output(display_name="ok"), io.String.Output(display_name="report", tooltip="What is wrong, or the numbers read from a take that is fine.")],
         )
 
     @classmethod
-    def execute(cls, video) -> io.NodeOutput:
+    def execute(cls, video, aspect_ratio="", resolution="", seconds=0.0, task="reference") -> io.NodeOutput:
         with video_file(video) as path:
-            ok, report = check_take(path)
+            ok, report = check_take(path, aspect_ratio.strip(), resolution.strip(), seconds, task)
         return io.NodeOutput(ok, report)
 
 

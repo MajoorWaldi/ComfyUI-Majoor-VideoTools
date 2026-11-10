@@ -1,5 +1,5 @@
 import uuid
-from collections import OrderedDict
+from pathlib import Path
 
 from comfy_api.latest import io
 from comfy_execution.graph_utils import GraphBuilder
@@ -14,27 +14,57 @@ from ..core.generators import list_generators, load_generator
 
 API = [g for g in list_generators("video") if load_generator(g).source == "api"]
 N_IMAGES = 9
-LEDGER = Ledger()
-HELD: OrderedDict[str, object] = OrderedDict()  # the references of the takes being made, handed to the API node of the expanded graph: a node can only be wired to a node
-KEEP_HELD = 64
 
 
-def hold(value) -> str:
+def _ledger_path() -> Path | None:
+    try:
+        import folder_paths
+        return Path(folder_paths.get_user_directory()) / "majoor_videotools" / "api_ledger.json"
+    except Exception:  # outside ComfyUI: the count stays in memory
+        return None
+
+
+LEDGER = Ledger(_ledger_path())
+# The references of the takes being made, handed to the API node of the expanded graph (a node can only be wired to a node): one entry per prompt,
+# each token is taken out when its Held node reads it, and what a prompt left behind (a take that stopped) is dropped when the next prompt holds.
+HELD: dict[str, dict[str, object]] = {}
+
+
+def _prompt_id() -> str:
+    return str(getattr(PromptServer.instance, "last_prompt_id", "") or "run")
+
+
+def hold(value, run: str | None = None) -> str:
+    run = run or _prompt_id()
+    for old in [r for r in HELD if r != run]:
+        del HELD[old]
     token = uuid.uuid4().hex
-    HELD[token] = value
-    while len(HELD) > KEEP_HELD:
-        HELD.popitem(last=False)
+    HELD.setdefault(run, {})[token] = value
     return token
 
 
-def api_budget(dynprompt) -> tuple[int, float]:
-    """MAX API SECONDS and MAX API USD of the Generator Select of the graph being run (the defaults when the graph has none or they are wired to something)."""
+def take_held(token: str, what: str):
+    for held in HELD.values():
+        if token in held:
+            return held.pop(token)
+    raise MajoorError(f"The {what} held for this take is gone (the graph was run again): run the shot again.")
+
+
+def api_budget(dynprompt) -> tuple[int, float, str]:
+    """MAX API SECONDS, MAX API USD and the budget key of the Generator Select of the graph being run (the defaults when the graph has none or they are wired)."""
     for node_id in dynprompt.all_node_ids():
         node = dynprompt.get_node(node_id)
         if node.get("class_type") == "MajoorGeneratorSelect":
-            seconds, usd = node.get("inputs", {}).get("max_api_seconds", DEFAULT_BUDGET_SECONDS), node.get("inputs", {}).get("max_api_usd", 0.0)
-            return (DEFAULT_BUDGET_SECONDS if isinstance(seconds, list) else int(seconds)), (0.0 if isinstance(usd, list) else float(usd))
-    return DEFAULT_BUDGET_SECONDS, 0.0
+            inputs = node.get("inputs", {})
+            seconds, usd, key = inputs.get("max_api_seconds", DEFAULT_BUDGET_SECONDS), inputs.get("max_api_usd", 0.0), inputs.get("budget_key", "")
+            return ((DEFAULT_BUDGET_SECONDS if isinstance(seconds, list) else int(seconds)), (0.0 if isinstance(usd, list) else float(usd)),
+                    ("" if not isinstance(key, str) else key.strip()))
+    return DEFAULT_BUDGET_SECONDS, 0.0, ""
+
+
+def budget_run(key: str) -> str:
+    """The run the takes are counted in: the budget key of Generator Select, or the prompt being run."""
+    return f"key:{key}" if key else _prompt_id()
 
 
 class MajoorHeldImage(io.ComfyNode):
@@ -46,9 +76,7 @@ class MajoorHeldImage(io.ComfyNode):
 
     @classmethod
     def execute(cls, token) -> io.NodeOutput:
-        if token not in HELD:
-            raise MajoorError("The picture held for this take is gone (the graph was run again): run the shot again.")
-        return io.NodeOutput(HELD[token])
+        return io.NodeOutput(take_held(token, "picture"))
 
 
 class MajoorHeldAudio(io.ComfyNode):
@@ -60,9 +88,7 @@ class MajoorHeldAudio(io.ComfyNode):
 
     @classmethod
     def execute(cls, token) -> io.NodeOutput:
-        if token not in HELD:
-            raise MajoorError("The audio held for this take is gone (the graph was run again): run the shot again.")
-        return io.NodeOutput(HELD[token])
+        return io.NodeOutput(take_held(token, "audio"))
 
 
 class MajoorHeldVideo(io.ComfyNode):
@@ -74,9 +100,7 @@ class MajoorHeldVideo(io.ComfyNode):
 
     @classmethod
     def execute(cls, token) -> io.NodeOutput:
-        if token not in HELD:
-            raise MajoorError("The video held for this take is gone (the graph was run again): run the shot again.")
-        return io.NodeOutput(HELD[token])
+        return io.NodeOutput(take_held(token, "video"))
 
 
 class MajoorGenerateShot(io.ComfyNode):
@@ -141,9 +165,9 @@ class MajoorGenerateShot(io.ComfyNode):
         )
         seconds_asked = float(request.inputs["model.duration"])
         price = evaluate(badge_of(request.class_type), request.inputs, request.media)  # the badge of the node that is about to be called, on the settings of this take
-        budget_seconds, budget_usd = api_budget(cls.hidden.dynprompt)
-        try:  # the budget of the run: this take is counted before the model is called
-            spent_seconds, spent_usd = LEDGER.charge(str(getattr(PromptServer.instance, "last_prompt_id", "") or "run"), seconds_asked, budget_seconds, price.high if price else 0.0, budget_usd)
+        budget_seconds, budget_usd, key = api_budget(cls.hidden.dynprompt)
+        try:  # the budget of the run: this take is counted before the model is called; an unknown price with a budget in dollars is refused
+            spent_seconds, spent_usd = LEDGER.charge(budget_run(key), seconds_asked, budget_seconds, price.high if price else None, budget_usd)
         except ValueError as e:
             raise MajoorError(str(e)) from e
         print(f"[Majoor] Generate Shot: {generator} {seconds_asked:g} s" + (f", about {price.text}" if price else "") + f" (this run: {spent_seconds:g} s" + (f", about ${spent_usd:.2f}" if price else "") + ")")

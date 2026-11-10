@@ -69,3 +69,24 @@ def test_the_creative_recipes_carry_the_budget(name):
     assert [i["name"] for i in select["inputs"]] == ["generator", "max_api_seconds", "max_api_usd"]
     guide = next(n for n in wf["nodes"] if n["type"] == "MarkdownNote" and n.get("title") == "GUIDE")
     assert "MAX API SECONDS" in guide["widgets_values"][0]
+
+
+def test_a_budget_in_dollars_without_a_price_stops_the_run_before_its_first_shot():
+    e = estimate("seedance_2_5", [f for _, f in SHOTS], 24, 0, 5.0)  # outside ComfyUI no badge is known
+    assert e.price is None and e.unpriced and e.over_budget and e.stops_at == 1 and "cannot be checked" in e.text
+    assert estimate("seedance_2_5", [f for _, f in SHOTS], 24, 0, 0.0).stops_at is None  # seconds only: nothing to check
+
+
+def test_the_estimate_counts_the_takes_a_shot_may_need():
+    one, two = estimate("seedance_2_5", [f for _, f in SHOTS], 24, 20), estimate("seedance_2_5", [f for _, f in SHOTS], 24, 20, takes=2)
+    assert one.stops_at is None and two.seconds == one.seconds and two.seconds_high == 28 and two.stops_at == 3  # 8 + 12 = 20 fits, + 8 does not
+    assert "up to 28 s with 2 takes" in two.text
+
+
+def test_the_widgets_of_a_saved_workflow_are_read_by_their_place_first():
+    from majoor_videotools.core.cost_guard import Settings, settings_of
+    select = {"type": "MajoorGeneratorSelect", "widgets_values": ["wan_3_0", 30, 2.5], "widgets_values_named": {"generator": "seedance_2_5", "max_api_seconds": 120, "max_api_usd": 0}}
+    assert selected_generator({"nodes": [select]}) == Choice("wan_3_0", 30, 2.5)  # the frontend keeps widgets_values; the named copy may be stale
+    shot = {"type": "MajoorGenerateShot", "widgets_values": ["16:9", "1080p", False, 7, "randomize", 24, "edit"], "widgets_values_named": {"resolution": "720p"}, "inputs": []}
+    assert settings_of({"nodes": [shot]}) == Settings("16:9", "1080p", False, 0, 0, 0, "edit")
+    assert settings_of({"nodes": [{"type": "MajoorGenerateShot", "widgets_values_named": {"aspect_ratio": "1:1"}, "inputs": []}]}).aspect == "1:1"  # a file with only names

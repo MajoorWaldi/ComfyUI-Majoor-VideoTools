@@ -8,7 +8,7 @@ from dataclasses import replace
 from .errors import MajoorError
 
 SOURCES = ("generate", "original", "title")
-MAX_TEXT = 600
+MAX_TEXT = 4000  # characters of a shot prompt: a prompt of 600 words is about 4,000
 
 
 def _clean(value, limit=MAX_TEXT) -> str:
@@ -40,7 +40,7 @@ def parse_remix_plan(text: str, pictures: int = 5) -> dict:
         seen.add(cid)
         picture = item.get("picture", 0)
         picture = picture if isinstance(picture, int) and not isinstance(picture, bool) and 0 <= picture <= min(pictures, 5) else 0
-        characters.append({"id": cid, "name": name or cid, "picture": picture, "look": _clean(item.get("look"), 300)})
+        characters.append({"id": cid, "name": name or cid, "picture": picture, "look": _clean(item.get("look"), 1000)})
     shots = {}
     rows = data.get("shots") or []
     if isinstance(rows, dict):  # {"SHOT_001": {...}} is the same plan

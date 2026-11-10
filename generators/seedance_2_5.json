@@ -21,6 +21,7 @@
     "last_frame": false
   },
   "audio": "native",
+  "prompt_max_chars": 5000,
   "prompt_skill": "seedance_shot_prompt",
   "remix": true,
   "tasks": [

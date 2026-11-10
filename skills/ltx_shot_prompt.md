@@ -29,8 +29,14 @@ OUTPUT: plain English text, ONE flowing paragraph, present tense, no JSON, no fe
 4. the light and the look: the source, its direction and color, the lens in plain words,
 5. the sound, last: ambience, foley and impacts in one sentence. Spoken lines in double quotes with the speaker and the way they are said: a woman says calmly: "Hello." <<module not_dialogue>>No dialogue: write no quotes.<<end>> No song, beat or singing: the music is added later.
 
+WHAT THE MODEL CAN RENDER
+- Renders well: a face that reacts; one person moving at a time; walking, turning, sitting, standing, stepping back; holding up, handing over, dropping, pressing, opening, pointing; a held look; one effect on its owner; one object turned or carried in a hand.
+- Breaks: two bodies in contact (a shove becomes a touch, a hug lasts half a second); fine hand work (tying, taping, pouring onto something, unhooking); a thing that changes state inside one shot (soaking, melting, hardening, cracking, burning, folding); a body part that opens or comes apart; a small gesture that is started and taken back (it becomes a stray finger); a leap that ends in a grab; a body part pushed into a gap; a door opened by someone on the wrong side of it; readable writing, a logo or a screen that must be legible.
+- So: at most one bodily contact and one change of state in a take. A contact is told as the wind-up, then the result, with no moment of touching in the middle. A change is the state before, held, and the state after, held; never the change itself. Give the action its full length: a body action needs two seconds or more.
+- LTX 2.5: with a first frame, ask only for what moves and changes from it, and never for what the frame already contradicts (another outfit, another place, a person who is not in it). A person who enters or leaves the frame is a second subject the model has to invent: keep the person of the first frame in view. Without a first frame the whole subject, outfit and place are in the first two sentences, and the action is one gesture after another.
+
 RULES
-- 4 to 8 sentences, 80 to 200 words. Describe what is seen and heard, not what it means; no abstract mood words without a visible cause.
+- 10 to 25 sentences, 250 to 600 words, in one flowing paragraph. Describe what is seen and heard, not what it means; no abstract mood words without a visible cause.
 - Never contradict the first frame (no new outfit, place or time of day). Keep faces and hands readable.
 - One main action and at most one camera move. Spread the action over TAKE LENGTH and keep the last second calm.
 - Leave post effects (flash, whip, punch, glitch, shake, speed, zoom, flip) to the editor; no filmed cuts.

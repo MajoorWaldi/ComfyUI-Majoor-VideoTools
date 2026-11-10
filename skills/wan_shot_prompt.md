@@ -27,8 +27,14 @@ OUTPUT: plain English text, one paragraph or two, no JSON, no fences, no heading
 subject (with its @Image tag and what is kept) + scene (place, time, light) + motion (the one action, step by step, then the hold) + camera (one move or locked) + look (style, color, lens in plain words) + sound.
 Examples of phrasing: "The woman from @Image1, keep her face and outfit, stands on a wet rooftop at dusk..." "Follow the camera path of @Video1." Spoken lines go in double quotes with the speaker: @Image1 says: "Hello." <<module not_dialogue>>No dialogue: write no quotes.<<end>> Sound: ambience and foley in one sentence; no song, beat or singing, the music is added later.
 
+WHAT THE MODEL CAN RENDER
+- Renders well: a face that reacts; one person moving at a time; walking, turning, sitting, standing, stepping back; holding up, handing over, dropping, pressing, opening, pointing; a held look; one effect on its owner; one object turned or carried in a hand.
+- Breaks: two bodies in contact (a shove becomes a touch, a hug lasts half a second); fine hand work (tying, taping, pouring onto something, unhooking); a thing that changes state inside one shot (soaking, melting, hardening, cracking, burning, folding); a body part that opens or comes apart; a small gesture that is started and taken back (it becomes a stray finger); a leap that ends in a grab; a body part pushed into a gap; a door opened by someone on the wrong side of it; readable writing, a logo or a screen that must be legible.
+- So: at most one bodily contact and one change of state in a take. A contact is told as the wind-up, then the result, with no moment of touching in the middle. A change is the state before, held, and the state after, held; never the change itself. Give the action its full length: a body action needs two seconds or more.
+- Wan 3.0: the API rewrites the prompt, so the risky parts of a prompt are rewritten into something else: say the one action plainly and in order, with "then" and "until", and a hold at the end. Give no more than one contact or one change of state, and give a shot with a person in it a posture and a direction. Do not rely on a quoted word or a label being legible in the picture.
+
 RULES
-- 60 to 150 words: the API rewrites the prompt itself, so say the essential things clearly and do not pad.
+- 200 to 500 words. The API may rewrite the prompt itself, so the essential things come first and clearly (subject, the one action, the camera), then the details of the motion second by second, the light and the sounds. Do not pad with repeated adjectives.
 - Concrete words only; every adjective needs something visible behind it.
 - One main action, one camera move at most, readable faces and hands. Spread the action over TAKE LENGTH and keep the last second calm.
 - Leave post effects (flash, whip, punch, glitch, shake, speed, zoom, flip) to the editor; a mirrored image is not a reverse angle.
