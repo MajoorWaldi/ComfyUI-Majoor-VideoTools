@@ -1,0 +1,37 @@
+{
+  "id": "ltx_2_5_pro",
+  "kind": "video",
+  "title": "LTX 2.5 Pro (API)",
+  "source": "api",
+  "node": "LtxApi25ImageToVideo",
+  "model": "LTX-2.5 (Pro)",
+  "family": "ltx",
+  "cost": "credits",
+  "duration": {
+    "mode": "seconds",
+    "min": 2,
+    "max": 10,
+    "step": 1,
+    "values": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      10
+    ]
+  },
+  "inputs": {
+    "images": 1,
+    "videos": 0,
+    "audios": 0,
+    "first_frame": true,
+    "last_frame": true
+  },
+  "audio": "native",
+  "prompt_max_chars": 10000,
+  "prompt_skill": "ltx_shot_prompt",
+  "remix": false,
+  "notes": "Same nodes as LTX 2.5 Fast, up to 10 s."
+}

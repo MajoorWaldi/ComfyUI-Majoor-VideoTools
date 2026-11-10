@@ -11,7 +11,7 @@ from ..core.errors import MajoorError
 from ..core.paths import ProjectStore
 from ..core.dialogue import lines_of_shot
 from ..core.profiles import DIALS, list_profiles, music_text, profile_text
-from ..core.skills import DEFAULTS, GENRES, compose, load_skill, module_states, prompt_skills, user_message
+from ..core.skills import DEFAULTS, GENRES, compose, load_skill, module_states, prompt_skills, skill_for_generator, user_message
 
 
 RATIOS = ("9:16", "16:9", "1:1", "4:5", "21:9", "2:3", "3:2", "3:4", "4:3")
@@ -36,6 +36,11 @@ def _shot_frames(shot_list) -> tuple[torch.Tensor | None, list[str]]:
     if not frames:
         return None, []
     return _stack([f[None] for f in frames]), ids
+
+
+def writer_skill(skill: str, generator: str) -> str:
+    """The skill that writes the prompt of a shot follows the video model of the graph: the prompt_skill of its file in the generators folder."""
+    return skill_for_generator(skill, generator)
 
 
 def _build(skill_id, overlays_splits, text_overlays, reference_mode, genre, duration, fps, aspect_ratio, n_pictures, text_allowed, extra, profile="none", dials=None, dialogue=False, locations=False, plate=False):
@@ -101,13 +106,15 @@ class MajoorEditSkills(io.ComfyNode):
                 io.Int.Input("height", default=0, min=0, max=4096, optional=True, tooltip="See width."),
                 io.Float.Input('shot_start',default=-1.0,min=-1.0,max=3600.0,optional=True,tooltip='Numeric start of this shot for dialogue; -1 reads the rhythm text.'),
                 io.Float.Input('shot_duration',default=0.0,min=0.0,max=3600.0,optional=True,tooltip='Numeric target duration of this shot for dialogue.'),
+                io.String.Input("generator", default="", optional=True, force_input=True, tooltip="The generator of Generator Select. A shot writer (h3_writer or shot_writer) is replaced by the prompt_skill of that model (generators folder), so that the prompt is written in the way the model reads; empty: the skill chosen above."),
             ],
             outputs=[io.String.Output(display_name="system_prompt"), io.String.Output(display_name="user_message"), io.String.Output(display_name="info"),
                      io.Image.Output(display_name="images", tooltip="The pictures, then the frames of <Video 1> and <Video 2>, then the frames of the shots, in the order the user message announces: connect it to the LLM instead of the pictures alone. Empty when no image is connected.")],
         )
 
     @classmethod
-    def execute(cls, skill, overlays_splits, text_overlays, reference_mode, genre, duration, fps, aspect_ratio, n_pictures, text_allowed, brief, extra_instructions, profile, cut_density, transition_intensity, creative_freedom, reference_fidelity, narrative_coherence, rhythm_text="", images=None, video_1=None, video_2=None, voice=None, dialogue="", plate=None, locations=False, width=0, height=0, shot_start=-1.0, shot_duration=0.0, shot_list=None) -> io.NodeOutput:
+    def execute(cls, skill, overlays_splits, text_overlays, reference_mode, genre, duration, fps, aspect_ratio, n_pictures, text_allowed, brief, extra_instructions, profile, cut_density, transition_intensity, creative_freedom, reference_fidelity, narrative_coherence, rhythm_text="", images=None, video_1=None, video_2=None, voice=None, dialogue="", plate=None, locations=False, width=0, height=0, shot_start=-1.0, shot_duration=0.0, shot_list=None, generator="") -> io.NodeOutput:
+        skill = writer_skill(skill, generator)
         n_pictures = (images.shape[0] if images is not None else n_pictures) + (plate is not None)
         groups, videos, count = ([images] if images is not None else []), [], (images.shape[0] if images is not None else 0)
         if plate is not None:  # the empty plate of the place: the last picture
@@ -132,7 +139,7 @@ class MajoorEditSkills(io.ComfyNode):
                                    dict(cut_density=cut_density, transition_intensity=transition_intensity, creative_freedom=creative_freedom, reference_fidelity=reference_fidelity, narrative_coherence=narrative_coherence),
                                    dialogue=voice is not None or bool(spoken), locations=locations, plate=plate is not None)
         info = f"{loaded.name} ({loaded.kind}): {len(text.split())} words; parts on: {', '.join(on) or 'none'}"
-        return io.NodeOutput(text, user_message(brief, rhythm_text, n_pictures, tuple(videos), voice is not None, spoken, plate is not None, shot_only=skill == 'h3_shot_prompt_from_plan', shot_frames=shot_frames), info, _stack(groups) if groups else None)
+        return io.NodeOutput(text, user_message(brief, rhythm_text, n_pictures, tuple(videos), voice is not None, spoken, plate is not None, shot_only=skill == 'h3_shot_prompt_from_plan' or loaded.kind == 'shot_writer', target=loaded.meta.get('target', 'H3'), shot_frames=shot_frames), info, _stack(groups) if groups else None)
 
 
 def register_routes() -> None:

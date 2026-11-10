@@ -26,6 +26,7 @@ UI_CACHE = ("majoor_ui", "majoor_compare", "majoor_assembly", "majoor_deploy")  
 SHOT_ID = re.compile(r"[A-Za-z0-9_-]{1,40}")
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 RECIPES = Path(__file__).resolve().parents[1] / "recipes"
+LEGACY_PREFIX = "SECATOR "
 GAP = 60.0
 
 
@@ -60,6 +61,8 @@ def load_recipe(name: str) -> dict:
     if not re.fullmatch(r"[\w .()&-]+", name or ""):
         raise MajoorError(f"Invalid recipe name {name!r}")
     path = RECIPES / f"{name}.json"
+    if not path.is_file() and name.startswith(LEGACY_PREFIX):  # the recipes were called SECATOR before: a saved graph still names them so
+        path = RECIPES / f"HyperKut {name[len(LEGACY_PREFIX):]}.json"
     if not path.is_file():
         raise MajoorError(f"Unknown recipe '{name}'. Available: {list_recipes()}")
     try:
@@ -337,9 +340,10 @@ def clone_block(block: Block, shot_id: str, index: int, origin: tuple[float, flo
     _set_widget(select, "shot_id", shot_id)
     _set_widget(select, "index", index)
     for node in nodes:  # the same seed for every shot would make them move alike
-        seed = (node.get("widgets_values_named") or {}).get("noise_seed")
+        name = "seed" if node["type"] == "MajoorGenerateShot" else "noise_seed"  # Generate Shot (API) has the seed of the API model
+        seed = (node.get("widgets_values_named") or {}).get(name)
         if isinstance(seed, int) and not isinstance(seed, bool):
-            _set_widget(node, "noise_seed", seed + index - 1)
+            _set_widget(node, name, seed + index - 1)
     apply = next((n for n in nodes if n["type"] == APPLY), None)
     shared = [[l[0], l[1], renumber[l[2]], l[3], l[4]] for l in block.shared_links]
     listed = [[renumber[i], slot] for i, slot in block.list_inputs]
@@ -444,10 +448,11 @@ class Report:
     created: list[str] = field(default_factory=list)
     replaced: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    confirm: list[str] = field(default_factory=list)  # questions to ask the user before the deployment is kept (the cost of the edit)
     nodes_added: int = 0
 
     def to_dict(self) -> dict:
-        return {"created": self.created, "replaced": self.replaced, "warnings": self.warnings, "nodes_added": self.nodes_added}
+        return {"created": self.created, "replaced": self.replaced, "warnings": self.warnings, "confirm": self.confirm, "nodes_added": self.nodes_added}
 
 
 def _finale(recipe: dict, template: Block) -> list[dict]:

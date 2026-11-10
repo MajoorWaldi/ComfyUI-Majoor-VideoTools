@@ -29,8 +29,7 @@ No model weights are included in the source distribution. A local installation o
 | MiniMax H3, associated VAEs / ControlNet / derivatives | [H3 Community License](https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE); separate authorization may apply |
 | YuE2-3B and audio VAE | [CC BY-NC 4.0 plus individual-creator permission](https://github.com/multimodal-art-projection/YuE/blob/main/MODEL_LICENSE); [Comfy checkpoint](https://huggingface.co/Comfy-Org/YuE2) |
 | Gemma 4 | [Apache-2.0](https://huggingface.co/Comfy-Org/gemma-4) |
-| FLUX.2 klein 4B | [Apache-2.0](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B); do not generalize to every FLUX variant |
-| Qwen3 4B | [Apache-2.0](https://huggingface.co/Qwen/Qwen3-4B) |
+| MiniMax H3 Image and its VAE (location plates) | [MiniMax H3 Image Community License](https://huggingface.co/MiniMaxAI/MiniMax-H3-Image/blob/main/LICENSE); [Comfy checkpoint](https://huggingface.co/Comfy-Org/MiniMax-H3-Image) |
 | Qwen3-VL used by H3 | Apache-2.0 for the base encoder, identified in the H3 license; verify the packaged H3 checkpoint too |
 | BiRefNet | [MIT](https://huggingface.co/ZhengPeng7/BiRefNet) |
 | DWPose / YOLOX | [DWPose](https://github.com/IDEA-Research/DWPose) / [YOLOX Apache-2.0](https://github.com/Megvii-BaseDetection/YOLOX/blob/main/LICENSE); checkpoint conversion/provenance must be recorded separately |

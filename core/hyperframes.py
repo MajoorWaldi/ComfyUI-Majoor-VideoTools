@@ -205,13 +205,15 @@ def write_composition(project: Path, source: Path, info, direction: dict, cues: 
     cards = []
     for i, cue in enumerate(cues):
         letters = ' '.join('<span class="w">' + ''.join('<span class="c">' + html.escape(c) + '</span>' for c in word) + '</span>' for word in cue['text'].split(' '))  # a word never breaks across two lines
-        cards.append(f'<div id="title{i}" class="clip title {cue["position"]}" data-start="{cue["start"]}" data-duration="{cue["end"]-cue["start"]}" data-track-index="1"><div class="panel"><div class="words">{letters}</div><div class="rule"></div></div></div>')
+        position = cue["position"] if cue.get("position") in ("top", "bottom") else "top"  # resolve_cues checks it; the HTML never takes another word
+        start, length = float(cue["start"]), float(cue["end"]) - float(cue["start"])
+        cards.append(f'<div id="title{i}" class="clip title {position}" data-start="{start}" data-duration="{length}" data-track-index="1"><div class="panel"><div class="words">{letters}</div><div class="rule"></div></div></div>')
     scene = Path(__file__).resolve().parents[1] / 'web/hyperframes_scene.html'
     config = {'duration': duration, 'fps': fps, 'cues': cues, 'audio': audio, 'layers': layers or [], 'layer_assets': layer_assets or {},
               'lottie': {name: json.loads((LOTTIE_DIR / f'{name}.json').read_text(encoding='utf-8')) for name in stickers}, 'text_timing': TEXT_TIMING, 'safe_boxes': {name: safe_box(width,height,pos[0]) for name,pos in TEXT_POSITIONS.items()}, **direction}
     # Script JSON cannot terminate the script tag, including user-supplied captions.
     encoded = json.dumps(config, ensure_ascii=True).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
-    values = {'__CONFIG__': encoded, '__CARDS__': ''.join(cards), '__WIDTH__': str(width), '__HEIGHT__': str(height), '__ACCENT__': direction['accent'], '__DURATION__': str(duration)}
+    values = {'__CONFIG__': encoded, '__CARDS__': ''.join(cards), '__WIDTH__': str(width), '__HEIGHT__': str(height), '__ACCENT__': direction['accent'] if re.fullmatch(r'#[0-9a-fA-F]{6}', str(direction.get('accent', ''))) else '#e4c081', '__DURATION__': str(duration)}
     body = re.sub('|'.join(map(re.escape, values)), lambda m: values[m.group(0)], scene.read_text(encoding='utf-8'))  # one pass: user text can never be substituted again
     (project / 'compositions').mkdir(exist_ok=True)
     (project / 'compositions/motion.html').write_text(body, encoding='utf-8')

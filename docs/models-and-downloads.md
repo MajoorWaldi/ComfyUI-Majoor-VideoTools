@@ -16,9 +16,8 @@ Inventory of maintained Studio API templates, 2026-11-02. Filenames are loader s
 | Voice transcription | large-v3 (folder of faster-whisper files) | faster-whisper | [Systran/faster-whisper-large-v3](https://huggingface.co/Systran/faster-whisper-large-v3); also `pip install faster-whisper`; read by Transcribe Voice, never downloaded by the pack |
 | H3 turbo LoRA | minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors | loras | Configured local filename; exact provider/revision remains to be pinned; do not silently substitute a 4-step version |
 | Music | yue2_3b_int8_convrot.safetensors | checkpoints | [Comfy-Org/YuE2](https://huggingface.co/Comfy-Org/YuE2), combined model/encoder/VAE |
-| Location plates | flux-2-klein-4b-fp8.safetensors | diffusion_models | [BFL](https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-fp8), optional plate branch |
-| Plate encoder | qwen_3_4b.safetensors | text_encoders | [Comfy-Org/flux2-klein](https://huggingface.co/Comfy-Org/flux2-klein), split_files |
-| Plate VAE | flux2-vae.safetensors | vae | Same FLUX repository; its component terms apply |
+| Location plates | minimax_h3_image_pruned_int8_convrot.safetensors | diffusion_models | [Comfy-Org/MiniMax-H3-Image](https://huggingface.co/Comfy-Org/MiniMax-H3-Image), optional plate branch (ComfyUI 0.45 or later); the text encoder is the one of H3 |
+| Plate VAE | minimax_h3_image_vae_fp16.safetensors | vae | Same H3 Image repository |
 | Subject mask | birefnet.safetensors | model loader's mask folder | [BiRefNet](https://huggingface.co/ZhengPeng7/BiRefNet); follow the installed native loader's directory mapping |
 | Pose / detection | dw-ll_ucoco_384_bs5.torchscript.pt; yolox_l.onnx | controlnet_aux managed location | [DWPose](https://github.com/IDEA-Research/DWPose) / [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX); record converted checkpoint provider |
 

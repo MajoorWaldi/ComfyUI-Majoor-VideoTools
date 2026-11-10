@@ -1,0 +1,28 @@
+{
+  "id": "minimax_h3",
+  "kind": "video",
+  "title": "MiniMax H3 Ref2VA (local)",
+  "source": "local",
+  "node": "MiniMaxH3ReferenceToVideo",
+  "model": "",
+  "family": "h3",
+  "cost": "free",
+  "duration": {
+    "mode": "frames_grid",
+    "min_frames": 124,
+    "step": 17,
+    "offset": 5
+  },
+  "inputs": {
+    "images": null,
+    "videos": null,
+    "audios": null,
+    "first_frame": false,
+    "last_frame": false
+  },
+  "audio": "native",
+  "prompt_skill": "h3_shot_prompt_from_plan",
+  "remix": true,
+  "remix_prompt_skill": "remix_shot_prompt",
+  "notes": "Local. Lengths are 17k+5 frames, at least 124."
+}

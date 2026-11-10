@@ -8,10 +8,10 @@ from majoor_videotools.core.skills import list_skills
 
 from conftest import ROOT
 
-NAMES = ("SECATOR Remix", "SECATOR Creative Text", "SECATOR Creative Music")
+NAMES = ("HyperKut Remix", "HyperKut Creative Text", "HyperKut Creative Music")
 
 
-@pytest.mark.parametrize("name", ("SECATOR Remix", "SECATOR Creative Text"))
+@pytest.mark.parametrize("name", ("HyperKut Remix", "HyperKut Creative Text"))
 def test_visual_music_workflows_use_combined_yue2_and_instrumental_score(name):
     workflow = _load(name)
     nodes = workflow['nodes'] + [node for sub in workflow['definitions']['subgraphs'] for node in sub['nodes']]
@@ -85,7 +85,7 @@ def test_the_nodes_do_not_overlap_and_the_notes_list_the_dependencies(name):
 @pytest.mark.parametrize("name", NAMES)
 def test_five_pictures_and_the_controls(name):
     wf = _load(name)
-    loaders = [n for n in wf["nodes"] if n["type"] == "LoadImage"]
+    loaders = [n for n in wf["nodes"] if n["type"] == "LoadImage" and n["title"].startswith("REF ")]  # the picture of the place is not a reference
     assert [n["title"].split(" · ")[0] for n in loaders] == [f"REF {k}" for k in range(1, 6)] and [n["mode"] for n in loaders] == [0, 4, 4, 4, 4]
     titles = [n.get("title", "") for n in wf["nodes"]]
     assert any(t.startswith("VOICE ON") for t in titles) and any("TURBO" in t for t in titles)
@@ -93,6 +93,21 @@ def test_five_pictures_and_the_controls(name):
     assert [i["name"] for i in batch["inputs"]] == [f"images.image{k}" for k in range(5)]
     h3 = next(n for n in wf["nodes"] if n["type"].count("-") == 4 and any(i["name"] == "ref_images.ref_image_4" for i in n["inputs"]))
     assert all(h3["inputs"][[i["name"] for i in h3["inputs"]].index(f"ref_images.ref_image_{k}")]["link"] is not None for k in range(5))
+
+
+@pytest.mark.parametrize("name", NAMES[1:])
+def test_the_plates_are_painted_by_minimax_h3_image_with_the_text_encoder_of_h3(name):
+    wf = _load(name)
+    plate = next(d for d in wf["definitions"]["subgraphs"] if d["name"] == "Plate · the empty place of a shot")
+    kinds = {n["type"] for n in plate["nodes"]}
+    assert {"MiniMaxH3ImageConditioning", "BasicScheduler"} <= kinds and not {"CLIPTextEncode", "EmptyFlux2LatentImage", "Flux2Scheduler"} & kinds
+    assert next(n for n in plate["nodes"] if n["type"] == "BasicScheduler")["widgets_values"] == ["simple", 6, 1]  # the distilled grid (pdd_steps 6)
+    by_title = {n.get("title"): n for n in wf["nodes"]}
+    assert by_title["Plate · MiniMax H3 Image"]["widgets_values"][0] == "minimax_h3_image_pruned_int8_convrot.safetensors"
+    assert by_title["Plate · H3 Image VAE"]["widgets_values"] == ["minimax_h3_image_vae_fp16.safetensors"]
+    h3_clip, set_clip = by_title["H3 · text encoder"], next(n for n in wf["nodes"] if n["type"] == "SetNode" and n["widgets_values"] == ["PLATE_CLIP"])
+    assert set_clip["inputs"][0]["link"] in h3_clip["outputs"][0]["links"]  # one text encoder for the shots and the plates
+    assert "flux" not in json.dumps(wf).lower()
 
 
 def test_the_creative_workflows_make_places_and_the_remix_the_sound():
@@ -194,3 +209,19 @@ def test_sources_do_not_contain_accidental_control_characters():
             if path.is_file() and path.suffix in (".py", ".js", ".mjs", ".md", ".txt"):
                 unexpected = {byte for byte in path.read_bytes() if byte < 32 and byte not in (9, 10, 13)}
                 assert not unexpected, f"{path}: control characters {sorted(unexpected)}"
+
+
+@pytest.mark.parametrize("name", NAMES[1:])
+def test_a_picture_of_the_place_replaces_the_generated_plate_when_it_is_turned_on(name):
+    wf = _load(name)
+    by_title = {n.get("title"): n for n in wf["nodes"]}
+    use, image, switch = by_title["USE THE PLACE IMAGE"], by_title["PLACE IMAGE · optional, replaces the generated places"], by_title["PLACE · your image, else the generated plate"]
+    plate = next(n for n in wf["nodes"] if (n.get("title") or "").startswith("PLATE CHECK · only when"))
+    links = {l[0]: l for l in wf["links"]}
+    into = {i["name"]: links[i["link"]][1] for i in switch["inputs"] if i["link"] is not None}
+    assert into == {"switch": use["id"], "on_true": image["id"], "on_false": plate["id"]}
+    assert use["widgets_values"] == [False] and image["mode"] == 0  # off by default: the picture is not read, the generated places are used
+    assert plate["outputs"][0]["links"] == [switch["inputs"][[i["name"] for i in switch["inputs"]].index("on_false")]["link"]]  # nothing reads the plate but the switch
+    readers = {links[l][3] for l in switch["outputs"][0]["links"]}
+    kinds = [n["type"] for n in wf["nodes"] if n["id"] in readers]
+    assert kinds.count("MajoorGenerateShot") == 2 and len(readers) == 5  # the two API takes, the H3 sub-graphs and the shot writer

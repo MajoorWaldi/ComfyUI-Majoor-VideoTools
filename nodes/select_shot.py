@@ -6,6 +6,7 @@ from comfy_api.latest import VideoFromFile
 
 from ..adapters.comfy_video import MajoorShotList, MajoorShotMetadata, projects_root
 from ..core.fx import describe_shot
+from ..core.generators import generation_seconds_for, list_generators
 from ..core.paths import ProjectStore
 from ..core.revisions import TAKES, find_revision, find_shot, make_metadata, revision_media, sample_shot_images
 from ..core.timeline import format_timecode, shot_start
@@ -64,6 +65,9 @@ class MajoorSelectShot(io.ComfyNode):
         plan = shot.plan or {}
         # a quarter of a frame under the length to ask for: a generator that rounds a duration up to its frame grid (17k + 5) then lands on generation_frames, not one step above
         generation_seconds = (plan["generation_frames"] - 0.25) / float(shot_list.source.fps) if plan.get("generation_frames") else float(shot.target_duration_seconds)
+        if plan.get("generator") in list_generators("video"):  # a model that works in whole seconds is asked for exactly those
+            exact = generation_seconds_for(plan["generator"], shot.frame_count, shot_list.source.fps)
+            generation_seconds = exact if exact is not None else generation_seconds
 
         start = float(shot_start(shot_list.source, shot))
         fx_info, fx_text = describe_shot(shot.shot_id, start, float(shot.target_duration_seconds), shot.frame_count, plan, float(shot_list.source.fps))

@@ -72,7 +72,7 @@ class MajoorCreateTimeline(io.ComfyNode):
                 io.Float.Input("fps", default=0.0, min=0.0, max=240.0, step=0.001, tooltip="0: automatic (the JSON's fps, the video's fps, or 24)."),
                 io.Combo.Input("aspect_ratio", options=["auto", *ASPECTS], default="auto", tooltip="auto: the JSON's, the video's, or 16:9."),
                 io.Int.Input("resolution", default=768, min=64, max=4096, tooltip="Longest side of the placeholder video."),
-                io.Combo.Input("generation_profile", options=list(PROFILES), default="minimax_h3", tooltip="minimax_h3 asks generators for at least 124 frames, on the 17k+5 grid. generation_frames of Select Shot gives the number to request."),
+                io.Combo.Input("generation_profile", options=list(PROFILES), default="minimax_h3", tooltip="The video generator the shots are planned for (the files of the generators folder): none asks for the length of the shot as it is, minimax_h3 for at least 124 frames on the 17k+5 grid, an API model such as seedance_2_5 or wan_3_0 for whole seconds within what it can make. generation_frames of Select Shot gives the number to request; a shot the generator cannot make is reported in the warnings."),
                 io.Audio.Input("music", optional=True, tooltip="Required by source=music. With json it is the master audio of the timeline (cut_snap uses it). Keep it with audio_policy=source_master in Shot Assemble."),
                 io.Video.Input("video", optional=True, tooltip="Required by source=video."),
                 io.Boolean.Input("preview_thumbnails", default=True, optional=True),
@@ -90,6 +90,7 @@ class MajoorCreateTimeline(io.ComfyNode):
                 io.Combo.Input("music_cut_every", options=list(CUT_EVERY), default="2_beats", optional=True),
                 io.Combo.Input("music_cut_mood", options=["auto", "calm", "confident", "dreamy", "intense"], default="auto", optional=True, tooltip="Optional artistic mood bias. Acoustic energy and accents remain measured from the music."),
                 io.String.Input("words_json", default="", optional=True, force_input=True, tooltip="Words with times from Music Words: in the phrases mode, the cuts fall in the pauses between the sung or spoken phrases they give, instead of the loud stretches of the voice."),
+                io.String.Input("generator", default="", optional=True, force_input=True, tooltip="The generator of Generator Select: it replaces generation_profile, so that the plan follows the model the graph generates with."),
             ],
             outputs=[
                 MajoorShotList.Output(display_name="shot_list"),
@@ -102,7 +103,11 @@ class MajoorCreateTimeline(io.ComfyNode):
     @classmethod
     def execute(cls, source, fps, aspect_ratio, resolution, generation_profile, music=None, video=None, preview_thumbnails=True, card_text=True, width=0, height=0, skeleton_json="", rhythm_reference_only=False,
                 music_edit_mode="legacy", music_cut_density="auto", music_cut_variation=0.5, music_cut_sync=1.0,
-                music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", project_root="", words_json="") -> io.NodeOutput:
+                music_cut_seed=42, music_cut_every="2_beats", music_cut_mood="auto", project_root="", words_json="", generator="") -> io.NodeOutput:
+        if generator.strip():
+            if generator.strip() not in PROFILES:
+                raise MajoorError(f"Unknown generator '{generator.strip()}'. Available: {list(PROFILES)}")
+            generation_profile = generator.strip()
         kind = source["source"]
         rate = fps if fps > 0 else 24.0
         aspect = "16:9" if aspect_ratio == "auto" else aspect_ratio

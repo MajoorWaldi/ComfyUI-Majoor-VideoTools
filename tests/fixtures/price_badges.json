@@ -1,0 +1,100 @@
+{
+ "ByteDance2ReferenceNodeV2": {
+  "engine": "jsonata",
+  "depends_on": {
+   "widgets": [
+    {
+     "name": "model",
+     "type": "COMFY_DYNAMICCOMBO_V3"
+    },
+    {
+     "name": "model.resolution",
+     "type": "COMBO"
+    },
+    {
+     "name": "model.ratio",
+     "type": "COMBO"
+    },
+    {
+     "name": "model.duration",
+     "type": "INT"
+    },
+    {
+     "name": "model.task_type",
+     "type": "COMBO"
+    }
+   ],
+   "inputs": [],
+   "input_groups": [
+    "model.reference_videos"
+   ]
+  },
+  "expr": "\n(\n  $m := widgets.model;\n  $res := $lookup(widgets, \"model.resolution\");\n  $ratio := $lookup(widgets, \"model.ratio\");\n  $dur := $lookup(widgets, \"model.duration\");\n  $auto := $lookup(widgets, \"model.task_type\") = \"edit\";\n  $hasVideo := $exists(inputGroups) and $lookup(inputGroups, \"model.reference_videos\") > 0;\n  $ready := $type($m) = \"string\" and $type($res) = \"string\" and ($auto or $type($dur) = \"number\");\n  $ready ? (\n    $contains($m, \"2.5\") ? (\n      $is480 := $res = \"480p\";\n      $is1080 := $res = \"1080p\";\n      $is4k := $res = \"4k\";\n      $perFrame := $ratio = \"1:1\"  ? ($is480 ? 400      : $is1080 ? 2025      : $is4k ? 8100      : 900) :\n                   $ratio = \"4:3\"  ? ($is480 ? 411.25   : $is1080 ? 2028      : $is4k ? 8100.6289 : 905.6719) :\n                   $ratio = \"3:4\"  ? ($is480 ? 411.25   : $is1080 ? 2028      : $is4k ? 8100.6289 : 905.6719) :\n                   $ratio = \"21:9\" ? ($is480 ? 418.5    : $is1080 ? 2037.9648 : $is4k ? 8100.2227 : 904.3945) :\n                                     ($is480 ? 400.3125 : $is1080 ? 2025      : $is4k ? 8100      : 900);\n      $price := $is4k   ? ($hasVideo ? 0.004147 : 0.006721) :\n                $is1080 ? ($hasVideo ? 0.01001 : 0.016731) :\n                          ($hasVideo ? 0.009152 : 0.015301);\n      $costFor := function($d) { $floor($perFrame * (24 * $d + 1)) / 1000 * $price };\n      $lo := $costFor($auto ? 4 : $dur);\n      $hi := $costFor(($auto ? 30 : $dur) + ($hasVideo ? 30 : 0));\n      $lo = $hi\n        ? {\"type\": \"usd\", \"usd\": $lo, \"format\": {\"approximate\": true}}\n        : {\"type\": \"range_usd\", \"min_usd\": $lo, \"max_usd\": $hi, \"format\": {\"approximate\": true}}\n    ) : (\n      $rate := $res = \"4k\"    ? 195200 :\n               $res = \"1080p\" ? 48800 :\n               $res = \"720p\"  ? 21600 : 10044;\n      $noVideoPrice := $res = \"4k\"    ? 0.00572 :\n                       $res = \"1080p\" ? 0.011011 :\n                       $contains($m, \"mini\") ? 0.005005 :\n                       $contains($m, \"fast\") ? 0.008008 : 0.01001;\n      $videoPrice := $res = \"4k\"    ? 0.003432 :\n                     $res = \"1080p\" ? 0.006721 :\n                     $contains($m, \"mini\") ? 0.003003 :\n                     $contains($m, \"fast\") ? 0.004719 : 0.006149;\n      $hasVideo\n        ? {\"type\": \"range_usd\",\n           \"min_usd\": $ceil($dur * 5 / 3) * $rate * $videoPrice / 1000,\n           \"max_usd\": (15 + $dur) * $rate * $videoPrice / 1000,\n           \"format\": {\"approximate\": true}}\n        : {\"type\": \"usd\", \"usd\": $dur * $rate * $noVideoPrice / 1000,\n           \"format\": {\"approximate\": true}}\n    )\n  ) : undefined\n)\n"
+ },
+ "LtxApi25ImageToVideo": {
+  "engine": "jsonata",
+  "depends_on": {
+   "widgets": [
+    {
+     "name": "model",
+     "type": "COMFY_DYNAMICCOMBO_V3"
+    },
+    {
+     "name": "model.duration",
+     "type": "COMBO"
+    },
+    {
+     "name": "model.resolution",
+     "type": "COMBO"
+    }
+   ],
+   "inputs": [],
+   "input_groups": []
+  },
+  "expr": "\n    (\n      $prices := {\n        \"ltx-2.5 (fast)\": {\n          \"1280x720\":0.1287,\"720x1280\":0.1287,\n          \"1920x1080\":0.1859,\"1080x1920\":0.1859,\n          \"2560x1440\":0.2717,\"1440x2560\":0.2717,\n          \"3840x2160\":0.429,\"2160x3840\":0.429\n        },\n        \"ltx-2.5 (pro)\": {\n          \"1280x720\":0.1716,\"720x1280\":0.1716,\n          \"1920x1080\":0.2431,\"1080x1920\":0.2431\n        }\n      };\n      $model := $lookup(widgets, \"model\");\n      $table := $type($model) = \"string\" ? $lookup($prices, $model) : undefined;\n      $res := $lookup(widgets, \"model.resolution\");\n      $pps := $type($table) = \"object\" and $type($res) = \"string\" ? $lookup($table, $res) : undefined;\n      $durRaw := $lookup(widgets, \"model.duration\");\n      $dur := $type($durRaw) in [\"string\", \"number\"] ? $number($durRaw) : undefined;\n      $type($pps) = \"number\" and $type($dur) = \"number\"\n        ? {\"type\":\"usd\",\"usd\": $pps * $dur}\n        : undefined\n    )\n    "
+ },
+ "LtxApi25TextToVideo": {
+  "engine": "jsonata",
+  "depends_on": {
+   "widgets": [
+    {
+     "name": "model",
+     "type": "COMFY_DYNAMICCOMBO_V3"
+    },
+    {
+     "name": "model.duration",
+     "type": "COMBO"
+    },
+    {
+     "name": "model.resolution",
+     "type": "COMBO"
+    }
+   ],
+   "inputs": [],
+   "input_groups": []
+  },
+  "expr": "\n    (\n      $prices := {\n        \"ltx-2.5 (fast)\": {\n          \"1280x720\":0.1287,\"720x1280\":0.1287,\n          \"1920x1080\":0.1859,\"1080x1920\":0.1859,\n          \"2560x1440\":0.2717,\"1440x2560\":0.2717,\n          \"3840x2160\":0.429,\"2160x3840\":0.429\n        },\n        \"ltx-2.5 (pro)\": {\n          \"1280x720\":0.1716,\"720x1280\":0.1716,\n          \"1920x1080\":0.2431,\"1080x1920\":0.2431\n        }\n      };\n      $model := $lookup(widgets, \"model\");\n      $table := $type($model) = \"string\" ? $lookup($prices, $model) : undefined;\n      $res := $lookup(widgets, \"model.resolution\");\n      $pps := $type($table) = \"object\" and $type($res) = \"string\" ? $lookup($table, $res) : undefined;\n      $durRaw := $lookup(widgets, \"model.duration\");\n      $dur := $type($durRaw) in [\"string\", \"number\"] ? $number($durRaw) : undefined;\n      $type($pps) = \"number\" and $type($dur) = \"number\"\n        ? {\"type\":\"usd\",\"usd\": $pps * $dur}\n        : undefined\n    )\n    "
+ },
+ "Wan3ReferenceToVideoApi": {
+  "engine": "jsonata",
+  "depends_on": {
+   "widgets": [
+    {
+     "name": "model",
+     "type": "COMFY_DYNAMICCOMBO_V3"
+    },
+    {
+     "name": "model.resolution",
+     "type": "COMBO"
+    },
+    {
+     "name": "model.duration",
+     "type": "COMBO"
+    }
+   ],
+   "inputs": [],
+   "input_groups": []
+  },
+  "expr": "\n                (\n                  $ppsTable := $contains(widgets.model, \"prime\")\n                    ? { \"480p\": 0.09724, \"720p\": 0.2002, \"1080p\": 0.4004 }\n                    : { \"480p\": 0.0715, \"720p\": 0.143, \"1080p\": 0.286 };\n                  $pps := $lookup($ppsTable, $lookup(widgets, \"model.resolution\"));\n                  $dur := $lookup(widgets, \"model.duration\");\n                  $dur = \"auto\"\n                    ? { \"type\": \"usd\", \"usd\": $pps, \"format\": {\"suffix\": \"/second\"} }\n                    : (\n                        $minUsd := $number($dur) * $pps;\n                        $maxUsd := $min([$number($dur) + 15, 30]) * $pps;\n                        $minUsd = $maxUsd\n                          ? { \"type\": \"usd\", \"usd\": $minUsd }\n                          : { \"type\": \"range_usd\", \"min_usd\": $minUsd, \"max_usd\": $maxUsd }\n                      )\n                )\n                "
+ }
+}
